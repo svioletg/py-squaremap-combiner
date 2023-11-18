@@ -100,8 +100,6 @@ def main():
 
         ZOOM = input('\nSelect a zoom level to use (number): ')
 
-        WORKING_DIR = Path(TILES_DIR, WORLD, ZOOM).absolute()
-
         RESIZE_BY = float(input('Enter a multiplier to resize the final image by;\n1 for no resizing; 0.5 is half as large, 2 is twice as large, etc.: ').strip())
 
         if input('Continue with the chosen settings? (y/n) ').strip().lower() != 'y':
