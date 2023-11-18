@@ -50,61 +50,65 @@ def combine(tiles_path: Path, world: str, zoom_level: str, resize_mult: float):
     canvas.save(f'{world}-level{zoom_level}.png')
     print(f'Final image saved to "{world}-level{zoom_level}.png"')
 
-parser = ArgumentParser()
-parser.add_argument('-i', '--interactive', action='store_true')
-parser.add_argument('-t', '--tilespath', 
-    help='Path to your "tiles" directory. Must be an absolute path if it is not within the folder this script is running from.')
-parser.add_argument('-w', '--world', 
-    help="Name of the world to create an image from - defaults available are minecraft_overworld, minecraft_the_nether, and minecraft_the_end.")
-parser.add_argument('-z', '--zoom', 
-    help="Zoom level to use images from. 0 is the lowest detail and smallest size, 3 is the highest detail and largest size.")
-parser.add_argument('-r', '--resize',
-    help="Multiplier to resize the final image by. 0.5 is half as large, 1 is original size, 2 is twice as large, etc.")
-args = parser.parse_args()
+def main():
+    parser = ArgumentParser()
+    parser.add_argument('-i', '--interactive', action='store_true')
+    parser.add_argument('-t', '--tilespath', 
+        help='Path to your "tiles" directory. Must be an absolute path if it is not within the folder this script is running from.')
+    parser.add_argument('-w', '--world', 
+        help="Name of the world to create an image from - defaults available are minecraft_overworld, minecraft_the_nether, and minecraft_the_end.")
+    parser.add_argument('-z', '--zoom', 
+        help="Zoom level to use images from. 0 is the lowest detail and smallest size, 3 is the highest detail and largest size.")
+    parser.add_argument('-r', '--resize',
+        help="Multiplier to resize the final image by. 0.5 is half as large, 1 is original size, 2 is twice as large, etc.")
+    args = parser.parse_args()
 
-for arg in vars(args):
-    if args.interactive:
-        break
-    if vars(args)[arg] is None:
-        print(f'Missing argument "--{arg}"; use "-i" or "--interactive" to have the script walk you through each step; use "--help" to see all arguments.')
-        exit()
+    for arg in vars(args):
+        if args.interactive:
+            break
+        if vars(args)[arg] is None:
+            print(f'Missing argument "--{arg}"; use "-i" or "--interactive" to have the script walk you through each step; use "--help" to see all arguments.')
+            exit()
 
-if not args.interactive:
-    TILES_DIR = Path(args.tilespath)
-    WORLD = str(args.world)
-    ZOOM = int(args.zoom)
-    RESIZE_BY = float(args.resize)
-    pass
-else:
-    # Take user input
-    TILES_DIR = Path(input('Enter the path to your "tiles" folder: ').strip())
-    if not TILES_DIR.exists():
-        print(f'The path "{TILES_DIR}" does not exist; exiting...')
-        exit()
+    if not args.interactive:
+        TILES_DIR = Path(args.tilespath)
+        WORLD = str(args.world)
+        ZOOM = int(args.zoom)
+        RESIZE_BY = float(args.resize)
+        pass
+    else:
+        # Take user input
+        TILES_DIR = Path(input('Enter the path to your "tiles" folder: ').strip())
+        if not TILES_DIR.exists():
+            print(f'The path "{TILES_DIR}" does not exist; exiting...')
+            exit()
 
-    WORLDS = [d for d in os.listdir(TILES_DIR) if Path(TILES_DIR, d).is_dir()]
-    WORLD = WORLDS[int(input('\n'+'\n'.join(f'{n}: {world}' for n, world in enumerate(WORLDS))+'\n\nSelect a map to use (number): '))]
+        WORLDS = [d for d in os.listdir(TILES_DIR) if Path(TILES_DIR, d).is_dir()]
+        WORLD = WORLDS[int(input('\n'+'\n'.join(f'{n}: {world}' for n, world in enumerate(WORLDS))+'\n\nSelect a map to use (number): '))]
 
-    ZOOM_LEVELS = [d for d in os.listdir(Path(TILES_DIR, WORLD)) if Path(TILES_DIR, WORLD, d).is_dir()]
+        ZOOM_LEVELS = [d for d in os.listdir(Path(TILES_DIR, WORLD)) if Path(TILES_DIR, WORLD, d).is_dir()]
 
-    for level in ZOOM_LEVELS:
-        files  = os.listdir(Path(TILES_DIR, WORLD, level))
-        amount = len(files)
-        with Image.open(Path(TILES_DIR, WORLD, level, files[0])) as img:
-            size = img.size[0]
-        # TODO: see what these levels actually are
-        flavortext = {0: "(lowest detail)", 3: "(highest detail)"}.get(int(level), "")
-        print(f'{level} {flavortext} | {amount} images were found, estimated combined size is {int(math.sqrt(amount*(size*size)))}px')
-        del files, amount, size
+        for level in ZOOM_LEVELS:
+            files  = os.listdir(Path(TILES_DIR, WORLD, level))
+            amount = len(files)
+            with Image.open(Path(TILES_DIR, WORLD, level, files[0])) as img:
+                size = img.size[0]
+            # TODO: see what these levels actually are
+            flavortext = {0: "(lowest detail)", 3: "(highest detail)"}.get(int(level), "")
+            print(f'{level} {flavortext} | {amount} images were found, estimated combined size is {int(math.sqrt(amount*(size*size)))}px')
+            del files, amount, size
 
-    ZOOM = input('\nSelect a zoom level to use (number): ')
+        ZOOM = input('\nSelect a zoom level to use (number): ')
 
-    WORKING_DIR = Path(TILES_DIR, WORLD, ZOOM).absolute()
+        WORKING_DIR = Path(TILES_DIR, WORLD, ZOOM).absolute()
 
-    RESIZE_BY = float(input('Enter a multiplier to resize the final image by;\n1 for no resizing; 0.5 is half as large, 2 is twice as large, etc.: ').strip())
+        RESIZE_BY = float(input('Enter a multiplier to resize the final image by;\n1 for no resizing; 0.5 is half as large, 2 is twice as large, etc.: ').strip())
 
-    if input('Continue with the chosen settings? (y/n) ').strip().lower() != 'y':
-        print('Cancelling...')
-        exit()
+        if input('Continue with the chosen settings? (y/n) ').strip().lower() != 'y':
+            print('Cancelling...')
+            exit()
 
-combine(TILES_DIR, WORLD, str(ZOOM), RESIZE_BY)
+    combine(TILES_DIR, WORLD, str(ZOOM), RESIZE_BY)
+
+if __name__ == '__main__':
+    main()
