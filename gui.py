@@ -1,10 +1,9 @@
-import operator
 import os
+import threading
 import tkinter.filedialog
-from functools import reduce
 from pathlib import Path
 from tkinter import Tk
-from typing import Callable
+from typing import Callable, Literal
 
 import dearpygui.dearpygui as dpg
 
@@ -15,14 +14,44 @@ MAX_STATUS_LINES = 7
 FONT_FILE = 'font/bedstead.otf'
 FONT_SIZE = 18
 
-combine_options = {'tiles_dir': 'invalid', 'world': 'invalid', 'zoom_level': '0', 'final_resize_multiplier': 1.0, 'output_dir': Path('.')}
+stitcher_params = {'tiles_dir': 'invalid', 'world': 'invalid', 'zoom_level': '0', 'final_resize_multiplier': 1.0, 'output_dir': Path('.')}
 status_messages = []
 
-# Defaults so we don't get typing errors
-confirmation_callbacks: dict[str, Callable] = {'yes': print, 'no': print}
+class Confirmation:
+    # confirmation_callbacks: dict[str, Callable] = {'yes': print, 'no': print}
+    confirmation_choice: Literal['y', 'n'] | None = None
+    positive_callback: Callable = print
+    negative_callback: Callable = print
+
+    @classmethod
+    def prompt_confirmation(cls, message: str):
+        update_status_text(message)
+        dpg.show_item('continue_button')
+        dpg.show_item('cancel_button')
+        cls.confirmation_choice = None
+
+    @classmethod
+    def set_pair(cls, positive: Callable, negative: Callable):
+        cls.positive_callback = positive
+        cls.negative_callback = negative
+
+    @classmethod
+    def proceed(cls):
+        dpg.hide_item('continue_button')
+        dpg.hide_item('cancel_button')
+        cls.confirmation_choice = 'y'
+        cls.positive_callback()
+
+    @classmethod
+    def cancel(cls):
+        dpg.hide_item('continue_button')
+        dpg.hide_item('cancel_button')
+        cls.confirmation_choice = 'n'
+        cls.negative_callback()
 
 def update_status_text(text: str):
-    if text.startswith('Stitching:'):
+    if text.startswith('<prog>'):
+        text = text.lstrip('<prog>')
         status_messages[-1] = text
     else:
         status_messages.append(text)
@@ -30,47 +59,41 @@ def update_status_text(text: str):
         status_messages.pop(0)
     dpg.set_value('status', '\n'.join(status_messages))
 
-def show_confirmation_buttons():
-    dpg.show_item('continue_button')
-    dpg.show_item('cancel_button')
-
-def continue_button_callback():
-    dpg.hide_item('continue_button')
-    dpg.hide_item('cancel_button')
-    confirmation_callbacks['yes']()
-
-def cancel_button_callback():
-    dpg.hide_item('continue_button')
-    dpg.hide_item('cancel_button')
-    confirmation_callbacks['no']()
-
 def combine_callback():
+    sqmap.run_mode = 'gui'
     status_messages.clear()
-    if combine_options['tiles_dir'] == 'invalid':
+    if stitcher_params['tiles_dir'] == 'invalid':
         update_status_text('Selected tiles directory is invalid; no world folders found.')
         return
     try:
-        filesize_estimate_kb: float = round(sqmap.image_filesize_estimate(Path(combine_options['tiles_dir'], combine_options['world'], combine_options['zoom_level'])), 2)
+        stitcher = sqmap.Stitcher(
+            stitcher_params['tiles_dir'],
+            stitcher_params['world'],
+            stitcher_params['zoom_level'],
+            stitcher_params['final_resize_multiplier'],
+            stitcher_params['output_dir'],
+            update_status_text,
+            Confirmation.prompt_confirmation,
+            'gui'
+            )
+        
+        filesize_estimate_kb: float = round(sqmap.image_filesize_estimate(stitcher.tiles_path), 2)
         filesize_estimate_string: str = f'{filesize_estimate_kb} KB' if filesize_estimate_kb < 1000 else f'{filesize_estimate_kb / 1000:.2f} MB'
-        tiles = os.listdir(Path(combine_options['tiles_dir'], combine_options['world'], combine_options['zoom_level']))
-        columns, rows = sqmap.calculate_columns_rows(tiles)[:2]
-        image_size_estimate: tuple[int, int] = (len(columns) * sqmap.TILE_SIZE, len(rows) * sqmap.TILE_SIZE)
+
+        outliers, columns, rows = sqmap.calculate_columns_rows(stitcher.regions)[:3]
+        image_size_estimate: tuple[int, int] = (len(columns) * stitcher.tile_image_size, len(rows) * stitcher.tile_image_size)
         update_status_text(f'Estimated filesize: {filesize_estimate_string} ({image_size_estimate[0]}px x {image_size_estimate[1]}px)')
-        update_status_text('Do you want to continue?')
-        show_confirmation_buttons()
+        Confirmation.prompt_confirmation('Do you want to continue?')
         def yes():
-            sqmap.combine(
-                combine_options['tiles_dir'], 
-                combine_options['world'], 
-                combine_options['zoom_level'], 
-                combine_options['final_resize_multiplier'],
-                combine_options['output_dir'],
-                update_status_text
-                )
+            results = stitcher.prepare()
+            def yes():
+                stitcher.make_image(*results)
+            # Any cancelling from this point can just use the already assigned no() function earlier
+            Confirmation.positive_callback = yes
         def no():
             update_status_text('Cancelled.')
             return
-        confirmation_callbacks['yes'] = yes; confirmation_callbacks['no'] = no
+        Confirmation.set_pair(yes, no)
     except Exception as e:
         update_status_text(f'Failed! {e}')
         raise e
@@ -80,34 +103,36 @@ def set_tiles_dir():
     selection = Path(tkinter.filedialog.askdirectory())
 
     if not sqmap.is_valid_tiles_dir(selection):
-        combine_options['world'] = 'invalid'
+        stitcher_params['world'] = 'invalid'
         dpg.configure_item('world_choice', items=[INVALID_WORLD_TEXT])
         return
     
     # Check if the selected path is itself a world or a zoom level, automatically choose it if so
     if sqmap.is_valid_world_name(selection.parts[-1]) or sqmap.is_valid_world_name(selection.parts[-2]):
         if selection.parts[-1] in ['0', '1', '2', '3']:
-            combine_options['zoom_level'] = selection.parts[-1]
-            set_zoom_level(0, combine_options['zoom_level'])
+            stitcher_params['zoom_level'] = selection.parts[-1]
+            set_zoom_level(0, stitcher_params['zoom_level'])
             world_name_index = -2
         else:
             world_name_index = -1
-        combine_options['tiles_dir'] = Path(*selection.parts[:world_name_index])
-        combine_options['world'] = selection.parts[world_name_index]
-        set_world_choice(0, combine_options['world'])
+        stitcher_params['tiles_dir'] = Path(*selection.parts[:world_name_index])
+        stitcher_params['world'] = selection.parts[world_name_index]
+        set_world_choice(0, stitcher_params['world'])
     # If not, it must be the tiles directory itself
     else:
-        combine_options['tiles_dir'] = selection
+        stitcher_params['tiles_dir'] = selection
     
-    available_worlds = [item for item in os.listdir(combine_options['tiles_dir']) if sqmap.is_valid_world_name(item)]
+    available_worlds = [item for item in os.listdir(stitcher_params['tiles_dir']) if sqmap.is_valid_world_name(item)]
+    if stitcher_params['world'] == 'invalid' and available_worlds:
+        stitcher_params['world'] = available_worlds[0]
     dpg.configure_item('world_choice', items=available_worlds)
     
-    dpg.set_value('tiles_dir_text', f'{combine_options['tiles_dir']}')
+    dpg.set_value('tiles_dir_text', f'{stitcher_params['tiles_dir']}')
 
 def set_world_choice(sender, data):
     if not sqmap.is_valid_world_name(data):
-        combine_options['world'] = 'invalid'
-    combine_options['world'] = data
+        stitcher_params['world'] = 'invalid'
+    stitcher_params['world'] = data
 
     dpg.set_value('world_choice', data)
 
@@ -119,14 +144,14 @@ def set_zoom_level(sender, data):
         status_messages.clear()
         update_status_text(f'Invalid zoom level received: {data}')
         return
-    combine_options['zoom_level'] = str(data)
+    stitcher_params['zoom_level'] = str(data)
 
     dpg.set_value('zoom_level_slider', int(data))
 
 def set_output_dir():
     Tk().withdraw()
     selection = Path(tkinter.filedialog.askdirectory())
-    combine_options['output_dir'] = selection
+    stitcher_params['output_dir'] = selection
 
     dpg.set_value('output_dir_text', f'{selection}')
 
@@ -149,7 +174,7 @@ with dpg.window(tag='Primary Window'):
     # Tiles directory selection
     with dpg.group(horizontal=True):
         dpg.add_text('Path to tiles folder:')
-        dpg.add_text(f'{combine_options['tiles_dir'] if combine_options['tiles_dir'] != 'invalid' else 'No valid directory chosen.'}', 
+        dpg.add_text(f'{stitcher_params['tiles_dir'] if stitcher_params['tiles_dir'] != 'invalid' else 'No valid directory chosen.'}', 
             tag='tiles_dir_text', wrap=640)
     
     dpg.add_button(label='Choose tiles folder...', callback=set_tiles_dir)
@@ -185,8 +210,10 @@ with dpg.window(tag='Primary Window'):
     
     with dpg.group(horizontal=True):
         dpg.add_text('        ')
-        dpg.add_button(label='Continue', tag='continue_button', show=False, callback=continue_button_callback)
-        dpg.add_button(label='Cancel', tag='cancel_button', show=False, callback=cancel_button_callback)
+        dpg.add_button(label='Continue', tag='continue_button', show=False, callback=Confirmation.proceed)
+        dpg.add_button(label='Cancel', tag='cancel_button', show=False, callback=Confirmation.cancel)
+    
+    dpg.add_button(label='test prompt', callback=lambda: Confirmation.prompt_confirmation('Do you want to continue?'))
     
     dpg.bind_font(default_font)
 

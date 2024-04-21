@@ -1,3 +1,5 @@
+dearpygui == 1.11.1
+numpy == 1.26.4
 Pillow == 10.3.0
 PyQt5 == 5.15.10
 tqdm == 4.66.1

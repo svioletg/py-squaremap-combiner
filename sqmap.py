@@ -3,11 +3,15 @@ import math
 import os
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Callable
+from typing import cast, Callable, Literal, Tuple
 
+import numpy
 from PIL import Image
 
 TILE_SIZE: int = 512
+
+RunMode = Literal['cli', 'gui']
+run_mode: RunMode = 'cli'
 
 valid_worlds: list[str] = ['minecraft_overworld', 'minecraft_the_nether', 'minecraft_the_end']
 
@@ -19,6 +23,43 @@ def is_valid_tiles_dir(tiles_path: Path) -> bool:
 def is_valid_world_name(world: str) -> bool:
     return world in valid_worlds
 
+def find_region_outliers(regions: list[tuple[str, ...]]) -> list[tuple[str, ...]]:
+    regions_array = numpy.array(regions, dtype=int)
+
+    mean = numpy.mean(regions_array, axis=0)
+    deviation = numpy.std(regions_array, axis=0)
+    zscores = numpy.abs((regions_array - mean) / deviation)
+    outliers: list[list[int]] = regions_array[(zscores > 2).any(axis=1)].tolist()
+    outlier_tuples: list[tuple[str, ...]] = [tuple(map(str, item)) for item in outliers]
+
+    return outlier_tuples
+
+def image_filesize_estimate(tiles_path: Path, world: str='minecraft_overworld', zoom_level: str='0') -> float:
+    """
+    Estimate the size of the final combined image in kilobytes
+    """
+    print(tiles_path, world, zoom_level)
+    tiles: list[str] = os.listdir(Path(tiles_path, world, zoom_level))
+    size: int = 0
+    for tile in tiles:
+        size += os.stat(Path(tiles_path, world, zoom_level, tile)).st_size
+    
+    return size / 1000
+
+def calculate_columns_rows(regions: list[tuple[str, ...]]) -> tuple[list[tuple[str, ...]], list[int], list[int], int, int, int, int]:
+    outliers = find_region_outliers(regions)
+    filtered_regions = list(set(regions) - set(outliers))
+
+    min_column = min([int(r[0]) for r in filtered_regions])
+    max_column = max([int(r[0]) for r in filtered_regions])
+    min_row    = min([int(r[1]) for r in filtered_regions])
+    max_row    = max([int(r[1]) for r in filtered_regions])
+
+    columns = list(range(min_column, max_column+1))
+    rows    = list(range(min_row, max_row+1))
+
+    return outliers, columns, rows, min_column, min_row, max_column, max_row
+
 def trim_transparency(original_image: Image.Image) -> Image.Image:
     binary = Image.new('1', original_image.size)
     binary.paste(1, mask=original_image.split()[3])
@@ -26,83 +67,104 @@ def trim_transparency(original_image: Image.Image) -> Image.Image:
     trimmed_image = original_image.crop(bbox)
     return trimmed_image
 
-def image_filesize_estimate(tiles_or_path: Path|int) -> float:
-    """
-    Estimate the size of the final combined image in kilobytes
-    """
-    if isinstance(tiles_or_path, Path):
-        tiles = len(os.listdir(tiles_or_path))
-    else:
-        tiles = tiles_or_path
-    
-    single_tile_area: int = TILE_SIZE * TILE_SIZE
-    total_area: int = tiles * single_tile_area
-    # 20% of the raw estimate - 80% compressed - seems to be a generally safe estimate
-    return (((total_area * 32) // 8) // 5) / 1000
+class Stitcher:
+    def __init__(self, tiles_dir: Path, world: str='minecraft_overworld', zoom_level: str='0',
+            final_size_multiplier: float=1.0,
+            output_dir: Path | str=Path('.'),
+            status_callback: Callable=print,
+            confirmation_callback: Callable=input,
+            run_mode: RunMode='cli'):
+        self.tiles_path = tiles_dir
+        self.world = world
+        self.zoom_level = zoom_level
+        self.final_size_multiplier = final_size_multiplier
+        self.output_dir = output_dir
+        self.status_callback = status_callback
+        self.confirmation_callback = confirmation_callback
+        self.run_mode = run_mode
 
-def calculate_columns_rows(tiles: list[str]) -> tuple[list[int], list[int], int, int, int, int]:
-    regions = [Path(tile).stem.split('_') for tile in tiles]
+        # Find images and get the size and extension
+        self.status_callback('Searching for tile images...')
+        self.tile_images_dir = Path(self.tiles_path, self.world, self.zoom_level)
+        self.tiles = os.listdir(self.tile_images_dir)
+        self.regions: list[tuple[str, ...]] = []
+        progress: int = 0
+        for tile in self.tiles:
+            progress += 1
+            if len(Path(tile).stem.split('_')) != 2:
+                self.status_callback(f'Invalid tile name: "{tile}"; skipping...')
+                continue
+            self.regions.append(tuple(Path(tile).stem.split('_')))
+            self.status_callback(f'<prog>Found: "{tile}" {progress}/{len(self.tiles)} ({int(progress / len(self.tiles) * 100)}%)')
+        with Image.open(Path(self.tile_images_dir, self.tiles[0])) as tile_image:
+            self.tile_image_size = tile_image.size[0]
+        self.img_ext = Path(self.tiles[0]).suffix
 
-    min_column = min([int(r[0]) for r in regions])
-    max_column = max([int(r[0]) for r in regions])
-    min_row    = min([int(r[1]) for r in regions])
-    max_row    = max([int(r[1]) for r in regions])
+    def prepare(self):
+        # Figure out the number of columns and rows present
+        self.status_callback('Calculating columns and rows...')
+        outliers, columns, rows, min_column, min_row, max_column, max_row = calculate_columns_rows(self.regions)
 
-    columns = list(range(min_column, max_column+1))
-    rows    = list(range(min_row, max_row+1))
+        if len(outliers) > 0:
+            outliers_formatted = []
+            for item in outliers:
+                outliers_formatted.append(f'{item[0]}_{item[1]}{self.img_ext}')
+            self.status_callback('The following outlier regions were found, and will be omitted:')
+            self.status_callback(', '.join(outliers_formatted))
 
-    return columns, rows, min_column, min_row, max_column, max_row
+        response = self.confirmation_callback(
+            f'Found {len(columns)} columns and {len(rows)} rows.\n'+
+            f'Continue?{" (y/n) " if self.run_mode == "cli" else ""}'
+            )
+        return_pack = (outliers, columns, rows, min_column, min_row, max_column, max_row, self.tile_image_size)
 
-def combine(tiles_path: Path, world: str='minecraft_overworld', zoom_level: str='0', final_size_multiplier: float=1.0, output_dir: Path | str=Path('.'), status_callback: Callable = print):
-    # Find images and get the size and extension
-    images_dir = Path(tiles_path, world, zoom_level)
-    status_callback('Searching for tile images...')
-    tiles = os.listdir(images_dir)
-    img_ext = Path(tiles[0]).suffix
-    with Image.open(Path(images_dir, tiles[0])) as img:
-        img_size = img.size[0]
+        if run_mode == 'cli':
+            if response.lower() == 'y':
+                self.make_image(*return_pack)
+                return
+            else:
+                self.status_callback('Cancelled.')
+                return
+        elif run_mode == 'gui':
+            return return_pack
 
-    # Figure out the number of columns and rows present
-    status_callback('Calculating columns and rows...')
-    columns, rows, min_column, min_row, max_column, max_row = calculate_columns_rows(tiles)
+    def make_image(self, outliers, columns, rows, min_column, min_row, max_column, max_row, tile_image_size) -> None:
+        # Start creating the new image
+        self.status_callback('Making the combined image...')
+        final_width = len(columns) * tile_image_size
+        final_height = len(rows) * tile_image_size
+        map_image = Image.new('RGBA', (final_width, final_height), (0,0,0,0))
 
-    # Start creating the new image
-    status_callback('Making the combined image...')
-    final_width = len(columns) * img_size
-    final_height = len(rows) * img_size
-    map_image = Image.new('RGBA', (final_width, final_height), (0,0,0,0))
+        x_offset = abs(min_column) if min_column < 0 else 0
+        y_offset = abs(min_row) if min_row < 0 else 0
+        row_column_iterations = list(itertools.product(rows, columns))
+        total_iterations = len(list(row_column_iterations))
+        progress = 0
 
-    x_offset = abs(min_column) if min_column < 0 else 0
-    y_offset = abs(min_row) if min_row < 0 else 0
-    row_column_iterations = list(itertools.product(rows, columns))
-    total_iterations = len(list(row_column_iterations))
-    progress = 0
+        for r, c in row_column_iterations:
+            progress += 1
+            try:
+                self.status_callback(f'<prog>Stitching: {progress}/{total_iterations} ({int((progress / total_iterations) * 100)}%)')
+                with Image.open(Path(self.tile_images_dir, f'{c}_{r}{self.img_ext}')) as tile_image:
+                    map_image.paste(tile_image, (tile_image_size * (c + x_offset), tile_image_size * (r + y_offset)))
+            except FileNotFoundError:
+                continue
 
-    for r, c in row_column_iterations:
-        progress += 1
-        try:
-            status_callback(f'Stitching: {progress}/{total_iterations} ({int((progress / total_iterations) * 100)}%)')
-            img = Image.open(Path(images_dir, f'{c}_{r}{img_ext}'))
-        except FileNotFoundError:
-            continue
-        map_image.paste(img, (img_size * (c + x_offset), img_size * (r + y_offset)))
+        # self.status_callback(f'Full image created. Resizing by {self.final_size_multiplier}: from {grid_w, grid_h} to {int(grid_w * self.final_size_multiplier), int(grid_h * self.final_size_multiplier)}...')
+        # map_image = map_image.resize((int(grid_w * self.final_size_multiplier), int(grid_h * self.final_size_multiplier)))
 
-    grid_w, grid_h = map_image.size
+        self.status_callback('Trimming any empty space...')
+        map_image = trim_transparency(map_image)
 
-    status_callback(f'Full image created. Resizing by {final_size_multiplier}: from {grid_w, grid_h} to {int(grid_w * final_size_multiplier), int(grid_h * final_size_multiplier)}...')
-    map_image = map_image.resize((int(grid_w * final_size_multiplier), int(grid_h * final_size_multiplier)))
+        self.status_callback('Saving... (this may take a while for a large image, e.g over 5,000px x 5,000px)')
+        output_file = f'{self.world}-level{self.zoom_level}.png'
+        map_image.save(Path(self.output_dir, output_file))
 
-    status_callback('Trimming any empty space...')
-    map_image = trim_transparency(map_image)
+        self.status_callback(f'Final image saved to "{Path(self.output_dir, output_file)}" ({map_image.size[0]}px x {map_image.size[1]}px)')
+        self.status_callback('Done.')
 
-    status_callback('Saving... (this may take a while for a large image, e.g over 5,000 x 5,000)')
-    output_file = f'{world}-level{zoom_level}.png'
-    map_image.save(Path(output_dir, output_file))
-
-    status_callback(f'Final image saved to "{Path(output_dir, output_file)}" ({map_image.size[0]} x {map_image.size[1]})')
-    status_callback('Done.')
-
-def main():
+# TODO: VERIFY ALL THIS WORKS AFTER GUI!
+def run_cli():
     parser = ArgumentParser()
     parser.add_argument('-i', '--interactive', action='store_true')
     parser.add_argument('-t', '--tilespath', 
@@ -157,7 +219,7 @@ def main():
             print('Cancelling...')
             raise SystemExit(0)
 
-    combine(TILES_DIR, WORLD, str(ZOOM), RESIZE_BY)
+    # combine(TILES_DIR, WORLD, str(ZOOM), RESIZE_BY)
 
 if __name__ == '__main__':
-    main()
+    run_cli()
