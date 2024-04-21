@@ -11,7 +11,7 @@ import sqmap
 
 INVALID_WORLD_TEXT = 'No worlds found in selected tiles directory!'
 MAX_STATUS_LINES = 7
-FONT_FILE = 'font/bedstead.otf'
+FONT_FILE = 'source/bedstead.otf'
 FONT_SIZE = 18
 
 stitcher_params = {'tiles_dir': 'invalid', 'world': 'invalid', 'zoom_level': '0', 'final_resize_multiplier': 1.0, 'output_dir': Path('.')}
@@ -77,7 +77,7 @@ def combine_callback():
             'gui'
             )
         
-        filesize_estimate_kb: float = round(sqmap.image_filesize_estimate(stitcher.tiles_path), 2)
+        filesize_estimate_kb: float = round(sqmap.image_filesize_estimate(stitcher.tiles_path, stitcher.world, stitcher.zoom_level), 2)
         filesize_estimate_string: str = f'{filesize_estimate_kb} KB' if filesize_estimate_kb < 1000 else f'{filesize_estimate_kb / 1000:.2f} MB'
 
         outliers, columns, rows = sqmap.calculate_columns_rows(stitcher.regions)[:3]
@@ -86,10 +86,7 @@ def combine_callback():
         Confirmation.prompt_confirmation('Do you want to continue?')
         def yes():
             results = stitcher.prepare()
-            def yes():
-                stitcher.make_image(*results)
-            # Any cancelling from this point can just use the already assigned no() function earlier
-            Confirmation.positive_callback = yes
+            stitcher.make_image(*results)
         def no():
             update_status_text('Cancelled.')
             return
@@ -212,8 +209,6 @@ with dpg.window(tag='Primary Window'):
         dpg.add_text('        ')
         dpg.add_button(label='Continue', tag='continue_button', show=False, callback=Confirmation.proceed)
         dpg.add_button(label='Cancel', tag='cancel_button', show=False, callback=Confirmation.cancel)
-    
-    dpg.add_button(label='test prompt', callback=lambda: Confirmation.prompt_confirmation('Do you want to continue?'))
     
     dpg.bind_font(default_font)
 

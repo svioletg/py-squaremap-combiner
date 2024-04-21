@@ -3,7 +3,7 @@ import math
 import os
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import cast, Callable, Literal, Tuple
+from typing import Callable, Literal, Tuple, cast
 
 import numpy
 from PIL import Image
@@ -38,7 +38,6 @@ def image_filesize_estimate(tiles_path: Path, world: str='minecraft_overworld', 
     """
     Estimate the size of the final combined image in kilobytes
     """
-    print(tiles_path, world, zoom_level)
     tiles: list[str] = os.listdir(Path(tiles_path, world, zoom_level))
     size: int = 0
     for tile in tiles:
@@ -112,10 +111,11 @@ class Stitcher:
             self.status_callback('The following outlier regions were found, and will be omitted:')
             self.status_callback(', '.join(outliers_formatted))
 
-        response = self.confirmation_callback(
-            f'Found {len(columns)} columns and {len(rows)} rows.\n'+
-            f'Continue?{" (y/n) " if self.run_mode == "cli" else ""}'
-            )
+        response = 'y'
+        # response = self.confirmation_callback(
+        #     f'Found {len(columns)} columns and {len(rows)} rows.\n'+
+        #     f'Continue?{" (y/n) " if self.run_mode == "cli" else ""}'
+        #     )
         return_pack = (outliers, columns, rows, min_column, min_row, max_column, max_row, self.tile_image_size)
 
         if run_mode == 'cli':
