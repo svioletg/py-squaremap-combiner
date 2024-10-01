@@ -39,8 +39,6 @@ class Combiner:
             Will correspond to which numbered subdirectory within the given world to use images from.
         """
         if world not in self.mapped_worlds:
-            print(world)
-            print(self.mapped_worlds)
             raise ValueError(f'No world directory of name "{world}" exists in "{self.tiles_dir}"')
         if not (0 <= detail <= 3):
             raise ValueError(f'Detail level must be between 0 and 3; given {detail}')
@@ -50,6 +48,7 @@ class Combiner:
         regions: dict[int, dict[int, Path]] = {}
 
         # Sort out what regions we're going to stitch
+        logger.info('Sorting through tile images...')
         for img in tqdm(source_dir.glob('*_*.png'), disable=not self.use_tqdm):
             col, row = map(int, img.stem.split('_'))
             if col not in regions:
@@ -62,7 +61,7 @@ class Combiner:
         # Start stitching
         out = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(columns), self.TILE_SIZE * len(rows)))
         ta = time.perf_counter()
-        x = 0
+        logger.info('Constructing image...')
         for c in tqdm(regions, disable=not self.use_tqdm):
             for r in tqdm(regions[c], disable=not self.use_tqdm, leave=False):
                 x, y = self.TILE_SIZE * (c - min(columns)), self.TILE_SIZE * (r - min(rows))
@@ -71,6 +70,7 @@ class Combiner:
         logger.info(f'Finished in {tb - ta:04f}s')
         return out
 
+@logger.catch
 def main():
     logger.add(sys.stdout, format="{level}: {message}", level='INFO')
 
@@ -127,11 +127,11 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
         box = image.getbbox()
         if not box:
             raise CombineError('image.getbbox() failed')
-        print(f'Trimming out blank space to leave an image of {box[2] - box[0]}x{box[3] - box[1]}...')
+        logger.info(f'Trimming out blank space to leave an image of {box[2] - box[0]}x{box[3] - box[1]}...')
         image = image.crop(box)
     if all(n > 0 for n in force_size):
         resized = Image.new(mode='RGBA', size=force_size)
-        print(f'Resizing canvas to {resized.size[0]}x{resized.size[1]}...')
+        logger.info(f'Resizing canvas to {resized.size[0]}x{resized.size[1]}...')
         center = resized.size[0] // 2, resized.size[1] // 2
 
         x1, y1 = center[0] - (image.size[0] // 2), center[1] - (image.size[1] // 2)
@@ -140,5 +140,7 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
         resized.paste(image, (x1, y1, x2, y2))
         image = resized
 
+
+    logger.info(f'Saving to "{out_file}"...')
     image.save(out_file)
-    print(f'Saved to "{out_file}"')
+    logger.info('Done!')
