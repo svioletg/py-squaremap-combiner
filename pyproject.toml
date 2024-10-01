@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "squaremap_combine_svioletg"
+name = "squaremap_combine"
 version = "0.0.1"
 authors = [
   { name="Seth 'Violet' Gibbs" },

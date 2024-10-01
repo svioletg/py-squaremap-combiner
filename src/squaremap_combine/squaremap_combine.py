@@ -3,7 +3,6 @@ import math
 import os
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Callable, Literal
 
 import numpy
 from PIL import Image
@@ -32,24 +31,22 @@ def find_region_outliers(regions: list[tuple[str, ...]]) -> list[tuple[str, ...]
     return outlier_tuples
 
 def image_filesize_estimate(tiles_path: Path, world: str='minecraft_overworld', zoom_level: str='0') -> float:
-    """
-    Estimate the size of the final combined image in kilobytes
-    """
+    """Estimate the size of the final combined image, in kilobytes."""
     tiles: list[str] = os.listdir(Path(tiles_path, world, zoom_level))
     size: int = 0
     for tile in tiles:
         size += os.stat(Path(tiles_path, world, zoom_level, tile)).st_size
-    
+
     return size / 1000
 
 def calculate_columns_rows(regions: list[tuple[str, ...]]) -> tuple[list[tuple[str, ...]], list[int], list[int], int, int, int, int]:
     outliers = find_region_outliers(regions)
     filtered_regions = list(set(regions) - set(outliers))
 
-    min_column = min([int(r[0]) for r in filtered_regions])
-    max_column = max([int(r[0]) for r in filtered_regions])
-    min_row    = min([int(r[1]) for r in filtered_regions])
-    max_row    = max([int(r[1]) for r in filtered_regions])
+    min_column = min(int(r[0]) for r in filtered_regions)
+    max_column = max(int(r[0]) for r in filtered_regions)
+    min_row    = min(int(r[1]) for r in filtered_regions)
+    max_row    = max(int(r[1]) for r in filtered_regions)
 
     columns = list(range(min_column, max_column+1))
     rows    = list(range(min_row, max_row+1))
@@ -64,7 +61,10 @@ def trim_transparency(original_image: Image.Image) -> Image.Image:
     return trimmed_image
 
 class Stitcher:
-    def __init__(self, tiles_dir: Path, world: str='minecraft_overworld', zoom_level: str='0',
+    def __init__(self,
+            tiles_dir: Path,
+            world: str='minecraft_overworld',
+            zoom_level: str='0',
             final_size_multiplier: float=1.0,
             output_dir: Path | str=Path('.')
             ):
@@ -151,11 +151,11 @@ class Stitcher:
 def main():
     parser = ArgumentParser()
     parser.add_argument('-i', '--interactive', action='store_true')
-    parser.add_argument('-t', '--tilespath', 
+    parser.add_argument('-t', '--tilespath',
         help='Path to your "tiles" directory. Must be an absolute path if it is not within the folder this script is running from.')
-    parser.add_argument('-w', '--world', 
+    parser.add_argument('-w', '--world',
         help="Name of the world to create an image from - defaults available are minecraft_overworld, minecraft_the_nether, and minecraft_the_end.")
-    parser.add_argument('-z', '--zoom', 
+    parser.add_argument('-z', '--zoom',
         help="Zoom level to use images from. 0 is the lowest detail and smallest size, 3 is the highest detail and largest size.")
     parser.add_argument('-r', '--resize',
         help="Multiplier to resize the final image by. 0.5 is half as large, 1 is original size, 2 is twice as large, etc.")
