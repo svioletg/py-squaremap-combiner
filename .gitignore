@@ -5,5 +5,5 @@ font/
 .venv/
 gui-wrapping/
 __pycache__/
-*.png
+tiles/
 *.spec
