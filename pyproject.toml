@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "squaremap_combine_svioletg"
+version = "0.0.1"
+authors = [
+  { name="Seth 'Violet' Gibbs" },
+]
+description = "Provides tools to combine tile images created by the 'squaremap' Minecraft plugin into one single world image."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/svioletg/py-squaremap-combiner"
+Issues = "https://github.com/svioletg/py-squaremap-combiner/issues"
