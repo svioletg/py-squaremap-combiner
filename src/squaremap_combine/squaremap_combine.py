@@ -52,7 +52,7 @@ class Combiner:
         self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
         self.use_tqdm = use_tqdm
 
-    def combine(self, world: str | Path, detail: int, area: Optional[Rectangle] = None) -> Image.Image:
+    def combine(self, world: str | Path, detail: int, autotrim: bool=False, area: Optional[Rectangle]=None) -> Image.Image:
         """Combine the given world (dimension) tile images into one large map.
         @param world: Name of the world to combine images of.
             Should be the name of a subdirectory located in this instance's `tiles_dir`.
@@ -86,7 +86,6 @@ class Combiner:
             area_regions = Rectangle([n // self.TILE_SIZE for n in snap_box(area, self.TILE_SIZE)])
             column_range = range(area_regions[0], area_regions[2] + 1)
             row_range = range(area_regions[1], area_regions[3] + 1)
-            print(area_regions, column_range, row_range)
 
         # Start stitching
         out = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(columns), self.TILE_SIZE * len(rows)))
@@ -101,6 +100,14 @@ class Combiner:
                     continue
                 x, y = self.TILE_SIZE * (c - min(columns)), self.TILE_SIZE * (r - min(rows))
                 out.paste(Image.open(regions[c][r]), (x, y, x + self.TILE_SIZE, y + self.TILE_SIZE))
+
+        # Trim excess
+        if autotrim:
+            box = out.getbbox()
+            if not box:
+                raise CombineError('getbbox() failed')
+            logger.info(f'Trimming out blank space to leave an image of {box[2] - box[0]}x{box[3] - box[1]}...')
+            out = out.crop(box)
 
         # Crop if an area is specified
         if area:
@@ -187,14 +194,7 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
 
     out_file: Path = output_dir / f'{timestamp}{world}-{detail}.{output_ext}'
     combiner = Combiner(tiles_dir, use_tqdm=True)
-    image = combiner.combine(world, detail, area=area)
-
-    if autotrim:
-        box = image.getbbox()
-        if not box:
-            raise CombineError('image.getbbox() failed')
-        logger.info(f'Trimming out blank space to leave an image of {box[2] - box[0]}x{box[3] - box[1]}...')
-        image = image.crop(box)
+    image = combiner.combine(world, detail, autotrim=autotrim, area=area)
 
     if all(n > 0 for n in force_size):
         resized = Image.new(mode='RGBA', size=force_size)
