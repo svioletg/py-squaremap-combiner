@@ -45,6 +45,8 @@ class Combiner:
     Only made a constant in case squaremap happens to change its image sizes in the future.
     """
     STANDARD_WORLDS: list[str] = ['overworld', 'the_nether', 'the_end']
+    DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
+    """Square-blocks-per-pixel for each detail level."""
     def __init__(self, tiles_dir: str | Path, use_tqdm = False):
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
@@ -83,6 +85,7 @@ class Combiner:
         row_range = range(min(rows), max(rows) + 1)
 
         if area:
+            area = Rectangle([n // self.DETAIL_SBPP[detail] for n in area])
             area_regions = Rectangle([n // self.TILE_SIZE for n in snap_box(area, self.TILE_SIZE)])
             column_range = range(area_regions[0], area_regions[2] + 1)
             row_range = range(area_regions[1], area_regions[3] + 1)
@@ -101,6 +104,16 @@ class Combiner:
                 x, y = self.TILE_SIZE * (c - min(columns)), self.TILE_SIZE * (r - min(rows))
                 out.paste(Image.open(regions[c][r]), (x, y, x + self.TILE_SIZE, y + self.TILE_SIZE))
 
+        # Crop if an area is specified
+        if area:
+            crop_area = (
+                area[0] + (out.width // 2),
+                area[1] + (out.height // 2),
+                area[2] + (out.width // 2),
+                area[3] + (out.height // 2)
+            )
+            out = out.crop(crop_area)
+
         # Trim excess
         if autotrim:
             box = out.getbbox()
@@ -109,10 +122,6 @@ class Combiner:
             logger.info(f'Trimming out blank space to leave an image of {box[2] - box[0]}x{box[3] - box[1]}...')
             out = out.crop(box)
 
-        # Crop if an area is specified
-        if area:
-            crop_area = (area[0] + (out.width // 2), area[1] + (out.height // 2), area[2] + (out.width // 2), area[3] + (out.height // 2))
-            out = out.crop(crop_area)
         tb = time.perf_counter()
 
         logger.info(f'Finished in {tb - ta:04f}s')
