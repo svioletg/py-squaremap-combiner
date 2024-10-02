@@ -14,7 +14,7 @@ logger.remove() # Don't output anything if this is just being imported
 
 Rectangle = tuple[int, int, int, int]
 
-default_time_format = '%Y-%m-%d_%H-%M-%S'
+DEFAULT_TIME_FORMAT = '%Y-%m-%d_%H-%M-%S'
 
 def sign(num: int | float) -> int:
     """Return the sign of a value."""
@@ -166,7 +166,7 @@ def main():
     output_ext  : str              = args.output_ext
     time_format : str | None       = args.timestamp
     if time_format == 'default':
-        time_format = default_time_format
+        time_format = DEFAULT_TIME_FORMAT
     area        : Rectangle | None = args.area
     autotrim    : bool             = args.no_autotrim
     if len(args.force_size) > 2:
