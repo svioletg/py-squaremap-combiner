@@ -14,7 +14,7 @@ logger.remove() # Don't output anything if this is just being imported
 
 Rectangle = tuple[int, int, int, int]
 
-DEFAULT_TIME_FORMAT = '%Y-%m-%d_%H-%M-%S'
+DEFAULT_TIME_FORMAT = '$Y-$m-$d_$H-$M-$S'
 
 def sign(num: int | float) -> int:
     """Return the sign of a value."""
@@ -126,7 +126,6 @@ class Combiner:
 
         logger.info(f'Finished in {tb - ta:04f}s')
         return out
-
 @logger.catch
 def main():
     logger.add(sys.stdout, format="{level}: {message}", level='INFO')
@@ -148,12 +147,18 @@ def main():
     parser.add_argument('--output_ext', type=str, default='png',
         help='The output file extension (format) to use for the created image. Supports anything Pillow does. (e.g. "png", "jpg", "webp")')
 
-    parser.add_argument('--timestamp', type=str, default=None,
+    parser.add_argument('--timestamp', type=str, default='',
         help='Adds a timestamp of the given format to the beginning of the image file name.\n ' +
-        'Default format "%Y-%m-%%d_%H-%M-%S" will be used if "default" is given for this argument.' +
-        'See: https://docs.python.org/3/library/datetime.html#format-codes')
+        'Default format "$Y-$m-$d_$H-$M-$S" will be used if "default" is given for this argument.\n' +
+        'See: https://docs.python.org/3/library/datetime.html#format-codes\n' +
+        'NOTE: Due to a quirk with the argparse library, you must use a dollar sign ($) instead of a percent symbol for' +
+        ' any format strings.')
 
-    parser.add_argument('--area', type=int, nargs=4, default=None,
+    parser.add_argument('--overwrite', action='store_true',
+        help='Using this flag will allow the script to overwrite an existing file with the same target name if it already' +
+        ' exists. By default, if an image with the same path already exists, a numbered suffix is added.')
+
+    parser.add_argument('--area', type=int, nargs=4, default=None, metavar=('X1', 'Y1', 'X2', 'Y2'),
         help='A rectangle area of the world (top, left, bottom, right) to export an image from.\n' +
         'This can save time when using a very large world map, as this will only combine the minimum amount of regions' +
         ' needed to cover this area, before finally cropping it down to only the given area.\n' +
@@ -162,27 +167,38 @@ def main():
     parser.add_argument('--no-autotrim', action='store_false',
         help='By default, excess empty space is trimmed off of the final image. Using this argument with disable that behavior.')
 
-    parser.add_argument('--force_size', type=int, nargs='+', default=[0],
+    parser.add_argument('--force_size', type=int, nargs='+', default=[0], metavar=('WIDTH', 'HEIGHT'),
         help='Centers the assembled map inside an image of this size.\n' +
         'Can be used to make images a consistent size if you\'re using them for a timelapse, for example.\n' +
         'Only specifying one integer for this argument will use the same value for both width and height.')
 
+    parser.add_argument('-y', '--yes-to-all', action='store_true',
+        help='Automatically accepts any requests for user confirmation.')
+
     args = parser.parse_args()
-    tiles_dir   : Path             = args.tiles_dir
-    world       : str              = args.world
-    detail      : int              = args.detail
-    output_dir  : Path             = args.output_dir
-    output_ext  : str              = args.output_ext
-    time_format : str | None       = args.timestamp
+
+    tiles_dir   : Path = args.tiles_dir
+    world       : str  = args.world
+    detail      : int  = args.detail
+    output_dir  : Path = args.output_dir
+    output_ext  : str  = args.output_ext
+    time_format : str  = args.timestamp
     if time_format == 'default':
         time_format = DEFAULT_TIME_FORMAT
+    time_format = time_format.replace('$', '%')
+
+    overwrite   : bool             = args.overwrite
     area        : Rectangle | None = args.area
     autotrim    : bool             = args.no_autotrim
     if len(args.force_size) > 2:
         raise ValueError('--force_size argument can only take up to 2 integers')
-    force_size : tuple[int, int] = tuple(args.force_size) if len(args.force_size) == 2 else (args.force_size[0], args.force_size[0])
+    force_size: tuple[int, int] = tuple(args.force_size) if len(args.force_size) == 2 else (args.force_size[0], args.force_size[0])
+    yes_to_all: bool = args.yes_to_all
 
     #endregion ARGUMENTS
+
+    def confirm_yn(message: str) -> bool:
+        return yes_to_all or (input(f'{message} (y/n) ').strip().lower() == 'y')
 
     print(f"""
 Tiles directory: {tiles_dir}
@@ -191,10 +207,15 @@ Detail level: {detail}
 Output directory: {output_dir.absolute()}
 Output file extension: {output_ext}
 Add timestamp? {f'True, using format "{time_format}"' if time_format else 'False'}
+Allow overwriting images? {overwrite}
 Specified area: {area if area else 'None, will render the entire map'}
 Auto-trim? {autotrim}
 Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size) else 'False'}
     """)
+
+    if not confirm_yn('Continue with these parameters?'):
+        print('Cancelling...')
+        return
 
     if world in Combiner.STANDARD_WORLDS:
         world = 'minecraft_' + world
@@ -202,6 +223,10 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
     timestamp = (datetime.strftime(datetime.now(), time_format) + '_') if time_format else ''
 
     out_file: Path = output_dir / f'{timestamp}{world}-{detail}.{output_ext}'
+    if out_file.exists() and (not overwrite):
+        copies = [*output_dir.glob(f'{out_file.stem}*')]
+        out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)
+
     combiner = Combiner(tiles_dir, use_tqdm=True)
     image = combiner.combine(world, detail, autotrim=autotrim, area=area)
 
