@@ -8,7 +8,7 @@ from PIL import Image
 from tqdm import tqdm
 
 
-logger.remove()
+logger.remove() # Don't output anything if this is just being imported
 
 class CombineError(Exception):
     """Raised when anything in the image combination process fails when
@@ -60,13 +60,15 @@ class Combiner:
 
         # Start stitching
         out = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(columns), self.TILE_SIZE * len(rows)))
-        ta = time.perf_counter()
         logger.info('Constructing image...')
+
+        ta = time.perf_counter()
         for c in tqdm(regions, disable=not self.use_tqdm):
             for r in tqdm(regions[c], disable=not self.use_tqdm, leave=False):
                 x, y = self.TILE_SIZE * (c - min(columns)), self.TILE_SIZE * (r - min(rows))
                 out.paste(Image.open(regions[c][r]), (x, y, x + self.TILE_SIZE, y + self.TILE_SIZE))
         tb = time.perf_counter()
+
         logger.info(f'Finished in {tb - ta:04f}s')
         return out
 
@@ -93,7 +95,7 @@ def main():
     parser.add_argument('--autotrim', type=bool, default=True,
         help='Automatically trims off excess empty space in the final image. Use "--autotrim false" to disable this.')
 
-    parser.add_argument('--force_size', type=int, nargs=2, default=(0, 0),
+    parser.add_argument('--force_size', type=int, nargs='+', default=[0],
         help='Centers the assembled map inside an image of this size.\n' +
         'Can be used to make images a consistent size if you\'re using them for a timelapse, for example.')
 
@@ -104,7 +106,9 @@ def main():
     output_dir : Path            = args.output_dir
     output_ext : str             = args.output_ext
     autotrim   : bool            = args.autotrim
-    force_size : tuple[int, int] = tuple(args.force_size)
+    if len(args.force_size) > 2:
+        raise ValueError('--force_size argument can only take up to 2 integers')
+    force_size : tuple[int, int] = tuple(args.force_size) if len(args.force_size) == 2 else (args.force_size[0], args.force_size[0])
     #endregion ARGUMENTS
 
     print(f"""
