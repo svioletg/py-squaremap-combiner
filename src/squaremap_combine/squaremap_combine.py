@@ -1,6 +1,7 @@
 import argparse
 import sys
 import time
+from datetime import datetime
 from math import ceil
 from pathlib import Path
 from typing import Optional
@@ -12,6 +13,8 @@ from tqdm import tqdm
 logger.remove() # Don't output anything if this is just being imported
 
 Rectangle = tuple[int, int, int, int]
+
+default_time_format = '%Y-%m-%d_%H-%M-%S'
 
 def sign(num: int | float) -> int:
     """Return the sign of a value."""
@@ -102,9 +105,6 @@ class Combiner:
         # Crop if an area is specified
         if area:
             crop_area = (area[0] + (out.width // 2), area[1] + (out.height // 2), area[2] + (out.width // 2), area[3] + (out.height // 2))
-            print(area)
-            print(crop_area)
-            input()
             out = out.crop(crop_area)
         tb = time.perf_counter()
 
@@ -132,6 +132,11 @@ def main():
     parser.add_argument('--output_ext', type=str, default='png',
         help='The output file extension (format) to use for the created image. Supports anything Pillow does. (e.g. "png", "jpg", "webp")')
 
+    parser.add_argument('--timestamp', type=str, default=None,
+        help='Adds a timestamp of the given format to the beginning of the image file name.\n ' +
+        'Default format "%Y-%m-%%d_%H-%M-%S" will be used if "default" is given for this argument.' +
+        'See: https://docs.python.org/3/library/datetime.html#format-codes')
+
     parser.add_argument('--area', type=int, nargs=4, default=None,
         help='A rectangle area of the world (top, left, bottom, right) to export an image from.\n' +
         'This can save time when using a very large world map, as this will only combine the minimum amount of regions' +
@@ -152,6 +157,9 @@ def main():
     detail      : int              = args.detail
     output_dir  : Path             = args.output_dir
     output_ext  : str              = args.output_ext
+    time_format : str | None       = args.timestamp
+    if time_format == 'default':
+        time_format = default_time_format
     area        : Rectangle | None = args.area
     autotrim    : bool             = args.no_autotrim
     if len(args.force_size) > 2:
@@ -166,7 +174,8 @@ World: {world}
 Detail level: {detail}
 Output directory: {output_dir.absolute()}
 Output file extension: {output_ext}
-Specified area: {area if area else 'None; will render the entire map'}
+Add timestamp? {f'True, using format "{time_format}"' if time_format else 'False'}
+Specified area: {area if area else 'None, will render the entire map'}
 Auto-trim? {autotrim}
 Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size) else 'False'}
     """)
@@ -174,7 +183,9 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
     if world in Combiner.STANDARD_WORLDS:
         world = 'minecraft_' + world
 
-    out_file: Path = output_dir / f'{world}-{detail}.{output_ext}'
+    timestamp = (datetime.strftime(datetime.now(), time_format) + '_') if time_format else ''
+
+    out_file: Path = output_dir / f'{timestamp}{world}-{detail}.{output_ext}'
     combiner = Combiner(tiles_dir, use_tqdm=True)
     image = combiner.combine(world, detail, area=area)
 
