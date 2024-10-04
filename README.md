@@ -30,7 +30,7 @@ python3 -m squaremap_combine my-tiles overworld 2 --output_ext jpg
 
 Use the `-h` or `--help` argument to see full arguments and their defaults.
 
-Installing this repository as a package is only a convenience feature. If you don't want to install it, simply downloading [https://github.com/svioletg/py-squaremap-combiner/blob/master/src/squaremap_combine/squaremap_combine.py](squaremap_combine.py) alone and installing its requirements will work the same.
+Installing this repository as a package is only a convenience feature. If you don't want to install it, this package only really contains a single script, so you can download it and use it on its own, provided you have the required packages installed. The script can be found in this repository at `src/squaremap_combine/squaremap_combine.py`.
 
 To find squaremap's tiles, go to the folder your server JAR is in, and then navigate to `plugins/squaremap/web`. Inside, there will be a `tiles` folder which likely contains folders like `minecraft_overworld`, `minecraft_the_nether`, and `minecraft_the_end`. You will supply the path to this `tiles` folder for the script to work, and then specify a "world" (dimension) to use the tiles of, which will be one of the three aformentioned subfolders - the `minecraft_` prefix can be omitted when entering them, but you should not alter the folder names themselves.
 
