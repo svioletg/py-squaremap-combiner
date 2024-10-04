@@ -170,11 +170,11 @@ def main():
         help='What detail level to source images from.\n' +
         'Level 3 is 1 block per pixel, 2 is 2x2 per pixel, 1 is 4x4 per pixel, and 0 is 8x8 per pixel.')
 
-    parser.add_argument('--output_dir', type=Path, default=Path('.'),
+    parser.add_argument('--output-dir', type=Path, default=Path('.'),
         help='Directory to save the completed image to.\n' +
         'Defaults to the directory in which this script was run.')
 
-    parser.add_argument('--output_ext', type=str, default='png',
+    parser.add_argument('--output-ext', type=str, default='png',
         help='The output file extension (format) to use for the created image. Supports anything Pillow does. (e.g. "png", "jpg", "webp")')
 
     parser.add_argument('--timestamp', type=str, default='',
@@ -197,7 +197,7 @@ def main():
     parser.add_argument('--no-autotrim', action='store_false',
         help='By default, excess empty space is trimmed off of the final image. Using this argument with disable that behavior.')
 
-    parser.add_argument('--force_size', type=int, nargs='+', default=[0], metavar=('WIDTH', 'HEIGHT'),
+    parser.add_argument('--force-size', type=int, nargs='+', default=[0], metavar=('WIDTH', 'HEIGHT'),
         help='Centers the assembled map inside an image of this size.\n' +
         'Can be used to make images a consistent size if you\'re using them for a timelapse, for example.\n' +
         'Only specifying one integer for this argument will use the same value for both width and height.')
