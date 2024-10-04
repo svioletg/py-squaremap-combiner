@@ -2,12 +2,12 @@ import argparse
 import sys
 import time
 from datetime import datetime
-from math import ceil
+from math import floor
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional, cast
 
 from loguru import logger
-from PIL import Image
+from PIL import Image, ImageDraw
 from tqdm import tqdm
 
 logger.remove() # Don't output anything if this is just being imported
@@ -16,20 +16,20 @@ Rectangle = tuple[int, int, int, int]
 
 DEFAULT_TIME_FORMAT = '$Y-$m-$d_$H-$M-$S'
 
-def sign(num: int | float) -> int:
-    """Return the sign of a value."""
-    return 1 if num > 0 else -1 if num < 0 else 0
+yes_to_all = False
 
-def snap_num(num: int | float, multiple: int) -> int:
-    """Snaps the given `num` to the largest `multiple` it can reside in.
-    e.g. `snap_num(7, 10)` -> `10`, `snap_num(2, 10)` -> `10`, `snap_num(-7, 10)` -> `-10`, `snap_num(-2, 10)` -> `-10`
-    """
-    # Make it absolute so that the largest number is snapped to regardless, re-apply original sign after
-    return sign(num) * multiple * (ceil(abs(num) / multiple))
+def confirm_yn(message: str) -> bool:
+    return yes_to_all or (input(f'{message} (y/n) ').strip().lower() == 'y')
+
+def snap_num(num: int | float, multiple: int, snap_method: Callable) -> int:
+    """Snaps the given `num` to the smallest or largest (depending on the given `snap_method`) `multiple` it can reside in."""
+    return multiple * (snap_method(num / multiple))
 
 def snap_box(box: Rectangle, multiple: int) -> Rectangle:
-    """Snaps the given four box coordinates to the largest `multiple` they can reside in. See `snap_num`."""
-    return tuple(map(lambda n: snap_num(n, multiple), box)) # type: ignore
+    """Snaps the given four box coordinates to their lowest `multiple` they can reside in. See `snap_num`.
+    Since regions are named based off of their "coordinate" as their top-left point, the lowest multiples are all that matter.
+    """
+    return tuple(map(lambda n: snap_num(n, multiple, floor), box)) # type: ignore
 
 class CombineError(Exception):
     """Raised when anything in the image combination process fails when
@@ -47,14 +47,15 @@ class Combiner:
     STANDARD_WORLDS: list[str] = ['overworld', 'the_nether', 'the_end']
     DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
     """Square-blocks-per-pixel for each detail level."""
-    def __init__(self, tiles_dir: str | Path, use_tqdm = False):
+    def __init__(self, tiles_dir: str | Path, use_tqdm=False, interactive: bool=False):
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
         self.tiles_dir = tiles_dir
         self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
         self.use_tqdm = use_tqdm
+        self.interactive = interactive
 
-    def combine(self, world: str | Path, detail: int, autotrim: bool=False, area: Optional[Rectangle]=None) -> Image.Image:
+    def combine(self, world: str | Path, detail: int, autotrim: bool=False, area: Optional[Rectangle]=None) -> Image.Image | None:
         """Combine the given world (dimension) tile images into one large map.
         @param world: Name of the world to combine images of.
             Should be the name of a subdirectory located in this instance's `tiles_dir`.
@@ -81,6 +82,9 @@ class Combiner:
                 rows.add(row)
                 regions[col][row] = img
 
+        # Deep-sort columns + rows
+        regions = {k:{v:regions[k][v] for v in sorted(regions[k].keys())} for k in sorted(regions.keys())}
+
         column_range = range(min(columns), max(columns) + 1)
         row_range = range(min(rows), max(rows) + 1)
 
@@ -90,44 +94,70 @@ class Combiner:
             column_range = range(area_regions[0], area_regions[2] + 1)
             row_range = range(area_regions[1], area_regions[3] + 1)
 
+        size_estimate = f'{self.TILE_SIZE * len(column_range)}x{self.TILE_SIZE * len(row_range)}'
+        if self.interactive:
+            if not confirm_yn(f'Estimated image size: {size_estimate}\nContinue?'):
+                logger.info('Cancelling...')
+                return
+
         # Start stitching
-        out = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(columns), self.TILE_SIZE * len(rows)))
+        out = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)))
         logger.info('Constructing image...')
 
+        status_callback: Callable = tqdm.write if self.use_tqdm else lambda s: None
+
         ta = time.perf_counter()
-        for c in tqdm(regions, disable=not self.use_tqdm):
+        top_left_region: tuple[int, int] | None = None
+        for c in tqdm(regions, disable=not self.use_tqdm, desc='Columns'):
             if c not in column_range:
                 continue
-            for r in tqdm(regions[c], disable=not self.use_tqdm, leave=False):
+            for r in tqdm(regions[c], disable=not self.use_tqdm, leave=False, desc='Rows'):
                 if r not in row_range:
                     continue
-                x, y = self.TILE_SIZE * (c - min(columns)), self.TILE_SIZE * (r - min(rows))
-                out.paste(Image.open(regions[c][r]), (x, y, x + self.TILE_SIZE, y + self.TILE_SIZE))
+                if not top_left_region:
+                    top_left_region = (c, r)
+                x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
+                if self.use_tqdm:
+                    status_callback(f'Pasting image: {regions[c][r]}')
+                paste_area = Rectangle([
+                    x,
+                    y,
+                    (x + self.TILE_SIZE),
+                    (y + self.TILE_SIZE)
+                ])
+                out.paste(Image.open(regions[c][r]), paste_area)
+
+        assert(top_left_region)
+
+        diff_from_origin = (0 - (self.TILE_SIZE * top_left_region[0]), 0 - (self.TILE_SIZE * top_left_region[1]))
 
         # Crop if an area is specified
         if area:
             crop_area = (
-                area[0] + (out.width // 2),
-                area[1] + (out.height // 2),
-                area[2] + (out.width // 2),
-                area[3] + (out.height // 2)
+                area[0] + diff_from_origin[0],
+                area[1] + diff_from_origin[1],
+                area[2] + diff_from_origin[0],
+                area[3] + diff_from_origin[1]
             )
             out = out.crop(crop_area)
 
         # Trim excess
         if autotrim:
-            box = out.getbbox()
-            if not box:
+            bbox = out.getbbox()
+            if not bbox:
                 raise CombineError('getbbox() failed')
-            logger.info(f'Trimming out blank space to leave an image of {box[2] - box[0]}x{box[3] - box[1]}...')
-            out = out.crop(box)
+            logger.info(f'Trimming out blank space... ({out.width}x{out.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
+            out = out.crop(bbox)
 
         tb = time.perf_counter()
 
         logger.info(f'Finished in {tb - ta:04f}s')
         return out
+
 @logger.catch
 def main():
+    global yes_to_all # pylint: disable=global-statement
+
     logger.add(sys.stdout, format="{level}: {message}", level='INFO')
 
     #region ARGUMENTS
@@ -193,14 +223,11 @@ def main():
     if len(args.force_size) > 2:
         raise ValueError('--force_size argument can only take up to 2 integers')
     force_size: tuple[int, int] = tuple(args.force_size) if len(args.force_size) == 2 else (args.force_size[0], args.force_size[0])
-    yes_to_all: bool = args.yes_to_all
+    yes_to_all = args.yes_to_all
 
     #endregion ARGUMENTS
 
-    def confirm_yn(message: str) -> bool:
-        return yes_to_all or (input(f'{message} (y/n) ').strip().lower() == 'y')
-
-    print(f"""
+    logger.info(f"""
 Tiles directory: {tiles_dir}
 World: {world}
 Detail level: {detail}
@@ -214,7 +241,7 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
     """)
 
     if not confirm_yn('Continue with these parameters?'):
-        print('Cancelling...')
+        logger.info('Cancelling...')
         return
 
     if world in Combiner.STANDARD_WORLDS:
@@ -227,8 +254,12 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
         copies = [*output_dir.glob(f'{out_file.stem}*')]
         out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)
 
-    combiner = Combiner(tiles_dir, use_tqdm=True)
+    combiner = Combiner(tiles_dir, use_tqdm=True, interactive=True)
     image = combiner.combine(world, detail, autotrim=autotrim, area=area)
+
+    if not image:
+        logger.info('No image was created, either due to failure or user cancellation. Exiting...')
+        return
 
     if all(n > 0 for n in force_size):
         resized = Image.new(mode='RGBA', size=force_size)

@@ -1,6 +1,6 @@
 build/
 dist/
-tiles/
+testimg/
 font/
 .venv/
 gui-wrapping/
