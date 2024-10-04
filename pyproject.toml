@@ -14,6 +14,11 @@ requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
+dependencies=[
+  "loguru==0.7.2",
+  "pillow==10.4.0",
+  "tqdm==4.66.5"
+]
 
 [project.urls]
 Homepage = "https://github.com/svioletg/py-squaremap-combiner"
