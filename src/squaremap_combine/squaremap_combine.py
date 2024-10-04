@@ -4,10 +4,10 @@ import time
 from datetime import datetime
 from math import floor
 from pathlib import Path
-from typing import Callable, Optional, cast
+from typing import Callable, Optional
 
 from loguru import logger
-from PIL import Image, ImageDraw
+from PIL import Image
 from tqdm import tqdm
 
 logger.remove() # Don't output anything if this is just being imported
