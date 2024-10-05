@@ -51,18 +51,20 @@ python3 squaremap_combine.py server-tiles overworld 3
 
 Note that very large maps can of course easily result in very large images, and it may take a while for the full image to be completed.
 
-Beyond this, there are various options that can be given to the script to alter its behavior. If you're not familiar with using the command-line, these options are typed out after the main command, in any order, with their associated values following directly after, like `squaremap_combine.py tiles overworld 3 --option value --option_two value`. If any of the options below are not used, their **default** is used automatically.
+Beyond this, there are various options that can be given to the script to alter its behavior. If you're not familiar with using the command-line, these options are typed out after the main command, in any order, with their associated values following directly after, like `squaremap_combine.py tiles overworld 3 --option value --option-two value`. If any of the options below are not used, their **default** is used automatically.
+
+> Note: You can use either hyphens (`-`) or underscores (`_`) and the option will work the same, e.g. `--output-ext` or `--output_ext`
 
 | Option | Description | Default |
 |-|-|-|
-| `--output-dir` | Specifies a folder to save the completed image to. | `.` (The directory the script was run from.) |
-| `--output-ext` | What file extension/format to give the resulting image. `png`, `jpg`, `webp`, etc. | `png` |
-| `--timestamp` | Adds a timestamp to the beginning of the image's filename, in the given format — see [strftime.org](https://strftime.org/) for a formatting code cheat sheet, however note that you'll need to use dollar signs (`$`) rather than percent symbols for the codes in this case. You can use the word `default` instead of a format to use the default timestamp formatting, which is `$Y-$m-$d_$H-$M-$S` (e.g. `2024-06-06_07-41-00`). | Timestamp is omitted if this option is unused. |
-| `--overwrite` | Flag that allows the script to overwrite any image with the same name as the one it wants to save to. The script saves images in the format `world_name-detail.(extension)` (e.g. `minecraft_overworld-3.png`), so if a file with this name already exists in the targeted output directory, it will be overwritten with this option. | Not using this flag will result in a number being added to the filename before saving, based on how many copies with the same name exist already. |
-| `--area` | Specifies a specific area to export an image of, rather than the full map. This option expects coordinates as they would appear in the Minecraft world itself, as the top-left and bottom-right corners of a rectangle — in the order of `X1 Y1 X2 Y2`. | The full map is rendered if no area is specified. |
+| `--output-dir` or `-o` | Specifies a folder to save the completed image to. | `.` (The directory the script was run from.) |
+| `--output-ext` or `-ext` | What file extension/format to give the resulting image. `png`, `jpg`, `webp`, etc. | `png` |
+| `--timestamp` or `-t` | Adds a timestamp to the beginning of the image's filename, in the given format — see [strftime.org](https://strftime.org/) for a formatting code cheat sheet, however note that you'll need to use dollar signs (`$`) rather than percent symbols for the codes in this case. You can use the word `default` instead of a format to use the default timestamp formatting, which is `$Y-$m-$d_$H-$M-$S` (e.g. `2024-06-06_07-41-00`). | Timestamp is omitted if this option is unused. |
+| `--overwrite` or `-ow` | Flag that allows the script to overwrite any image with the same name as the one it wants to save to. The script saves images in the format `world_name-detail.(extension)` (e.g. `minecraft_overworld-3.png`), so if a file with this name already exists in the targeted output directory, it will be overwritten with this option. | Not using this flag will result in a number being added to the filename before saving, based on how many copies with the same name exist already. |
+| `--area` or `-a` | Specifies a specific area to export an image of, rather than the full map. This option expects coordinates as they would appear in the Minecraft world itself, as the top-left and bottom-right corners of a rectangle — in the order of `X1 Y1 X2 Y2`. It is recommended to use the `--no-autotrim` option in conjunction with `--area` if you want the resulting image to be the size of the area given, regardless of empty space. | The full map is rendered if no area is specified. |
 | `--no-autotrim` | Tells the script not to trim off any empty (as in, fully transparent) space around the created image. | |
-| `--force-size` | Centers the image within the given width and height, in that order, and then crops the image to that size before saving. If only one number is given, it will be used for both the width and height. | |
-| `--yes-to-all` or `-y` | Automatically skips and approves any prompts for user confirmation. This is useful if you intend to run this script automatically, like in a crontab. |
+| `--force-size` or `-fs` | Centers the image within the given width and height, in that order, and then crops the image to that size before saving. If only one number is given, it will be used for both the width and height. | |
+| `--yes-to-all` or `-y` | Automatically skips and approves any prompts for user confirmation. This is useful if you intend to run this script automatically, like in a crontab. | |
 
 Using some of these options, your command may look something like this:
 

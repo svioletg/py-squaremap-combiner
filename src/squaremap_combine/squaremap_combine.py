@@ -55,7 +55,13 @@ class Combiner:
         self.use_tqdm = use_tqdm
         self.interactive = interactive
 
-    def combine(self, world: str | Path, detail: int, autotrim: bool=False, area: Optional[Rectangle]=None) -> Image.Image | None:
+    def combine(self,
+        world: str | Path,
+        detail: int,
+        autotrim: bool=False,
+        area: Optional[Rectangle]=None,
+        force_size: Optional[tuple[int, int]]=None
+        ) -> Image.Image | None:
         """Combine the given world (dimension) tile images into one large map.
         @param world: Name of the world to combine images of.
             Should be the name of a subdirectory located in this instance's `tiles_dir`.
@@ -101,58 +107,70 @@ class Combiner:
                 return
 
         # Start stitching
-        out = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)))
+        image = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)))
         logger.info('Constructing image...')
 
         status_callback: Callable = tqdm.write if self.use_tqdm else lambda s: None
 
         ta = time.perf_counter()
-        top_left_region: tuple[int, int] | None = None
+        # The pasting coordinates are determined based on what current column and row the for loops
+        # are on, so they'll increase by a tile regardless of whether an image has actually been pasted
+        top_left_region: tuple[int, int] = column_range[0], row_range[0]
         for c in tqdm(regions, disable=not self.use_tqdm, desc='Columns'):
             if c not in column_range:
                 continue
             for r in tqdm(regions[c], disable=not self.use_tqdm, leave=False, desc='Rows'):
                 if r not in row_range:
                     continue
-                if not top_left_region:
-                    top_left_region = (c, r)
                 x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
                 if self.use_tqdm:
                     status_callback(f'Pasting image: {regions[c][r]}')
-                paste_area = Rectangle([
-                    x,
-                    y,
-                    (x + self.TILE_SIZE),
-                    (y + self.TILE_SIZE)
-                ])
-                out.paste(Image.open(regions[c][r]), paste_area)
+                paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
+                image.paste(Image.open(regions[c][r]), paste_area)
 
-        assert(top_left_region)
-
-        diff_from_origin = (0 - (self.TILE_SIZE * top_left_region[0]), 0 - (self.TILE_SIZE * top_left_region[1]))
+        distance_from_zero = (0 - (self.TILE_SIZE * top_left_region[0]), 0 - (self.TILE_SIZE * top_left_region[1]))
 
         # Crop if an area is specified
         if area:
             crop_area = (
-                area[0] + diff_from_origin[0],
-                area[1] + diff_from_origin[1],
-                area[2] + diff_from_origin[0],
-                area[3] + diff_from_origin[1]
+                area[0] + distance_from_zero[0],
+                area[1] + distance_from_zero[1],
+                area[2] + distance_from_zero[0],
+                area[3] + distance_from_zero[1]
             )
-            out = out.crop(crop_area)
+            image = image.crop(crop_area)
+
+        # Crop and resize if given an explicit size
+        if force_size and all(n > 0 for n in force_size):
+            resized = Image.new(mode='RGBA', size=force_size)
+            logger.info(f'Resizing to {resized.size[0]}x{resized.size[1]}...')
+            center = resized.size[0] // 2, resized.size[1] // 2
+
+            x1, y1 = center[0] - (image.size[0] // 2), center[1] - (image.size[1] // 2)
+            x2, y2 = x1 + image.size[0], y1 + image.size[1]
+
+            resized.paste(image, (x1, y1, x2, y2))
+            image = resized
+
+            # force_size negates autotrimming
+            autotrim = False
 
         # Trim excess
         if autotrim:
-            bbox = out.getbbox()
+            bbox = image.getbbox()
             if not bbox:
                 raise CombineError('getbbox() failed')
-            logger.info(f'Trimming out blank space... ({out.width}x{out.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
-            out = out.crop(bbox)
+            logger.info(f'Trimming out blank space... ({image.width}x{image.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
+            image = image.crop(bbox)
 
         tb = time.perf_counter()
 
         logger.info(f'Finished in {tb - ta:04f}s')
-        return out
+        return image
+
+def opt(*names: str) -> list[str]:
+    """Short for "option". Returns the given argument names with underscore versions appended."""
+    return [*names] + [('--' + n.lstrip('-').replace('-', '_')) for n in names]
 
 @logger.catch
 def main():
@@ -170,39 +188,39 @@ def main():
         help='What detail level to source images from.\n' +
         'Level 3 is 1 block per pixel, 2 is 2x2 per pixel, 1 is 4x4 per pixel, and 0 is 8x8 per pixel.')
 
-    parser.add_argument('--output-dir', type=Path, default=Path('.'),
+    parser.add_argument(*opt('--output-dir'), '-o', type=Path, default=Path('.'),
         help='Directory to save the completed image to.\n' +
         'Defaults to the directory in which this script was run.')
 
-    parser.add_argument('--output-ext', type=str, default='png',
+    parser.add_argument(*opt('--output-ext'), '-ext', type=str, default='png',
         help='The output file extension (format) to use for the created image. Supports anything Pillow does. (e.g. "png", "jpg", "webp")')
 
-    parser.add_argument('--timestamp', type=str, default='',
+    parser.add_argument(*opt('--timestamp'), '-t', type=str, default='',
         help='Adds a timestamp of the given format to the beginning of the image file name.\n ' +
         'Default format "$Y-$m-$d_$H-$M-$S" will be used if "default" is given for this argument.\n' +
         'See: https://docs.python.org/3/library/datetime.html#format-codes\n' +
         'NOTE: Due to a quirk with the argparse library, you must use a dollar sign ($) instead of a percent symbol for' +
         ' any format strings.')
 
-    parser.add_argument('--overwrite', action='store_true',
+    parser.add_argument(*opt('--overwrite'), '-ow', action='store_true',
         help='Using this flag will allow the script to overwrite an existing file with the same target name if it already' +
         ' exists. By default, if an image with the same path already exists, a numbered suffix is added.')
 
-    parser.add_argument('--area', type=int, nargs=4, default=None, metavar=('X1', 'Y1', 'X2', 'Y2'),
+    parser.add_argument(*opt('--area'), '-a', type=int, nargs=4, default=None, metavar=('X1', 'Y1', 'X2', 'Y2'),
         help='A rectangle area of the world (top, left, bottom, right) to export an image from.\n' +
         'This can save time when using a very large world map, as this will only combine the minimum amount of regions' +
         ' needed to cover this area, before finally cropping it down to only the given area.\n' +
         'These values should be the coordinates of the area as they would be in the actual Minecraft world.')
 
-    parser.add_argument('--no-autotrim', action='store_false',
+    parser.add_argument(*opt('--no-autotrim'), action='store_false',
         help='By default, excess empty space is trimmed off of the final image. Using this argument with disable that behavior.')
 
-    parser.add_argument('--force-size', type=int, nargs='+', default=[0], metavar=('WIDTH', 'HEIGHT'),
+    parser.add_argument(*opt('--force-size'), '-fs', type=int, nargs='+', default=[0], metavar=('WIDTH', 'HEIGHT'),
         help='Centers the assembled map inside an image of this size.\n' +
         'Can be used to make images a consistent size if you\'re using them for a timelapse, for example.\n' +
         'Only specifying one integer for this argument will use the same value for both width and height.')
 
-    parser.add_argument('-y', '--yes-to-all', action='store_true',
+    parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
         help='Automatically accepts any requests for user confirmation.')
 
     args = parser.parse_args()
@@ -255,22 +273,11 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
         out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)
 
     combiner = Combiner(tiles_dir, use_tqdm=True, interactive=True)
-    image = combiner.combine(world, detail, autotrim=autotrim, area=area)
+    image = combiner.combine(world, detail, autotrim=autotrim, area=area, force_size=force_size)
 
     if not image:
         logger.info('No image was created, either due to failure or user cancellation. Exiting...')
         return
-
-    if all(n > 0 for n in force_size):
-        resized = Image.new(mode='RGBA', size=force_size)
-        logger.info(f'Resizing canvas to {resized.size[0]}x{resized.size[1]}...')
-        center = resized.size[0] // 2, resized.size[1] // 2
-
-        x1, y1 = center[0] - (image.size[0] // 2), center[1] - (image.size[1] // 2)
-        x2, y2 = x1 + image.size[0], y1 + image.size[1]
-
-        resized.paste(image, (x1, y1, x2, y2))
-        image = resized
 
     logger.info(f'Saving to "{out_file}"...')
     image.save(out_file)
