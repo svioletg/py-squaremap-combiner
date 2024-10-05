@@ -43,10 +43,13 @@ def snap_box(box: Rectangle, multiple: int) -> Rectangle:
 
 def draw_grid(image: Image.Image, interval: int | tuple[int, int], line_color: ColorRGB, origin: tuple[int, int]=(0, 0)) -> None:
     """Draws a grid onto an `Image` with the given intervals.
+
     @param interval: An interval of pixels at which lines should be drawn.
         Giving a single integer will use the same interval for X and Y, otherwise a tuple of two integers can be given
         to specify each.
     @param line_color: What color to draw the grid lines with.
+    @param origin: Where to start drawing grid lines from on the image.
+        Lines will be drawn from this position moving outwards in both directions until the edge of the image is reached.
     """
     if isinstance(interval, int):
         interval = interval, interval
@@ -107,13 +110,23 @@ class Combiner:
             autotrim: bool=False,
             area: Optional[Rectangle]=None,
             force_size: Optional[tuple[int, int]]=None,
-            use_grid: bool=False
+            use_grid: bool=False,
+            show_grid_coords: bool=False
         ) -> Image.Image | None:
         """Combine the given world (dimension) tile images into one large map.
-        @param world: Name of the world to combine images of.
+
+        @param world: Name of the world to combine images of.\
             Should be the name of a subdirectory located in this instance's `tiles_dir`.
-        @param detail: The level of detail, 0 up through 3, to use for this map.
+        @param detail: The level of detail, 0 up through 3, to use for this map.\
             Will correspond to which numbered subdirectory within the given world to use images from.
+        @param area: Specifies an area of the world to export rather than rendering the full map.\
+            Takes coordinates as they would appear in Minecraft.
+        @param force_size: Centers the final image in a new image of this size.\
+            Using this will disable `autotrim` implicitly.
+        @param use_grid: Draws a grid onto this image.\
+            Uses this `Combiner` instance's `grid_interval` and `grid_color` properties.
+        @param show_grid_coords: Adds Minecraft coordinates to the top-left of every `grid_interval` intersection on this image.\
+            This can be used on its own without `use_grid` to draw only the coordinate text.
         """
         if world not in self.mapped_worlds:
             raise ValueError(f'No world directory of name "{world}" exists in "{self.tiles_dir}"')
@@ -179,27 +192,29 @@ class Combiner:
         # So by seeing how far away the top left region used in the image is from that, we have our in-game coordinates
         top_left_coord = top_left_region[0] * self.TILE_SIZE, top_left_region[1] * self.TILE_SIZE
 
-        if use_grid:
+        if use_grid or show_grid_coords:
             if not self.grid_interval:
                 raise CombineError('use_grid is true, but no grid interval is set for this Combiner instance')
             grid_origin_x, grid_origin_y = 0 - top_left_coord[0], 0 - top_left_coord[1]
 
             # Make sure the grid origin is within the image, or else this won't work
+            # TODO: Is this affected by detail level?
             while grid_origin_x > image.width:
                 grid_origin_x -= self.grid_interval[0]
             while grid_origin_y > image.height:
                 grid_origin_y -= self.grid_interval[1]
 
-            grid_origin_x //= self.DETAIL_SBPP[detail]
-            grid_origin_y //= self.DETAIL_SBPP[detail]
+            # TODO: Support show_grid_coords. Increment by interval from the origin out to edges to get coordinate dictionary.
+            if use_grid:
+                grid_origin_x //= self.DETAIL_SBPP[detail]
+                grid_origin_y //= self.DETAIL_SBPP[detail]
 
-            draw_grid(
-                image,
-                (self.grid_interval[0] // self.DETAIL_SBPP[detail], self.grid_interval[1] // self.DETAIL_SBPP[detail]),
-                self.grid_color,
-                (grid_origin_x, grid_origin_y)
-            )
-
+                draw_grid(
+                    image,
+                    (self.grid_interval[0] // self.DETAIL_SBPP[detail], self.grid_interval[1] // self.DETAIL_SBPP[detail]),
+                    self.grid_color,
+                    (grid_origin_x, grid_origin_y)
+                )
         # Crop if an area is specified
         if area:
             crop_area = (
