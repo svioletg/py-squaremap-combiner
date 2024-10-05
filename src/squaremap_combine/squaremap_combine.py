@@ -1,18 +1,22 @@
 import argparse
 import sys
+import textwrap
 import time
 from datetime import datetime
 from math import floor
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, TypeVar
 
 from loguru import logger
-from PIL import Image
+from PIL import Image, ImageDraw
 from tqdm import tqdm
 
 logger.remove() # Don't output anything if this is just being imported
 
+T = TypeVar('T')
+
 Rectangle = tuple[int, int, int, int]
+ColorRGB = tuple[int, int, int]
 
 DEFAULT_TIME_FORMAT = '$Y-$m-$d_$H-$M-$S'
 
@@ -20,6 +24,12 @@ yes_to_all = False
 
 def confirm_yn(message: str) -> bool:
     return yes_to_all or (input(f'{message} (y/n) ').strip().lower() == 'y')
+
+def filled_tuple(source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
+    """Takes a tuple of no more than two values, and returns the original tuple if two values are present,
+    or a new tuple consisting of the first value having been doubled if only one value is present.
+    """
+    return source_tuple if len(source_tuple) == 2 else (source_tuple[0], source_tuple[0])
 
 def snap_num(num: int | float, multiple: int, snap_method: Callable) -> int:
     """Snaps the given `num` to the smallest or largest (depending on the given `snap_method`) `multiple` it can reside in."""
@@ -30,6 +40,34 @@ def snap_box(box: Rectangle, multiple: int) -> Rectangle:
     Since regions are named based off of their "coordinate" as their top-left point, the lowest multiples are all that matter.
     """
     return tuple(map(lambda n: snap_num(n, multiple, floor), box)) # type: ignore
+
+def draw_grid(image: Image.Image, interval: int | tuple[int, int], line_color: ColorRGB, origin: tuple[int, int]=(0, 0)) -> None:
+    """Draws a grid onto an `Image` with the given intervals.
+    @param interval: An interval of pixels at which lines should be drawn.
+        Giving a single integer will use the same interval for X and Y, otherwise a tuple of two integers can be given
+        to specify each.
+    @param line_color: What color to draw the grid lines with.
+    """
+    if isinstance(interval, int):
+        interval = interval, interval
+    draw = ImageDraw.Draw(image)
+    x, y = origin
+    while x <= image.width:
+        draw.line((x, 0, x, image.height), fill=line_color)
+        x += interval[0]
+    x, y = origin
+    while x >= 0:
+        draw.line((x, 0, x, image.height), fill=line_color)
+        x -= interval[0]
+
+    x, y = origin
+    while y <= image.height:
+        draw.line((0, y, image.width, y), fill=line_color)
+        y += interval[1]
+    x, y = origin
+    while y >= 0:
+        draw.line((0, y, image.width, y), fill=line_color)
+        y -= interval[1]
 
 class CombineError(Exception):
     """Raised when anything in the image combination process fails when
@@ -47,20 +85,29 @@ class Combiner:
     STANDARD_WORLDS: list[str] = ['overworld', 'the_nether', 'the_end']
     DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
     """Square-blocks-per-pixel for each detail level."""
-    def __init__(self, tiles_dir: str | Path, use_tqdm=False, interactive: bool=False):
+    def __init__(self,
+            tiles_dir: str | Path,
+            use_tqdm=False,
+            interactive: bool=False,
+            grid_interval: Optional[tuple[int, int]]=None,
+            grid_color: ColorRGB=(0, 0, 0)
+        ):
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
         self.tiles_dir = tiles_dir
         self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
         self.use_tqdm = use_tqdm
         self.interactive = interactive
+        self.grid_interval = grid_interval
+        self.grid_color = grid_color
 
     def combine(self,
-        world: str | Path,
-        detail: int,
-        autotrim: bool=False,
-        area: Optional[Rectangle]=None,
-        force_size: Optional[tuple[int, int]]=None
+            world: str | Path,
+            detail: int,
+            autotrim: bool=False,
+            area: Optional[Rectangle]=None,
+            force_size: Optional[tuple[int, int]]=None,
+            use_grid: bool=False
         ) -> Image.Image | None:
         """Combine the given world (dimension) tile images into one large map.
         @param world: Name of the world to combine images of.
@@ -110,13 +157,11 @@ class Combiner:
         image = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)))
         logger.info('Constructing image...')
 
-        status_callback: Callable = tqdm.write if self.use_tqdm else lambda s: None
-
         ta = time.perf_counter()
         # The pasting coordinates are determined based on what current column and row the for loops
         # are on, so they'll increase by a tile regardless of whether an image has actually been pasted
         top_left_region: tuple[int, int] = column_range[0], row_range[0]
-        for c in tqdm(regions, disable=not self.use_tqdm, desc='Columns'):
+        for c in (tqdm(regions, disable=not self.use_tqdm, desc='Columns')):
             if c not in column_range:
                 continue
             for r in tqdm(regions[c], disable=not self.use_tqdm, leave=False, desc='Rows'):
@@ -124,7 +169,7 @@ class Combiner:
                     continue
                 x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
                 if self.use_tqdm:
-                    status_callback(f'Pasting image: {regions[c][r]}')
+                    tqdm.write(f'Pasting image: {regions[c][r]}')
                 paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
                 image.paste(Image.open(regions[c][r]), paste_area)
 
@@ -132,17 +177,41 @@ class Combiner:
         # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
         # Tiles are always the same size, and the top left coordinate of the 0,0 region is also 0,0
         # So by seeing how far away the top left region used in the image is from that, we have our in-game coordinates
-        distance_from_zero = (0 - (self.TILE_SIZE * top_left_region[0]), 0 - (self.TILE_SIZE * top_left_region[1]))
+        top_left_coord = top_left_region[0] * self.TILE_SIZE, top_left_region[1] * self.TILE_SIZE
+
+        if use_grid:
+            if not self.grid_interval:
+                raise CombineError('use_grid is true, but no grid interval is set for this Combiner instance')
+            grid_origin_x, grid_origin_y = 0 - top_left_coord[0], 0 - top_left_coord[1]
+
+            # Make sure the grid origin is within the image, or else this won't work
+            while grid_origin_x > image.width:
+                grid_origin_x -= self.grid_interval[0]
+            while grid_origin_y > image.height:
+                grid_origin_y -= self.grid_interval[1]
+
+            grid_origin_x //= self.DETAIL_SBPP[detail]
+            grid_origin_y //= self.DETAIL_SBPP[detail]
+
+            draw_grid(
+                image,
+                (self.grid_interval[0] // self.DETAIL_SBPP[detail], self.grid_interval[1] // self.DETAIL_SBPP[detail]),
+                self.grid_color,
+                (grid_origin_x, grid_origin_y)
+            )
 
         # Crop if an area is specified
         if area:
             crop_area = (
-                area[0] + distance_from_zero[0],
-                area[1] + distance_from_zero[1],
-                area[2] + distance_from_zero[0],
-                area[3] + distance_from_zero[1]
+                area[0] - top_left_coord[0],
+                area[1] - top_left_coord[1],
+                area[2] - top_left_coord[0],
+                area[3] - top_left_coord[1]
             )
             image = image.crop(crop_area)
+
+        # Once the image has been cropped, this is no longer useful
+        del top_left_coord
 
         # Crop and resize if given an explicit size
         if force_size and all(n > 0 for n in force_size):
@@ -224,6 +293,11 @@ def main():
         'Can be used to make images a consistent size if you\'re using them for a timelapse, for example.\n' +
         'Only specifying one integer for this argument will use the same value for both width and height.')
 
+    parser.add_argument(*opt('--use-grid'), '-g', type=int, nargs='+', default=[0], metavar=('X_INTERVAL, Y_INTERVAL'),
+        help='Adds a grid onto the final image in the given X and Y intervals.\n' +
+        'If only X_INTERVAL is given, the same interval will be used for both X and Y grid lines.\n' +
+        'The resulting grid will be based on the coordinates as they would be in Minecraft, not of the image itself.')
+
     parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
         help='Automatically accepts any requests for user confirmation.')
 
@@ -243,24 +317,32 @@ def main():
     area        : Rectangle | None = args.area
     autotrim    : bool             = args.no_autotrim
     if len(args.force_size) > 2:
-        raise ValueError('--force_size argument can only take up to 2 integers')
-    force_size: tuple[int, int] = tuple(args.force_size) if len(args.force_size) == 2 else (args.force_size[0], args.force_size[0])
+        raise ValueError('--force-size argument can only take up to 2 integers')
+    force_size: tuple[int, int] = filled_tuple(args.force_size)
+
+    if len(args.use_grid) > 2:
+        raise ValueError('--use-grid argument can only take up to 2 integers')
+    grid_interval: tuple[int, int] = filled_tuple(args.use_grid)
+    use_grid: bool = all(n > 0 for n in grid_interval)
+
     yes_to_all = args.yes_to_all
 
     #endregion ARGUMENTS
 
-    logger.info(f"""
-Tiles directory: {tiles_dir}
-World: {world}
-Detail level: {detail}
-Output directory: {output_dir.absolute()}
-Output file extension: {output_ext}
-Add timestamp? {f'True, using format "{time_format}"' if time_format else 'False'}
-Allow overwriting images? {overwrite}
-Specified area: {area if area else 'None, will render the entire map'}
-Auto-trim? {autotrim}
-Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size) else 'False'}
-    """)
+    logger.info(textwrap.dedent(f"""
+        Tiles directory: {tiles_dir}
+        World: {world}
+        Detail level: {detail}
+        Output directory: {output_dir.absolute()}
+        Output file extension: {output_ext}
+        Add timestamp? {f'True, using format "{time_format}"' if time_format else 'False'}
+        Allow overwriting images? {overwrite}
+        Specified area: {area if area else 'None, will render the entire map'}
+        Auto-trim? {autotrim}
+        Force final size? {('True; ' + str(force_size)) if any(n > 0 for n in force_size) else 'False'}
+        Show grid on map? {(f'True; X interval: {grid_interval[0]}, Y interval: {grid_interval[1]}') if use_grid else 'False'}
+        Auto-confirm? {yes_to_all}
+    """))
 
     if not confirm_yn('Continue with these parameters?'):
         logger.info('Cancelling...')
@@ -276,15 +358,23 @@ Force final size? {('True: ' + str(force_size)) if any(n > 0 for n in force_size
         copies = [*output_dir.glob(f'{out_file.stem}*')]
         out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)
 
-    combiner = Combiner(tiles_dir, use_tqdm=True, interactive=True)
-    image = combiner.combine(world, detail, autotrim=autotrim, area=area, force_size=force_size)
+    combiner = Combiner(tiles_dir, use_tqdm=True, interactive=True, grid_interval=grid_interval if use_grid else None)
+    image = combiner.combine(
+        world,
+        detail,
+        autotrim=autotrim,
+        area=area,
+        force_size=force_size,
+        use_grid=use_grid
+    )
 
     if not image:
-        logger.info('No image was created, either due to failure or user cancellation. Exiting...')
+        logger.warning('No image was created. Exiting...')
         return
 
     logger.info(f'Saving to "{out_file}"...')
     image.save(out_file)
+
     logger.info('Done!')
 
 if __name__ == '__main__':
