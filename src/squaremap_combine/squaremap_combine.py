@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from math import floor
 from pathlib import Path
-from typing import Callable, Generator, Iterator, Literal, Optional, TypeVar
+from typing import Callable, Iterator, Literal, Optional, TypeVar
 
 from loguru import logger
 from PIL import Image, ImageDraw
@@ -298,13 +298,20 @@ class Combiner:
                 del x, y
 
                 interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
+                total_intervals = len(interval_coords)
+                if total_intervals > 50000:
+                    logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
+                    if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
+                        ' You can press Ctrl+C to cancel during this process if needed. Continue?'):
+                        logger.info('Cancelling...')
+                        return
+                elif total_intervals > 5000:
+                    logger.info('More than 5000 grid intervals will be iterated over;' +
+                        ' the progress bar\'s description text will not update per iteration in order to save speed.')
                 idraw = ImageDraw.Draw(image)
-                print(top_left_game_coord)
                 for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
-                    print(f'\n({img_coord.x} + ({top_left_game_coord.x} // {detail_mul})) * {detail_mul} '+
-                        f'-> {(img_coord.x + (top_left_game_coord.x // detail_mul)) * detail_mul}\n')
                     game_coord = (img_coord + (top_left_game_coord // detail_mul)) * detail_mul
-                    if self.use_tqdm:
+                    if self.use_tqdm and (total_intervals <= 5000):
                         pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
                     idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
 
@@ -364,7 +371,9 @@ def opt(*names: str) -> list[str]:
 def main():
     global yes_to_all # pylint: disable=global-statement
 
-    logger.add(sys.stdout, format="{level}: {message}", level='INFO')
+    logger.level('WARNING', color='<yellow>')
+    logger.level('ERROR', color='<red>')
+    logger.add(sys.stdout, colorize=True, format="<level>{level}: {message}</level>", level='INFO')
 
     #region ARGUMENTS
 
@@ -493,7 +502,7 @@ def main():
     )
 
     if not image:
-        logger.warning('No image was created. Exiting...')
+        logger.info('No image was created. Exiting...')
         return
 
     logger.info(f'Saving to "{out_file}"...')
