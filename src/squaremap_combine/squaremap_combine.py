@@ -1,11 +1,12 @@
 import argparse
+import operator
 import sys
 import textwrap
 import time
 from datetime import datetime
 from math import floor
 from pathlib import Path
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Generator, Iterator, Literal, Optional, TypeVar
 
 from loguru import logger
 from PIL import Image, ImageDraw
@@ -18,7 +19,7 @@ T = TypeVar('T')
 Rectangle = tuple[int, int, int, int]
 ColorRGB = tuple[int, int, int]
 
-DEFAULT_TIME_FORMAT = '$Y-$m-$d_$H-$M-$S'
+DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
 
 yes_to_all = False
 
@@ -53,29 +54,84 @@ def draw_grid(image: Image.Image, interval: int | tuple[int, int], line_color: C
     """
     if isinstance(interval, int):
         interval = interval, interval
-    draw = ImageDraw.Draw(image)
+    idraw = ImageDraw.Draw(image)
     x, y = origin
     while x <= image.width:
-        draw.line((x, 0, x, image.height), fill=line_color)
+        idraw.line((x, 0, x, image.height), fill=line_color)
         x += interval[0]
     x, y = origin
     while x >= 0:
-        draw.line((x, 0, x, image.height), fill=line_color)
+        idraw.line((x, 0, x, image.height), fill=line_color)
         x -= interval[0]
 
     x, y = origin
     while y <= image.height:
-        draw.line((0, y, image.width, y), fill=line_color)
+        idraw.line((0, y, image.width, y), fill=line_color)
         y += interval[1]
     x, y = origin
     while y >= 0:
-        draw.line((0, y, image.width, y), fill=line_color)
+        idraw.line((0, y, image.width, y), fill=line_color)
         y -= interval[1]
 
 class CombineError(Exception):
     """Raised when anything in the image combination process fails when
     no other type of exception would be applicable.
     """
+
+class Coord2i:
+    """Represents a 2D integer coordinate pair."""
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+
+    def __repr__(self):
+        return f'Coord2i(x={self.x}, y={self.y})'
+
+    def __str__(self):
+        return f'({self.x}, {self.y})'
+
+    def __iter__(self) -> Iterator[int]:
+        for i in [self.x, self.y]:
+            yield i
+
+    def as_tuple(self) -> tuple[int, int]:
+        return (self.x, self.y)
+
+    def _math(self, math_op: Callable, other: 'int | tuple[int, int] | Coord2i', direction: Literal['l', 'r']='l') -> 'Coord2i':
+        if isinstance(other, int):
+            other = (other, other)
+        elif isinstance(other, Coord2i):
+            other = (other.x, other.y)
+
+        if direction == 'l':
+            return Coord2i(math_op(self.x, other[0]), math_op(self.y, other[1]))
+        elif direction == 'r':
+            return Coord2i(math_op(other[0], self.x), math_op(other[1], self.y))
+
+    def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.add, other)
+    def __radd__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.add, other, 'r')
+
+    def __sub__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.sub, other)
+    def __rsub__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.sub, other, 'r')
+
+    def __mul__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.mul, other)
+    def __rmul__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.mul, other, 'r')
+
+    def __floordiv__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.floordiv, other)
+    def __rfloordiv__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.floordiv, other, 'r')
+
+    def __pow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.pow, other)
+    def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.pow, other, 'r')
 
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,
@@ -120,7 +176,7 @@ class Combiner:
         @param detail: The level of detail, 0 up through 3, to use for this map.\
             Will correspond to which numbered subdirectory within the given world to use images from.
         @param area: Specifies an area of the world to export rather than rendering the full map.\
-            Takes coordinates as they would appear in Minecraft.
+            Takes coordinates as they would appear in Minecraft. Using this will disable `autotrim` implicitly.
         @param force_size: Centers the final image in a new image of this size.\
             Using this will disable `autotrim` implicitly.
         @param use_grid: Draws a grid onto this image.\
@@ -133,6 +189,8 @@ class Combiner:
         if not (0 <= detail <= 3):
             raise ValueError(f'Detail level must be between 0 and 3; given {detail}')
         source_dir: Path = self.tiles_dir / world / str(detail)
+
+        detail_mul = self.DETAIL_SBPP[detail]
 
         # Sort out what regions we're going to stitch
         columns: set[int] = set()
@@ -155,7 +213,7 @@ class Combiner:
         row_range = range(min(rows), max(rows) + 1)
 
         if area:
-            area = Rectangle([n // self.DETAIL_SBPP[detail] for n in area])
+            area = Rectangle([n // detail_mul for n in area])
             area_regions = Rectangle([n // self.TILE_SIZE for n in snap_box(area, self.TILE_SIZE)])
             column_range = range(area_regions[0], area_regions[2] + 1)
             row_range = range(area_regions[1], area_regions[3] + 1)
@@ -190,43 +248,72 @@ class Combiner:
         # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
         # Tiles are always the same size, and the top left coordinate of the 0,0 region is also 0,0
         # So by seeing how far away the top left region used in the image is from that, we have our in-game coordinates
-        top_left_coord = top_left_region[0] * self.TILE_SIZE, top_left_region[1] * self.TILE_SIZE
+        top_left_game_coord = Coord2i(*top_left_region) * detail_mul * self.TILE_SIZE
+
+        # Represents where 0, 0 in our Minecraft world is, in relation to the image's coordinates
+        game_origin_in_image = (0 - top_left_game_coord) // detail_mul
 
         if use_grid or show_grid_coords:
             if not self.grid_interval:
                 raise CombineError('use_grid is true, but no grid interval is set for this Combiner instance')
-            grid_origin_x, grid_origin_y = 0 - top_left_coord[0], 0 - top_left_coord[1]
+            # grid_origin starts out the same as the game's origin coord, which is used as a basic orientation point
+            # before moving by intervals from 0, 0 until the point is within the image
+            # (otherwise the grid calculations later won't work)
+            grid_origin = game_origin_in_image
 
             # Make sure the grid origin is within the image, or else this won't work
-            # TODO: Is this affected by detail level?
-            while grid_origin_x > image.width:
-                grid_origin_x -= self.grid_interval[0]
-            while grid_origin_y > image.height:
-                grid_origin_y -= self.grid_interval[1]
+            while grid_origin.x > image.width:
+                grid_origin.x -= self.grid_interval[0] // detail_mul
+            while grid_origin.y > image.height:
+                grid_origin.y -= self.grid_interval[1] // detail_mul
 
-            # TODO: Support show_grid_coords. Increment by interval from the origin out to edges to get coordinate dictionary.
+            if show_grid_coords:
+                idraw = ImageDraw.Draw(image)
+                coord_axes = {'h': set(), 'v': set()}
+                x, y = grid_origin
+
+                while x <= image.width:
+                    coord_axes['h'].add(x)
+                    x += self.grid_interval[0] // detail_mul
+                x = grid_origin.x
+                while x >= 0:
+                    coord_axes['h'].add(x)
+                    x -= self.grid_interval[0] // detail_mul
+
+                while y <= image.height:
+                    coord_axes['v'].add(y)
+                    y += self.grid_interval[1] // detail_mul
+                y = grid_origin.y
+                while y >= 0:
+                    coord_axes['v'].add(y)
+                    y -= self.grid_interval[1] // detail_mul
+
+                interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
+                for img_coord in interval_coords:
+                    game_coord = (img_coord * detail_mul) + top_left_game_coord
+                    idraw.text(img_coord.as_tuple(), str(game_coord), fill=self.grid_color)
+
             if use_grid:
-                grid_origin_x //= self.DETAIL_SBPP[detail]
-                grid_origin_y //= self.DETAIL_SBPP[detail]
-
                 draw_grid(
                     image,
-                    (self.grid_interval[0] // self.DETAIL_SBPP[detail], self.grid_interval[1] // self.DETAIL_SBPP[detail]),
+                    (self.grid_interval[0] // detail_mul, self.grid_interval[1] // detail_mul),
                     self.grid_color,
-                    (grid_origin_x, grid_origin_y)
+                    (grid_origin.x, grid_origin.y)
                 )
+
         # Crop if an area is specified
         if area:
             crop_area = (
-                area[0] - top_left_coord[0],
-                area[1] - top_left_coord[1],
-                area[2] - top_left_coord[0],
-                area[3] - top_left_coord[1]
+                area[0] - (top_left_game_coord.x // detail_mul),
+                area[1] - (top_left_game_coord.y // detail_mul),
+                area[2] - (top_left_game_coord.x // detail_mul),
+                area[3] - (top_left_game_coord.y // detail_mul)
             )
             image = image.crop(crop_area)
+            autotrim = False
 
         # Once the image has been cropped, this is no longer useful
-        del top_left_coord
+        del top_left_game_coord
 
         # Crop and resize if given an explicit size
         if force_size and all(n > 0 for n in force_size):
@@ -239,8 +326,6 @@ class Combiner:
 
             resized.paste(image, (x1, y1, x2, y2))
             image = resized
-
-            # force_size negates autotrimming
             autotrim = False
 
         # Trim excess
@@ -283,11 +368,11 @@ def main():
     parser.add_argument(*opt('--output-ext'), '-ext', type=str, default='png',
         help='The output file extension (format) to use for the created image. Supports anything Pillow does. (e.g. "png", "jpg", "webp")')
 
-    parser.add_argument(*opt('--timestamp'), '-t', type=str, default='',
+    parser.add_argument(*opt('--timestamp'), '-t', type=str, nargs='*', default='',
         help='Adds a timestamp of the given format to the beginning of the image file name.\n ' +
-        'Default format "$Y-$m-$d_$H-$M-$S" will be used if "default" is given for this argument.\n' +
+        'Default format "?Y-?m-?d_?H-?M-?S" will be used if no format is specified after this argument.\n' +
         'See: https://docs.python.org/3/library/datetime.html#format-codes\n' +
-        'NOTE: Due to a quirk with the argparse library, you must use a dollar sign ($) instead of a percent symbol for' +
+        'NOTE: Due to a quirk with the argparse library, you must use a question mark (?) instead of a percent symbol for' +
         ' any format strings.')
 
     parser.add_argument(*opt('--overwrite'), '-ow', action='store_true',
@@ -313,6 +398,9 @@ def main():
         'If only X_INTERVAL is given, the same interval will be used for both X and Y grid lines.\n' +
         'The resulting grid will be based on the coordinates as they would be in Minecraft, not of the image itself.')
 
+    parser.add_argument(*opt('--show-coords'), '-gc', action='store_true',
+        help='Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.')
+
     parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
         help='Automatically accepts any requests for user confirmation.')
 
@@ -324,9 +412,9 @@ def main():
     output_dir  : Path = args.output_dir
     output_ext  : str  = args.output_ext
     time_format : str  = args.timestamp
-    if time_format == 'default':
+    if time_format == []:
         time_format = DEFAULT_TIME_FORMAT
-    time_format = time_format.replace('$', '%')
+    time_format = time_format.replace('?', '%')
 
     overwrite   : bool             = args.overwrite
     area        : Rectangle | None = args.area
@@ -339,23 +427,28 @@ def main():
         raise ValueError('--use-grid argument can only take up to 2 integers')
     grid_interval: tuple[int, int] = filled_tuple(args.use_grid)
     use_grid: bool = all(n > 0 for n in grid_interval)
+    show_grid_coords: bool = args.show_coords
 
     yes_to_all = args.yes_to_all
 
     #endregion ARGUMENTS
 
     logger.info(textwrap.dedent(f"""
+        -- BASIC SETTINGS --
         Tiles directory: {tiles_dir}
         World: {world}
         Detail level: {detail}
         Output directory: {output_dir.absolute()}
         Output file extension: {output_ext}
+        Specified area: {area if area else 'None, will render the entire map'}
+
+        -- ADDITIONAL OPTIONS --
         Add timestamp? {f'True, using format "{time_format}"' if time_format else 'False'}
         Allow overwriting images? {overwrite}
-        Specified area: {area if area else 'None, will render the entire map'}
         Auto-trim? {autotrim}
         Force final size? {('True; ' + str(force_size)) if any(n > 0 for n in force_size) else 'False'}
         Show grid on map? {(f'True; X interval: {grid_interval[0]}, Y interval: {grid_interval[1]}') if use_grid else 'False'}
+        Show grid coordinates on map? {show_grid_coords}
         Auto-confirm? {yes_to_all}
     """))
 
@@ -380,7 +473,8 @@ def main():
         autotrim=autotrim,
         area=area,
         force_size=force_size,
-        use_grid=use_grid
+        use_grid=use_grid,
+        show_grid_coords=show_grid_coords
     )
 
     if not image:
