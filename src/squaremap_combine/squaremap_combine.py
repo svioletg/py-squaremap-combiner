@@ -268,7 +268,6 @@ class Combiner:
                 grid_origin.y -= self.grid_interval[1] // detail_mul
 
             if show_grid_coords:
-                idraw = ImageDraw.Draw(image)
                 coord_axes = {'h': set(), 'v': set()}
 
                 # Remove large empty areas, but still keep things in easily workable dimensions
@@ -296,7 +295,9 @@ class Combiner:
                 del x, y
 
                 interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
+                idraw = ImageDraw.Draw(image)
                 for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
+                    print('###', img_coord, img_coord + top_left_game_coord, img_coord * detail_mul, detail_mul, sep='\n... ')
                     game_coord = (img_coord * detail_mul) + top_left_game_coord
                     if self.use_tqdm:
                         pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
