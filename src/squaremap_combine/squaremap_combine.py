@@ -275,7 +275,10 @@ class Combiner:
                 assert(bbox)
                 bbox = snap_box(bbox, self.TILE_SIZE // detail_mul)
 
-                grid_origin //= Coord2i(*image.size) // Coord2i(*(image := image.crop(bbox)).size)
+                diff = Coord2i(*image.size) // Coord2i(*(image := image.crop(bbox)).size)
+
+                top_left_game_coord //= diff
+                grid_origin //= diff
                 x, y = grid_origin
                 while x <= image.width:
                     coord_axes['h'].add(x)
@@ -296,9 +299,11 @@ class Combiner:
 
                 interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
                 idraw = ImageDraw.Draw(image)
+                print(top_left_game_coord)
                 for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
-                    print('###', img_coord, img_coord + top_left_game_coord, img_coord * detail_mul, detail_mul, sep='\n... ')
-                    game_coord = (img_coord * detail_mul) + top_left_game_coord
+                    print(f'\n({img_coord.x} + ({top_left_game_coord.x} // {detail_mul})) * {detail_mul} '+
+                        f'-> {(img_coord.x + (top_left_game_coord.x // detail_mul)) * detail_mul}\n')
+                    game_coord = (img_coord + (top_left_game_coord // detail_mul)) * detail_mul
                     if self.use_tqdm:
                         pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
                     idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
