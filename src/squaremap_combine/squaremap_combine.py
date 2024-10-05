@@ -255,7 +255,7 @@ class Combiner:
 
         if use_grid or show_grid_coords:
             if not self.grid_interval:
-                raise CombineError('use_grid is true, but no grid interval is set for this Combiner instance')
+                raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
             # grid_origin starts out the same as the game's origin coord, which is used as a basic orientation point
             # before moving by intervals from 0, 0 until the point is within the image
             # (otherwise the grid calculations later won't work)
@@ -270,8 +270,14 @@ class Combiner:
             if show_grid_coords:
                 idraw = ImageDraw.Draw(image)
                 coord_axes = {'h': set(), 'v': set()}
-                x, y = grid_origin
 
+                # Remove large empty areas, but still keep things in easily workable dimensions
+                bbox = image.getbbox()
+                assert(bbox)
+                bbox = snap_box(bbox, self.TILE_SIZE // detail_mul)
+
+                grid_origin //= Coord2i(*image.size) // Coord2i(*(image := image.crop(bbox)).size)
+                x, y = grid_origin
                 while x <= image.width:
                     coord_axes['h'].add(x)
                     x += self.grid_interval[0] // detail_mul
@@ -287,11 +293,14 @@ class Combiner:
                 while y >= 0:
                     coord_axes['v'].add(y)
                     y -= self.grid_interval[1] // detail_mul
+                del x, y
 
                 interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
-                for img_coord in interval_coords:
+                for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
                     game_coord = (img_coord * detail_mul) + top_left_game_coord
-                    idraw.text(img_coord.as_tuple(), str(game_coord), fill=self.grid_color)
+                    if self.use_tqdm:
+                        pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
+                    idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
 
             if use_grid:
                 draw_grid(
