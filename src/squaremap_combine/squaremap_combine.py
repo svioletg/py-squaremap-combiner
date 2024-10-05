@@ -128,6 +128,10 @@ class Combiner:
                 paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
                 image.paste(Image.open(regions[c][r]), paste_area)
 
+        # If a specific area of the Minecraft world is desired, we need to find out where 0,0 would be
+        # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
+        # Tiles are always the same size, and the top left coordinate of the 0,0 region is also 0,0
+        # So by seeing how far away the top left region used in the image is from that, we have our in-game coordinates
         distance_from_zero = (0 - (self.TILE_SIZE * top_left_region[0]), 0 - (self.TILE_SIZE * top_left_region[1]))
 
         # Crop if an area is specified
