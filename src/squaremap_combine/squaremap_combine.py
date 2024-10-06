@@ -109,6 +109,8 @@ class Coord2i:
             return Coord2i(math_op(self.x, other[0]), math_op(self.y, other[1]))
         elif direction == 'r':
             return Coord2i(math_op(other[0], self.x), math_op(other[1], self.y))
+        else:
+            raise ValueError(f'_math direction must be "l" or "r"; got {direction!r}')
 
     def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.add, other)
@@ -363,7 +365,8 @@ class Combiner:
         if autotrim:
             bbox = image.getbbox()
             if not bbox:
-                raise CombineError('getbbox() failed')
+                raise CombineError('getbbox() failed! This is likely a bug with the script;' +
+                    ' please open an issue at https://github.com/svioletg/py-squaremap-combiner/issues and provide the above traceback')
             logger.info(f'Trimming out blank space... ({image.width}x{image.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
             image = image.crop(bbox)
 
@@ -447,10 +450,17 @@ def main():
     detail      : int  = args.detail
     output_dir  : Path = args.output_dir
     output_ext  : str  = args.output_ext
-    time_format : str  = args.timestamp
-    if time_format == []:
-        time_format = DEFAULT_TIME_FORMAT
-    time_format = time_format[0].replace('?', '%')
+    time_format: str
+    if isinstance(args.timestamp, list):
+        if len(args.timestamp) == 0:
+            time_format = DEFAULT_TIME_FORMAT
+        elif len(args.timestamp) == 1:
+            time_format = args.timestamp[0]
+        else:
+            raise ValueError('Too many arguments given for --timestamp')
+    else:
+        time_format = args.timestamp
+    time_format = time_format.replace('?', '%')
 
     overwrite   : bool             = args.overwrite
     area        : Rectangle | None = args.area
