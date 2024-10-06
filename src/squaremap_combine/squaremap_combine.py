@@ -166,6 +166,95 @@ class Combiner:
         self.grid_color = grid_color
         self.bg_color = bg_color
 
+    @staticmethod
+    def game_coord_in_image(coordinate_in_game: Coord2i, game_zero_in_image: Coord2i, detail_mul: int) -> Coord2i:
+        """Takes a coordinate within the Minecraft world the given image represents,
+        and returns the location of that coordinate's location within the image.
+        """
+        return game_zero_in_image + (coordinate_in_game // detail_mul)
+
+    @staticmethod
+    def image_coord_in_game(coordinate_in_image: Coord2i, game_zero_in_image: Coord2i, detail_mul: int) -> Coord2i:
+        """Takes a coordinate within the image, and returns the corresponding coordinate within the Minecraft world
+        that image represents.
+        """
+        return (coordinate_in_image - game_zero_in_image) * detail_mul
+
+    def _add_grid_to_image(self,
+            image: Image.Image,
+            game_zero_in_image: Coord2i,
+            detail_mul: int,
+            show_grid_coords: bool,
+            show_grid_lines: bool
+        ) -> tuple[Image.Image, Rectangle] | None:
+        if not self.grid_interval:
+            raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
+        # grid_origin starts out the same as the game's origin coord, which is used as a basic orientation point
+        # before moving by intervals from 0, 0 until the point is within the image
+        # (otherwise the grid calculations later won't work)
+        grid_origin = game_zero_in_image
+
+        # Make sure the grid origin is within the image, or else this won't work
+        while grid_origin.x > image.width:
+            grid_origin.x -= self.grid_interval[0] // detail_mul
+        while grid_origin.y > image.height:
+            grid_origin.y -= self.grid_interval[1] // detail_mul
+
+        if show_grid_coords:
+            coord_axes = {'h': set(), 'v': set()}
+
+            # Remove large empty areas, but still keep things in easily workable dimensions
+            bbox_before_grid = image.getbbox()
+            assert(bbox_before_grid)
+
+            x, y = grid_origin
+            while x <= image.width:
+                coord_axes['h'].add(x)
+                x += self.grid_interval[0] // detail_mul
+            x = grid_origin.x
+            while x >= 0:
+                coord_axes['h'].add(x)
+                x -= self.grid_interval[0] // detail_mul
+
+            while y <= image.height:
+                coord_axes['v'].add(y)
+                y += self.grid_interval[1] // detail_mul
+            y = grid_origin.y
+            while y >= 0:
+                coord_axes['v'].add(y)
+                y -= self.grid_interval[1] // detail_mul
+            del x, y
+
+            interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
+            total_intervals = len(interval_coords)
+            if total_intervals > 50000:
+                logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
+                if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
+                    ' You can press Ctrl+C to cancel during this process if needed. Continue?'):
+                    logger.info('Cancelling...')
+                    return
+            elif total_intervals > 5000:
+                logger.info('More than 5000 grid intervals will be iterated over;' +
+                    ' the progress bar\'s description text will not update per iteration in order to save speed.')
+
+            logger.info('Drawing coordinates...')
+            idraw = ImageDraw.Draw(image)
+            for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
+                game_coord = self.image_coord_in_game(img_coord, game_zero_in_image, detail_mul)
+                if self.use_tqdm and (total_intervals <= 5000):
+                    pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
+                idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
+
+        if show_grid_lines:
+            logger.info('Drawing grid lines...')
+            draw_grid(
+                image,
+                (self.grid_interval[0] // detail_mul, self.grid_interval[1] // detail_mul),
+                self.grid_color,
+                (grid_origin.x, grid_origin.y)
+            )
+        return image, bbox_before_grid
+
     def combine(self,
             world: str | Path,
             detail: int,
@@ -230,26 +319,30 @@ class Combiner:
                 return
 
         # Start stitching
-        use_alpha = self.bg_color[3] != 255
         image = Image.new(
-            mode='RGBA' if use_alpha else 'RGB',
-            size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)),
-            color=self.bg_color
+            mode='RGBA',
+            size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range))
         )
         logger.info('Constructing image...')
 
         ta = time.perf_counter()
-        # The pasting coordinates are determined based on what current column and row the for loops
-        # are on, so they'll increase by a tile regardless of whether an image has actually been pasted
+        # Represents where 0, 0 in our Minecraft world is, in relation to the image's coordinates
+        game_zero_in_image: Coord2i
         for c, r in tqdm_product(column_range, row_range, disable=not self.use_tqdm, desc='Columns'):
             if (c not in regions) or (r not in regions[c]):
                 continue
+            # The pasting coordinates are determined based on what current column and row the for loops
+            # are on, so they'll increase by a tile regardless of whether an image has actually been pasted
             x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
             tile_path = regions[c][r]
             if self.use_tqdm:
                 tqdm.write(f'Pasting image: {tile_path}')
             paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
+            if (c, r) == (0, 0):
+                game_zero_in_image = Coord2i(x, y)
             image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
+
+        assert(game_zero_in_image)
 
         # If a specific area of the Minecraft world is desired, we need to find out where 0,0 would be
         # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
@@ -258,81 +351,17 @@ class Combiner:
         top_left_region: tuple[int, int] = column_range[0], row_range[0]
         top_left_game_coord = Coord2i(*top_left_region) * detail_mul * self.TILE_SIZE
 
-        # Represents where 0, 0 in our Minecraft world is, in relation to the image's coordinates
-        game_origin_in_image = (0 - top_left_game_coord) // detail_mul
-
         if use_grid or show_grid_coords:
-            if not self.grid_interval:
-                raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
-            # grid_origin starts out the same as the game's origin coord, which is used as a basic orientation point
-            # before moving by intervals from 0, 0 until the point is within the image
-            # (otherwise the grid calculations later won't work)
-            grid_origin = game_origin_in_image
-
-            # Make sure the grid origin is within the image, or else this won't work
-            while grid_origin.x > image.width:
-                grid_origin.x -= self.grid_interval[0] // detail_mul
-            while grid_origin.y > image.height:
-                grid_origin.y -= self.grid_interval[1] // detail_mul
-
-            if show_grid_coords:
-                coord_axes = {'h': set(), 'v': set()}
-
-                # Remove large empty areas, but still keep things in easily workable dimensions
-                bbox = image.getbbox()
-                assert(bbox)
-                bbox = snap_box(bbox, self.TILE_SIZE // detail_mul)
-
-                diff = Coord2i(*image.size) // Coord2i(*(image := image.crop(bbox)).size)
-
-                top_left_game_coord //= diff
-                grid_origin //= diff
-                x, y = grid_origin
-                while x <= image.width:
-                    coord_axes['h'].add(x)
-                    x += self.grid_interval[0] // detail_mul
-                x = grid_origin.x
-                while x >= 0:
-                    coord_axes['h'].add(x)
-                    x -= self.grid_interval[0] // detail_mul
-
-                while y <= image.height:
-                    coord_axes['v'].add(y)
-                    y += self.grid_interval[1] // detail_mul
-                y = grid_origin.y
-                while y >= 0:
-                    coord_axes['v'].add(y)
-                    y -= self.grid_interval[1] // detail_mul
-                del x, y
-
-                interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
-                total_intervals = len(interval_coords)
-                if total_intervals > 50000:
-                    logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
-                    if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
-                        ' You can press Ctrl+C to cancel during this process if needed. Continue?'):
-                        logger.info('Cancelling...')
-                        return
-                elif total_intervals > 5000:
-                    logger.info('More than 5000 grid intervals will be iterated over;' +
-                        ' the progress bar\'s description text will not update per iteration in order to save speed.')
-
-                logger.info('Drawing coordinates...')
-                idraw = ImageDraw.Draw(image)
-                for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
-                    game_coord = (img_coord + (top_left_game_coord // detail_mul)) * detail_mul
-                    if self.use_tqdm and (total_intervals <= 5000):
-                        pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
-                    idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
-
-            if use_grid:
-                logger.info('Drawing grid...')
-                draw_grid(
-                    image,
-                    (self.grid_interval[0] // detail_mul, self.grid_interval[1] // detail_mul),
-                    self.grid_color,
-                    (grid_origin.x, grid_origin.y)
-                )
+            if result := self._add_grid_to_image(
+                image,
+                game_zero_in_image,
+                detail_mul,
+                show_grid_coords,
+                use_grid
+            ):
+                image, bbox_before_grid = result
+            else:
+                return
 
         # Crop if an area is specified
         if area:
@@ -363,12 +392,21 @@ class Combiner:
 
         # Trim excess
         if autotrim:
-            bbox = image.getbbox()
+            if use_grid or show_grid_coords:
+                bbox = bbox_before_grid
+            else:
+                bbox = image.getbbox()
             if not bbox:
                 raise CombineError('getbbox() failed! This is likely a bug with the script;' +
                     ' please open an issue at https://github.com/svioletg/py-squaremap-combiner/issues and provide the above traceback')
             logger.info(f'Trimming out blank space... ({image.width}x{image.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
             image = image.crop(bbox)
+
+        # Apply desired background color, if any
+        if self.bg_color != (0, 0, 0, 0):
+            image_bg = Image.new('RGBA', size=image.size, color=self.bg_color)
+            image_bg.alpha_composite(image)
+            image = image_bg
 
         tb = time.perf_counter()
 
