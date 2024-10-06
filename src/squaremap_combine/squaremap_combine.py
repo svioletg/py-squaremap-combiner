@@ -11,6 +11,7 @@ from typing import Callable, Iterator, Literal, Optional, TypeVar
 from loguru import logger
 from PIL import Image, ImageDraw
 from tqdm import tqdm
+from tqdm.contrib.itertools import product as tqdm_product
 
 logger.remove() # Don't output anything if this is just being imported
 
@@ -18,6 +19,7 @@ T = TypeVar('T')
 
 Rectangle = tuple[int, int, int, int]
 ColorRGB = tuple[int, int, int]
+ColorRGBA = tuple[int, int, int, int]
 
 DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
 
@@ -149,7 +151,8 @@ class Combiner:
             use_tqdm=False,
             interactive: bool=False,
             grid_interval: Optional[tuple[int, int]]=None,
-            grid_color: ColorRGB=(0, 0, 0)
+            grid_color: ColorRGB=(0, 0, 0),
+            bg_color: ColorRGBA=(0, 0, 0, 0)
         ):
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
@@ -159,6 +162,7 @@ class Combiner:
         self.interactive = interactive
         self.grid_interval = grid_interval
         self.grid_color = grid_color
+        self.bg_color = bg_color
 
     def combine(self,
             world: str | Path,
@@ -196,7 +200,7 @@ class Combiner:
         columns: set[int] = set()
         rows: set[int] = set()
         regions: dict[int, dict[int, Path]] = {}
-        logger.info('Sorting through tile images...')
+        logger.info('Finding region images...')
         for img in tqdm(source_dir.glob('*_*.png'), disable=not self.use_tqdm):
             col, row = map(int, img.stem.split('_'))
             if col not in regions:
@@ -208,7 +212,6 @@ class Combiner:
 
         # Deep-sort columns + rows
         regions = {k:{v:regions[k][v] for v in sorted(regions[k].keys())} for k in sorted(regions.keys())}
-
         column_range = range(min(columns), max(columns) + 1)
         row_range = range(min(rows), max(rows) + 1)
 
@@ -225,29 +228,31 @@ class Combiner:
                 return
 
         # Start stitching
-        image = Image.new(mode='RGBA', size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)))
+        image = Image.new(
+            mode='RGBA',
+            size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)),
+            color=self.bg_color
+        )
         logger.info('Constructing image...')
 
         ta = time.perf_counter()
         # The pasting coordinates are determined based on what current column and row the for loops
         # are on, so they'll increase by a tile regardless of whether an image has actually been pasted
-        top_left_region: tuple[int, int] = column_range[0], row_range[0]
-        for c in (tqdm(regions, disable=not self.use_tqdm, desc='Columns')):
-            if c not in column_range:
+        for c, r in tqdm_product(column_range, row_range, disable=not self.use_tqdm, desc='Columns'):
+            if (c not in regions) or (r not in regions[c]):
                 continue
-            for r in tqdm(regions[c], disable=not self.use_tqdm, leave=False, desc='Rows'):
-                if r not in row_range:
-                    continue
-                x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
-                if self.use_tqdm:
-                    tqdm.write(f'Pasting image: {regions[c][r]}')
-                paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
-                image.paste(Image.open(regions[c][r]), paste_area)
+            x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
+            tile = regions[c][r]
+            if self.use_tqdm:
+                tqdm.write(f'Pasting image: {tile}')
+            paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
+            image.paste(Image.open(tile), paste_area)
 
         # If a specific area of the Minecraft world is desired, we need to find out where 0,0 would be
         # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
         # Tiles are always the same size, and the top left coordinate of the 0,0 region is also 0,0
         # So by seeing how far away the top left region used in the image is from that, we have our in-game coordinates
+        top_left_region: tuple[int, int] = column_range[0], row_range[0]
         top_left_game_coord = Coord2i(*top_left_region) * detail_mul * self.TILE_SIZE
 
         # Represents where 0, 0 in our Minecraft world is, in relation to the image's coordinates
@@ -308,6 +313,8 @@ class Combiner:
                 elif total_intervals > 5000:
                     logger.info('More than 5000 grid intervals will be iterated over;' +
                         ' the progress bar\'s description text will not update per iteration in order to save speed.')
+
+                logger.info('Drawing coordinates...')
                 idraw = ImageDraw.Draw(image)
                 for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
                     game_coord = (img_coord + (top_left_game_coord // detail_mul)) * detail_mul
@@ -316,6 +323,7 @@ class Combiner:
                     idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
 
             if use_grid:
+                logger.info('Drawing grid...')
                 draw_grid(
                     image,
                     (self.grid_interval[0] // detail_mul, self.grid_interval[1] // detail_mul),
