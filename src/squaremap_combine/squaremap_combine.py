@@ -228,8 +228,9 @@ class Combiner:
                 return
 
         # Start stitching
+        use_alpha = self.bg_color[3] != 255
         image = Image.new(
-            mode='RGBA',
+            mode='RGBA' if use_alpha else 'RGB',
             size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)),
             color=self.bg_color
         )
@@ -242,11 +243,11 @@ class Combiner:
             if (c not in regions) or (r not in regions[c]):
                 continue
             x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
-            tile = regions[c][r]
+            tile_path = regions[c][r]
             if self.use_tqdm:
-                tqdm.write(f'Pasting image: {tile}')
+                tqdm.write(f'Pasting image: {tile_path}')
             paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
-            image.paste(Image.open(tile), paste_area)
+            image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
 
         # If a specific area of the Minecraft world is desired, we need to find out where 0,0 would be
         # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
@@ -347,7 +348,7 @@ class Combiner:
 
         # Crop and resize if given an explicit size
         if force_size and all(n > 0 for n in force_size):
-            resized = Image.new(mode='RGBA', size=force_size)
+            resized = Image.new(mode=image.mode, size=force_size)
             logger.info(f'Resizing to {resized.size[0]}x{resized.size[1]}...')
             center = resized.size[0] // 2, resized.size[1] // 2
 
@@ -373,7 +374,7 @@ class Combiner:
 
 def opt(*names: str) -> list[str]:
     """Short for "option". Returns the given argument names with underscore versions appended."""
-    return [*names] + [('--' + n.lstrip('-').replace('-', '_')) for n in names]
+    return [*names] + [('--' + n.lstrip('-').replace('-', '_')) for n in names if '-' in n.lstrip('-')]
 
 @logger.catch
 def main():
@@ -393,14 +394,14 @@ def main():
         help='What detail level to source images from.\n' +
         'Level 3 is 1 block per pixel, 2 is 2x2 per pixel, 1 is 4x4 per pixel, and 0 is 8x8 per pixel.')
 
-    parser.add_argument(*opt('--output-dir'), '-o', type=Path, default=Path('.'),
+    parser.add_argument(*opt('--output-dir'), '-o', type=Path, default=Path('.'), metavar='PATH',
         help='Directory to save the completed image to.\n' +
         'Defaults to the directory in which this script was run.')
 
-    parser.add_argument(*opt('--output-ext'), '-ext', type=str, default='png',
+    parser.add_argument(*opt('--output-ext'), '-ext', type=str, default='png', metavar='EXTENSION',
         help='The output file extension (format) to use for the created image. Supports anything Pillow does. (e.g. "png", "jpg", "webp")')
 
-    parser.add_argument(*opt('--timestamp'), '-t', type=str, nargs='*', default='',
+    parser.add_argument(*opt('--timestamp'), '-t', type=str, nargs='*', default='', metavar='FORMAT_STRING',
         help='Adds a timestamp of the given format to the beginning of the image file name.\n ' +
         'Default format "?Y-?m-?d_?H-?M-?S" will be used if no format is specified after this argument.\n' +
         'See: https://docs.python.org/3/library/datetime.html#format-codes\n' +
@@ -433,6 +434,9 @@ def main():
     parser.add_argument(*opt('--show-coords'), '-gc', action='store_true',
         help='Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.')
 
+    parser.add_argument(*opt('--background'), '-bg', type=int, nargs=4, default=(0, 0, 0, 0), metavar=('RED', 'GREEN', 'BLUE', 'ALPHA'),
+        help='Specify an RGBA color to use for the background of the image. Empty space is fully transparent by default.')
+
     parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
         help='Automatically accepts any requests for user confirmation.')
 
@@ -446,7 +450,7 @@ def main():
     time_format : str  = args.timestamp
     if time_format == []:
         time_format = DEFAULT_TIME_FORMAT
-    time_format = time_format.replace('?', '%')
+    time_format = time_format[0].replace('?', '%')
 
     overwrite   : bool             = args.overwrite
     area        : Rectangle | None = args.area
@@ -460,6 +464,7 @@ def main():
     grid_interval: tuple[int, int] = filled_tuple(args.use_grid)
     use_grid: bool = all(n > 0 for n in grid_interval)
     show_grid_coords: bool = args.show_coords
+    background: ColorRGBA = tuple(args.background)
 
     yes_to_all = args.yes_to_all
 
@@ -473,6 +478,7 @@ def main():
         Output directory: {output_dir.absolute()}
         Output file extension: {output_ext}
         Specified area: {area if area else 'None, will render the entire map'}
+        Background color: {background}
 
         -- ADDITIONAL OPTIONS --
         Add timestamp? {f'True, using format "{time_format}"' if time_format else 'False'}
@@ -498,7 +504,13 @@ def main():
         copies = [*output_dir.glob(f'{out_file.stem}*')]
         out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)
 
-    combiner = Combiner(tiles_dir, use_tqdm=True, interactive=True, grid_interval=grid_interval if use_grid else None)
+    combiner = Combiner(
+        tiles_dir,
+        use_tqdm=True,
+        interactive=True,
+        grid_interval=grid_interval if use_grid else None,
+        bg_color=background
+    )
     image = combiner.combine(
         world,
         detail,

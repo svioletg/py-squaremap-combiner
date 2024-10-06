@@ -64,6 +64,9 @@ Beyond this, there are various options that can be given to the script to alter 
 | `--area` or `-a` | Specifies a specific area to export an image of, rather than the full map. This option expects coordinates as they would appear in the Minecraft world itself, as the top-left and bottom-right corners of a rectangle — in the order of `X1 Y1 X2 Y2`. | The full map is rendered if no area is specified. |
 | `--no-autotrim` | Tells the script not to trim off any empty (as in, fully transparent) space around the created image. | |
 | `--force-size` or `-fs` | Centers the image within the given width and height, in that order, and then crops the image to that size before saving. If only one number is given, it will be used for both the width and height. | |
+| `--use-grid` or `-g` | Adds a grid onto the final image in the given X and Y intervals. If only X_INTERVAL is given, the same interval will be used for both X and Y grid lines. The resulting grid will be based on the coordinates as they would be in Minecraft, not of the image itself. | No grid is added. |
+| `--show-coords` or `-gc` | Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option. | No coordinates are shown. |
+| `--background` or `-bg` | Specify an RGBA color (with values from 0 to 255 for each) to use for the background of the image. | Background is fully transparent. |
 | `--yes-to-all` or `-y` | Automatically skips and approves any prompts for user confirmation. This is useful if you intend to run this script automatically, like in a crontab. | |
 
 Using some of these options, your command may look something like this:
