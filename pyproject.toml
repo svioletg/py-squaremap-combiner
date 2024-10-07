@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "squaremap_combine"
-version = "0.14.0"
+version = "0.15.0"
 authors = [
   { name="Seth 'Violet' Gibbs" },
 ]
 description = "Provides tools to combine tile images created by the 'squaremap' Minecraft plugin into one single world image."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
 ]

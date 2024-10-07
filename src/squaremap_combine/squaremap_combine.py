@@ -1,13 +1,15 @@
 import argparse
-from functools import wraps
 import operator
 import sys
 import textwrap
 import time
 from datetime import datetime
+from functools import wraps
+from itertools import batched
 from math import floor
 from pathlib import Path
-from typing import Any, Callable, Concatenate, Generic, Iterator, Literal, Optional, ParamSpec, TypeVar
+from typing import (Any, Callable, Concatenate, Iterator, Literal, Optional,
+                    ParamSpec, TypeVar)
 
 from loguru import logger
 from PIL import Image, ImageDraw
@@ -19,6 +21,7 @@ logger.remove() # Don't output anything if this is just being imported
 T = TypeVar('T')
 
 Rectangle = tuple[int, int, int, int]
+
 ColorRGB = tuple[int, int, int]
 ColorRGBA = tuple[int, int, int, int]
 
@@ -87,7 +90,7 @@ def copy_method_signature(source: Callable[Concatenate[Any, P], T]) -> Callable[
     """
     def wrapper(target: Callable[..., T]) -> Callable[Concatenate[Any, P], T]:
         @wraps(source)
-        def wrapped(self: Any, /, *args: P.args, **kwargs: P.kwargs) -> T:
+        def wrapped(self: Any, /, *args: P.args, **kwargs: P.kwargs) -> T: # pylint: disable=no-member
             return target(self, *args, **kwargs)
         return wrapped
     return wrapper
@@ -173,6 +176,23 @@ class MapImage:
             raise AttributeError
         return getattr(self.img, key)
 
+    @property
+    def mode(self):
+        return self.img.mode
+    @property
+    def size(self):
+        return self.img.size
+    @property
+    def width(self):
+        return self.img.width
+    @property
+    def height(self):
+        return self.img.height
+
+    def with_image(self, new_image: Image.Image) -> 'MapImage':
+        """Returns a copy of this `MapImage` with only the internal `Image` object changed."""
+        return MapImage(new_image, self.game_zero, self.detail_mul)
+
     def game_coord_in_image(self, coordinate_in_game: Coord2i) -> Coord2i:
         """Takes a coordinate within the Minecraft world this image represents,
         and returns the location of that coordinate's location within the image.
@@ -198,7 +218,20 @@ class MapImage:
 
     def crop(self, box: Rectangle) -> 'MapImage':
         """Returns a cropped portion of the original image, along with an accordingly updated `game_zero` property."""
-        return MapImage(self.img.crop(box), self.game_zero - Coord2i(box[0], box[1]), self.detail_mul)
+        return MapImage(self.img.crop(box), self.game_zero - Coord2i(*box[0:2]), self.detail_mul)
+
+    def resize_canvas(self, width: int, height: int, center_on: Coord2i=Coord2i(0, 0)) -> 'MapImage':
+        """Returns this image centered within a new canvas of the given size,
+        centered by a specified coordinate of the original image.
+
+        @param center_on: What coordinate of the Minecraft world to center the image on. Defaults to 0,0.
+        """
+        center_on = self.game_coord_in_image(center_on)
+        center_distance = center_on, Coord2i(*self.img.size) - center_on
+        paste_area: Rectangle = *((width // 2) - center_distance[0]).as_tuple(), *((width // 2) + center_distance[1]).as_tuple()
+        new_canvas = Image.new(mode=self.img.mode, size=(width, height))
+        new_canvas.paste(self.img, paste_area)
+        return MapImage(new_canvas, self.game_zero + Coord2i(*paste_area[0:2]), self.detail_mul)
 
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,
@@ -278,7 +311,7 @@ class Combiner:
                 if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
                     ' You can press Ctrl+C to cancel during this process if needed. Continue?'):
                     logger.info('Cancelling...')
-                    return
+                    return None
             elif total_intervals > 5000:
                 logger.info('More than 5000 grid intervals will be iterated over;' +
                     ' the progress bar\'s description text will not update per iteration in order to save speed.')
@@ -362,7 +395,7 @@ class Combiner:
         if self.interactive:
             if not confirm_yn(f'Estimated image size: {size_estimate}\nContinue?'):
                 logger.info('Cancelling...')
-                return
+                return None
 
         # Start stitching
         image = Image.new(
@@ -398,12 +431,6 @@ class Combiner:
         top_left_region: tuple[int, int] = column_range[0], row_range[0]
         top_left_game_coord = Coord2i(*top_left_region) * detail_mul * self.TILE_SIZE
 
-        if use_grid or show_grid_coords:
-            if result := self._add_grid_to_image(image, show_grid_coords, use_grid):
-                image, bbox_before_grid = result
-            else:
-                return
-
         # Crop if an area is specified
         if area:
             crop_area = (
@@ -419,24 +446,21 @@ class Combiner:
         # Crop and resize if given an explicit size
         if force_size and all(n > 0 for n in force_size):
             logger.info(f'Resizing to {force_size[0]}x{force_size[1]}...')
-
-            resized = Image.new(mode=image.mode, size=force_size)
-            center = resized.size[0] // 2, resized.size[1] // 2
-
-            x1, y1 = center[0] - (image.size[0] // 2), center[1] - (image.size[1] // 2)
-            x2, y2 = x1 + image.size[0], y1 + image.size[1]
-
-            resized.paste(image.img, (x1, y1, x2, y2))
-            image = MapImage(resized, image.game_zero, image.detail_mul)
+            image = image.resize_canvas(*force_size)
             autotrim = False
+
+        # Add grid and/or coordinates
+        if use_grid or show_grid_coords:
+            if result := self._add_grid_to_image(image, show_grid_coords, use_grid):
+                image, bbox_before_grid = result
+            else:
+                return None
 
         # Trim excess
         if autotrim:
             if use_grid or show_grid_coords:
                 bbox = bbox_before_grid
             else:
-                print(image.getbbox)
-                print(image.img.getbbox)
                 bbox = image.getbbox()
             if not bbox:
                 raise CombineError('getbbox() failed! This is likely a bug with the script;' +
@@ -517,8 +541,10 @@ def main():
     parser.add_argument(*opt('--show-coords'), '-gc', action='store_true',
         help='Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.')
 
-    parser.add_argument(*opt('--background'), '-bg', type=int, nargs=4, default=(0, 0, 0, 0), metavar=('RED', 'GREEN', 'BLUE', 'ALPHA'),
-        help='Specify an RGBA color to use for the background of the image. Empty space is fully transparent by default.')
+    parser.add_argument(*opt('--background'), '-bg', type=int, nargs='+', default=(0, 0, 0, 0), metavar=('HEXCODE or RED GREEN BLUE ALPHA'),
+        help='Specify an RGBA color to use for the background of the image. Empty space is fully transparent by default.\n' +
+        'A hexcode (e.g. FF0000) can be used as well, and an 8-character hex code can be used to specify alpha with the last two bytes.\n' +
+        'If only RED, GREEN, and BLUE are given, the alpha is set to 255 (fully opaque) automatically.')
 
     parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
         help='Automatically accepts any requests for user confirmation.')
@@ -554,8 +580,25 @@ def main():
     grid_interval: tuple[int, int] = filled_tuple(args.use_grid)
     use_grid: bool = all(n > 0 for n in grid_interval)
     show_grid_coords: bool = args.show_coords
-    # TODO: Allow hex codes, convert to RGBA
-    background: ColorRGBA = tuple(args.background)
+
+    if len(args.background) == 1:
+        hex_color: str = args.background[0]
+        if len(hex_color) == 3:
+            hex_color *= 2
+        if len(hex_color) != 6 or len(hex_color) != 8:
+            raise ValueError('Given hex color code must be 3, 6, or 8 characters in length')
+        rgba = []
+        for chunk in batched(hex_color, 2):
+            rgba.append(int(''.join(chunk), 16))
+        if len(rgba) == 3:
+            rgba.append(255)
+    elif len(args.background) == 3:
+        rgba = args.background + [255]
+    elif len(args.background) == 4:
+        rgba = args.background
+    else:
+        raise ValueError('3 or 4 values are required for RGB / RGBA color argument')
+    background: ColorRGBA = tuple(rgba)
 
     yes_to_all = args.yes_to_all
 
@@ -583,7 +626,7 @@ def main():
 
     if not confirm_yn('Continue with these parameters?'):
         logger.info('Cancelling...')
-        return
+        return None
 
     if world in Combiner.STANDARD_WORLDS:
         world = 'minecraft_' + world
@@ -614,7 +657,7 @@ def main():
 
     if not image:
         logger.info('No image was created. Exiting...')
-        return
+        return None
 
     logger.info(f'Saving to "{out_file}"...')
     image.save(out_file)
