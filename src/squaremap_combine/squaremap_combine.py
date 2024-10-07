@@ -1,4 +1,5 @@
 import argparse
+from functools import wraps
 import operator
 import sys
 import textwrap
@@ -6,7 +7,7 @@ import time
 from datetime import datetime
 from math import floor
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Optional, TypeVar
+from typing import Any, Callable, Concatenate, Generic, Iterator, Literal, Optional, ParamSpec, TypeVar
 
 from loguru import logger
 from PIL import Image, ImageDraw
@@ -22,6 +23,8 @@ ColorRGB = tuple[int, int, int]
 ColorRGBA = tuple[int, int, int, int]
 
 DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
+
+DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 
 yes_to_all = False
 
@@ -74,6 +77,20 @@ def draw_grid(image: Image.Image, interval: int | tuple[int, int], line_color: C
     while y >= 0:
         idraw.line((0, y, image.width, y), fill=line_color)
         y -= interval[1]
+
+P = ParamSpec('P')
+
+def copy_method_signature(source: Callable[Concatenate[Any, P], T]) -> Callable[[Callable[..., T]], Callable[Concatenate[Any, P], T]]:
+    """Copies a method signature onto the decorated method.
+    
+    Taken from: https://github.com/python/typing/issues/270#issuecomment-1346124813
+    """
+    def wrapper(target: Callable[..., T]) -> Callable[Concatenate[Any, P], T]:
+        @wraps(source)
+        def wrapped(self: Any, /, *args: P.args, **kwargs: P.kwargs) -> T:
+            return target(self, *args, **kwargs)
+        return wrapped
+    return wrapper
 
 class CombineError(Exception):
     """Raised when anything in the image combination process fails when
@@ -137,6 +154,52 @@ class Coord2i:
     def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.pow, other, 'r')
 
+class MapImage:
+    """A delegator class to extend `Image` with Minecraft-map-specific functionality,
+    like automatically recalculating the world's 0, 0 position in the image upon any crops or other changes.
+    """
+    def __init__(self, image: Image.Image, game_zero: Coord2i, detail_mul: int):
+        """
+        @param image: The `Image` to convert.
+        @param game_zero: At what coordinate on this image 0, 0 would be located in the Minecraft world it represents.
+        @param detail_mul: The detail multiplier for this map.
+        """
+        self.img = image
+        self.game_zero = game_zero
+        self.detail_mul = detail_mul
+
+    def __getattr__(self, key):
+        if key == 'img':
+            raise AttributeError
+        return getattr(self.img, key)
+
+    def game_coord_in_image(self, coordinate_in_game: Coord2i) -> Coord2i:
+        """Takes a coordinate within the Minecraft world this image represents,
+        and returns the location of that coordinate's location within the image.
+        """
+        return self.game_zero + (coordinate_in_game // self.detail_mul)
+
+    def image_coord_in_game(self, coordinate_in_image: Coord2i) -> Coord2i:
+        """Takes a coordinate within the image, and returns the corresponding coordinate within the Minecraft world
+        this image represents.
+        """
+        return (coordinate_in_image - self.game_zero) * self.detail_mul
+
+    # Copy signatures for intellisense
+    @copy_method_signature(Image.Image.getbbox)
+    def getbbox(self):
+        return self.img.getbbox()
+    @copy_method_signature(Image.Image.paste)
+    def paste(self, *args, **kwargs):
+        self.img.paste(*args, **kwargs)
+    @copy_method_signature(Image.Image.save)
+    def save(self, *args, **kwargs):
+        self.img.save(*args, **kwargs)
+
+    def crop(self, box: Rectangle) -> 'MapImage':
+        """Returns a cropped portion of the original image, along with an accordingly updated `game_zero` property."""
+        return MapImage(self.img.crop(box), self.game_zero - Coord2i(box[0], box[1]), self.detail_mul)
+
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,
     and is able to export full map images.
@@ -146,7 +209,6 @@ class Combiner:
     Only made a constant in case squaremap happens to change its image sizes in the future.
     """
     STANDARD_WORLDS: list[str] = ['overworld', 'the_nether', 'the_end']
-    DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
     """Square-blocks-per-pixel for each detail level."""
     def __init__(self,
             tiles_dir: str | Path,
@@ -166,39 +228,23 @@ class Combiner:
         self.grid_color = grid_color
         self.bg_color = bg_color
 
-    @staticmethod
-    def game_coord_in_image(coordinate_in_game: Coord2i, game_zero_in_image: Coord2i, detail_mul: int) -> Coord2i:
-        """Takes a coordinate within the Minecraft world the given image represents,
-        and returns the location of that coordinate's location within the image.
-        """
-        return game_zero_in_image + (coordinate_in_game // detail_mul)
-
-    @staticmethod
-    def image_coord_in_game(coordinate_in_image: Coord2i, game_zero_in_image: Coord2i, detail_mul: int) -> Coord2i:
-        """Takes a coordinate within the image, and returns the corresponding coordinate within the Minecraft world
-        that image represents.
-        """
-        return (coordinate_in_image - game_zero_in_image) * detail_mul
-
     def _add_grid_to_image(self,
-            image: Image.Image,
-            game_zero_in_image: Coord2i,
-            detail_mul: int,
+            image: MapImage,
             show_grid_coords: bool,
             show_grid_lines: bool
-        ) -> tuple[Image.Image, Rectangle] | None:
+        ) -> tuple[MapImage, Rectangle] | None:
         if not self.grid_interval:
             raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
         # grid_origin starts out the same as the game's origin coord, which is used as a basic orientation point
         # before moving by intervals from 0, 0 until the point is within the image
         # (otherwise the grid calculations later won't work)
-        grid_origin = game_zero_in_image
+        grid_origin = image.game_zero
 
         # Make sure the grid origin is within the image, or else this won't work
         while grid_origin.x > image.width:
-            grid_origin.x -= self.grid_interval[0] // detail_mul
+            grid_origin.x -= self.grid_interval[0] // image.detail_mul
         while grid_origin.y > image.height:
-            grid_origin.y -= self.grid_interval[1] // detail_mul
+            grid_origin.y -= self.grid_interval[1] // image.detail_mul
 
         if show_grid_coords:
             coord_axes = {'h': set(), 'v': set()}
@@ -210,19 +256,19 @@ class Combiner:
             x, y = grid_origin
             while x <= image.width:
                 coord_axes['h'].add(x)
-                x += self.grid_interval[0] // detail_mul
+                x += self.grid_interval[0] // image.detail_mul
             x = grid_origin.x
             while x >= 0:
                 coord_axes['h'].add(x)
-                x -= self.grid_interval[0] // detail_mul
+                x -= self.grid_interval[0] // image.detail_mul
 
             while y <= image.height:
                 coord_axes['v'].add(y)
-                y += self.grid_interval[1] // detail_mul
+                y += self.grid_interval[1] // image.detail_mul
             y = grid_origin.y
             while y >= 0:
                 coord_axes['v'].add(y)
-                y -= self.grid_interval[1] // detail_mul
+                y -= self.grid_interval[1] // image.detail_mul
             del x, y
 
             interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
@@ -238,9 +284,9 @@ class Combiner:
                     ' the progress bar\'s description text will not update per iteration in order to save speed.')
 
             logger.info('Drawing coordinates...')
-            idraw = ImageDraw.Draw(image)
+            idraw = ImageDraw.Draw(image.img)
             for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
-                game_coord = self.image_coord_in_game(img_coord, game_zero_in_image, detail_mul)
+                game_coord = image.image_coord_in_game(img_coord)
                 if self.use_tqdm and (total_intervals <= 5000):
                     pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
                 idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
@@ -248,8 +294,8 @@ class Combiner:
         if show_grid_lines:
             logger.info('Drawing grid lines...')
             draw_grid(
-                image,
-                (self.grid_interval[0] // detail_mul, self.grid_interval[1] // detail_mul),
+                image.img,
+                (self.grid_interval[0] // image.detail_mul, self.grid_interval[1] // image.detail_mul),
                 self.grid_color,
                 (grid_origin.x, grid_origin.y)
             )
@@ -263,7 +309,7 @@ class Combiner:
             force_size: Optional[tuple[int, int]]=None,
             use_grid: bool=False,
             show_grid_coords: bool=False
-        ) -> Image.Image | None:
+        ) -> MapImage | None:
         """Combine the given world (dimension) tile images into one large map.
 
         @param world: Name of the world to combine images of.\
@@ -285,7 +331,7 @@ class Combiner:
             raise ValueError(f'Detail level must be between 0 and 3; given {detail}')
         source_dir: Path = self.tiles_dir / world / str(detail)
 
-        detail_mul = self.DETAIL_SBPP[detail]
+        detail_mul = DETAIL_SBPP[detail]
 
         # Sort out what regions we're going to stitch
         columns: set[int] = set()
@@ -343,6 +389,7 @@ class Combiner:
             image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
 
         assert(game_zero_in_image)
+        image = MapImage(image, game_zero_in_image, detail_mul)
 
         # If a specific area of the Minecraft world is desired, we need to find out where 0,0 would be
         # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
@@ -352,13 +399,7 @@ class Combiner:
         top_left_game_coord = Coord2i(*top_left_region) * detail_mul * self.TILE_SIZE
 
         if use_grid or show_grid_coords:
-            if result := self._add_grid_to_image(
-                image,
-                game_zero_in_image,
-                detail_mul,
-                show_grid_coords,
-                use_grid
-            ):
+            if result := self._add_grid_to_image(image, show_grid_coords, use_grid):
                 image, bbox_before_grid = result
             else:
                 return
@@ -366,10 +407,8 @@ class Combiner:
         # Crop if an area is specified
         if area:
             crop_area = (
-                area[0] - (top_left_game_coord.x // detail_mul),
-                area[1] - (top_left_game_coord.y // detail_mul),
-                area[2] - (top_left_game_coord.x // detail_mul),
-                area[3] - (top_left_game_coord.y // detail_mul)
+                *image.game_coord_in_image(Coord2i(area[0], area[1])).as_tuple(),
+                *image.game_coord_in_image(Coord2i(area[2], area[3])).as_tuple()
             )
             image = image.crop(crop_area)
             autotrim = False
@@ -379,15 +418,16 @@ class Combiner:
 
         # Crop and resize if given an explicit size
         if force_size and all(n > 0 for n in force_size):
+            logger.info(f'Resizing to {force_size[0]}x{force_size[1]}...')
+
             resized = Image.new(mode=image.mode, size=force_size)
-            logger.info(f'Resizing to {resized.size[0]}x{resized.size[1]}...')
             center = resized.size[0] // 2, resized.size[1] // 2
 
             x1, y1 = center[0] - (image.size[0] // 2), center[1] - (image.size[1] // 2)
             x2, y2 = x1 + image.size[0], y1 + image.size[1]
 
-            resized.paste(image, (x1, y1, x2, y2))
-            image = resized
+            resized.paste(image.img, (x1, y1, x2, y2))
+            image = MapImage(resized, image.game_zero, image.detail_mul)
             autotrim = False
 
         # Trim excess
@@ -395,6 +435,8 @@ class Combiner:
             if use_grid or show_grid_coords:
                 bbox = bbox_before_grid
             else:
+                print(image.getbbox)
+                print(image.img.getbbox)
                 bbox = image.getbbox()
             if not bbox:
                 raise CombineError('getbbox() failed! This is likely a bug with the script;' +
@@ -405,8 +447,8 @@ class Combiner:
         # Apply desired background color, if any
         if self.bg_color != (0, 0, 0, 0):
             image_bg = Image.new('RGBA', size=image.size, color=self.bg_color)
-            image_bg.alpha_composite(image)
-            image = image_bg
+            image_bg.alpha_composite(image.img)
+            image = MapImage(image_bg, image.game_zero, image.detail_mul)
 
         tb = time.perf_counter()
 
@@ -512,6 +554,7 @@ def main():
     grid_interval: tuple[int, int] = filled_tuple(args.use_grid)
     use_grid: bool = all(n > 0 for n in grid_interval)
     show_grid_coords: bool = args.show_coords
+    # TODO: Allow hex codes, convert to RGBA
     background: ColorRGBA = tuple(args.background)
 
     yes_to_all = args.yes_to_all
