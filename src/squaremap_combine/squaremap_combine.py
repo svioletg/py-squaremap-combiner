@@ -232,8 +232,13 @@ class MapImage:
         """
         center_on = self.game_coord_in_image(center_on)
         center_distance = center_on, Coord2i(*self.img.size) - center_on
-        paste_area: Rectangle = *((width // 2) - center_distance[0]).as_tuple(), *((width // 2) + center_distance[1]).as_tuple()
-        new_canvas = Image.new(mode=self.img.mode, size=(width, height))
+        paste_area: Rectangle = (
+            (width // 2) - center_distance[0].x,
+            (height // 2) - center_distance[0].y,
+            (width // 2) + center_distance[1].x,
+            (height // 2) + center_distance[1].y,
+        )
+        new_canvas = Image.new(mode=self.mode, size=(width, height))
         new_canvas.paste(self.img, paste_area)
         return MapImage(new_canvas, self.game_zero + Coord2i(*paste_area[0:2]), self.detail_mul)
 
@@ -279,36 +284,22 @@ class Combiner:
         # (otherwise the grid calculations later won't work)
         grid_origin = image.game_zero
 
-        # Make sure the grid origin is within the image, or else this won't work
-        while grid_origin.x > image.width:
-            grid_origin.x -= self.grid_interval[0] // image.detail_mul
-        while grid_origin.y > image.height:
-            grid_origin.y -= self.grid_interval[1] // image.detail_mul
-
         if show_grid_coords:
-            coord_axes = {'h': set(), 'v': set()}
-
             # Remove large empty areas, but still keep things in easily workable dimensions
+            # We don't want to alter the image before doing all these calculations, so store it for later
             bbox_before_grid = image.getbbox()
             assert(bbox_before_grid)
 
-            x, y = grid_origin
-            while x <= image.width:
-                coord_axes['h'].add(x)
-                x += self.grid_interval[0] // image.detail_mul
-            x = grid_origin.x
-            while x >= 0:
-                coord_axes['h'].add(x)
-                x -= self.grid_interval[0] // image.detail_mul
-
-            while y <= image.height:
-                coord_axes['v'].add(y)
-                y += self.grid_interval[1] // image.detail_mul
-            y = grid_origin.y
-            while y >= 0:
-                coord_axes['v'].add(y)
-                y -= self.grid_interval[1] // image.detail_mul
-            del x, y
+            coord_axes: dict[str, set[int]] = {
+                'h': set(
+                    [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
+                    [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)]
+                    ),
+                'v': set(
+                    [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
+                    [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)]
+                    ),
+            }
 
             interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
             total_intervals = len(interval_coords)
@@ -426,7 +417,7 @@ class Combiner:
                 tqdm.write(f'Pasting image: {tile_path}')
             paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
             if not game_zero_in_image:
-                game_zero_in_image = (Coord2i(x, y) - (Coord2i(c, r) * self.TILE_SIZE)) // detail_mul
+                game_zero_in_image = Coord2i(x, y) - (Coord2i(c, r) * self.TILE_SIZE)
             image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
 
         assert(game_zero_in_image)

@@ -1,0 +1,8 @@
+{
+    "grid_color": "000000",
+    "grid_line_color": "ff0000",
+    "grid_text_color": "0000ff",
+    "grid_text_size": "24px",
+    "show_grid_lines": true,
+    "show_grid_text": true
+}
