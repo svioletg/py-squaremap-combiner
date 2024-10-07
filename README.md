@@ -10,7 +10,7 @@ The seed used for the world the sample images were created from is `-25900898276
 
 The script can either be directly run...
 
-```
+```bash
 python3 squaremap_combine.py my-tiles overworld 2 --output_ext jpg
 ```
 
@@ -26,7 +26,7 @@ map_image.save('output.jpg')
 
 ...or run via the `-m` switch as its own command.
 
-```
+```bash
 python3 -m squaremap_combine my-tiles overworld 2 --output_ext jpg
 ```
 
@@ -47,7 +47,7 @@ After these two, specify what detail level to use, any number from 0 through 3. 
 
 This is all you need to create a basic full-map image. Your command might look something like this:
 
-```
+```bash
 python3 squaremap_combine.py server-tiles overworld 3
 ```
 
@@ -74,6 +74,6 @@ Beyond this, there are various options that can be given to the script to alter 
 
 Using some of these options, your command may look something like this:
 
-```
+```bash
 python3 squaremap_combine.py tiles overworld 3 --area -700 -500 100 200 --timestamp default --output-dir town-area --output-ext jpg -y
 ```

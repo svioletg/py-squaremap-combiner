@@ -31,9 +31,10 @@ DEFAULT_COORDS_FORMAT = '({x}, {y})'
 DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 """Square-blocks-per-pixel for each detail level."""
 
-yes_to_all = False
+yes_to_all = False # pylint: disable=invalid-name; not actually a constant!
 
 def confirm_yn(message: str) -> bool:
+    """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
     return yes_to_all or (input(f'{message} (y/n) ').strip().lower() == 'y')
 
 def filled_tuple(source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
@@ -87,7 +88,7 @@ P = ParamSpec('P')
 
 def copy_method_signature(source: Callable[Concatenate[Any, P], T]) -> Callable[[Callable[..., T]], Callable[Concatenate[Any, P], T]]:
     """Copies a method signature onto the decorated method.
-    
+
     Taken from: https://github.com/python/typing/issues/270#issuecomment-1346124813
     """
     def wrapper(target: Callable[..., T]) -> Callable[Concatenate[Any, P], T]:
@@ -119,6 +120,7 @@ class Coord2i:
             yield i
 
     def as_tuple(self) -> tuple[int, int]:
+        """Returns the coordinate as a tuple."""
         return (self.x, self.y)
 
     def _math(self, math_op: Callable, other: 'int | tuple[int, int] | Coord2i', direction: Literal['l', 'r']='l') -> 'Coord2i':
@@ -179,16 +181,16 @@ class MapImage:
         return getattr(self.img, key)
 
     @property
-    def mode(self):
+    def mode(self): # pylint: disable=missing-function-docstring
         return self.img.mode
     @property
-    def size(self):
+    def size(self): # pylint: disable=missing-function-docstring
         return self.img.size
     @property
-    def width(self):
+    def width(self): # pylint: disable=missing-function-docstring
         return self.img.width
     @property
-    def height(self):
+    def height(self): # pylint: disable=missing-function-docstring
         return self.img.height
 
     def with_image(self, new_image: Image.Image) -> 'MapImage':
@@ -209,13 +211,13 @@ class MapImage:
 
     # Copy signatures for intellisense
     @copy_method_signature(Image.Image.getbbox)
-    def getbbox(self):
+    def getbbox(self): # pylint: disable=missing-function-docstring
         return self.img.getbbox()
     @copy_method_signature(Image.Image.paste)
-    def paste(self, *args, **kwargs):
+    def paste(self, *args, **kwargs): # pylint: disable=missing-function-docstring
         self.img.paste(*args, **kwargs)
     @copy_method_signature(Image.Image.save)
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs): # pylint: disable=missing-function-docstring
         self.img.save(*args, **kwargs)
 
     def crop(self, box: Rectangle) -> 'MapImage':
@@ -490,7 +492,7 @@ def opt(*names: str) -> list[str]:
     return [*names] + [('--' + n.lstrip('-').replace('-', '_')) for n in names if '-' in n.lstrip('-')]
 
 @logger.catch
-def main():
+def main(): # pylint: disable=missing-function-docstring
     global yes_to_all # pylint: disable=global-statement
 
     logger.level('WARNING', color='<yellow>')
@@ -614,7 +616,6 @@ def main():
     yes_to_all = args.yes_to_all
 
     #endregion ARGUMENTS
-
     logger.info(textwrap.dedent(f"""
         -- BASIC SETTINGS --
         Tiles directory: {tiles_dir}
