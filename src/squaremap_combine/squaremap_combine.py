@@ -28,6 +28,7 @@ ColorRGBA = tuple[int, int, int, int]
 DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
 
 DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
+"""Square-blocks-per-pixel for each detail level."""
 
 yes_to_all = False
 
@@ -242,7 +243,6 @@ class Combiner:
     Only made a constant in case squaremap happens to change its image sizes in the future.
     """
     STANDARD_WORLDS: list[str] = ['overworld', 'the_nether', 'the_end']
-    """Square-blocks-per-pixel for each detail level."""
     def __init__(self,
             tiles_dir: str | Path,
             use_tqdm=False,

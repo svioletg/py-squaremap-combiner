@@ -1,8 +1,5 @@
-build/
-dist/
-testimg/
-font/
 .venv/
+html/
+testimg/
 gui-wrapping/
 __pycache__/
-*.spec
