@@ -26,6 +26,7 @@ ColorRGB = tuple[int, int, int]
 ColorRGBA = tuple[int, int, int, int]
 
 DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
+DEFAULT_COORDS_FORMAT = '({x}, {y})'
 
 DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 """Square-blocks-per-pixel for each detail level."""
@@ -249,6 +250,7 @@ class Combiner:
             interactive: bool=False,
             grid_interval: Optional[tuple[int, int]]=None,
             grid_color: ColorRGB=(0, 0, 0),
+            grid_coords_format: str=DEFAULT_COORDS_FORMAT,
             bg_color: ColorRGBA=(0, 0, 0, 0)
         ):
         if not (tiles_dir := Path(tiles_dir)).is_dir():
@@ -259,12 +261,14 @@ class Combiner:
         self.interactive = interactive
         self.grid_interval = grid_interval
         self.grid_color = grid_color
+        self.grid_coords_format = grid_coords_format
         self.bg_color = bg_color
 
     def _add_grid_to_image(self,
             image: MapImage,
+            show_grid_lines: bool,
             show_grid_coords: bool,
-            show_grid_lines: bool
+            coords_format_string: str=DEFAULT_COORDS_FORMAT
         ) -> tuple[MapImage, Rectangle] | None:
         if not self.grid_interval:
             raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
@@ -306,6 +310,7 @@ class Combiner:
 
             interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
             total_intervals = len(interval_coords)
+
             if total_intervals > 50000:
                 logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
                 if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
@@ -320,9 +325,10 @@ class Combiner:
             idraw = ImageDraw.Draw(image.img)
             for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
                 game_coord = image.image_coord_in_game(img_coord)
+                coord_text = coords_format_string.format(x=game_coord.x, y=game_coord.y)
                 if self.use_tqdm and (total_intervals <= 5000):
-                    pbar.set_description(f'Drawing {game_coord} at {img_coord.as_tuple()}')
-                idraw.text(xy=img_coord.as_tuple(), text=str(game_coord), fill=self.grid_color)
+                    pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
+                idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.grid_color)
 
         if show_grid_lines:
             logger.info('Drawing grid lines...')
@@ -451,7 +457,7 @@ class Combiner:
 
         # Add grid and/or coordinates
         if use_grid or show_grid_coords:
-            if result := self._add_grid_to_image(image, show_grid_coords, use_grid):
+            if result := self._add_grid_to_image(image, show_grid_coords, use_grid, coords_format_string=self.grid_coords_format):
                 image, bbox_before_grid = result
             else:
                 return None
@@ -541,7 +547,11 @@ def main():
     parser.add_argument(*opt('--show-coords'), '-gc', action='store_true',
         help='Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.')
 
-    parser.add_argument(*opt('--background'), '-bg', nargs='+', default=(0, 0, 0, 0), metavar=('HEXCODE or RED GREEN BLUE ALPHA'),
+    parser.add_argument(*opt('--coords-format'), '-gcf', type=str, metavar='FORMAT_STRING', default=DEFAULT_COORDS_FORMAT,
+        help='A string to format how grid coordinates appear. Use "{x}" and "{y}" (curly-braces included)' +
+        ' where you want the X and Y coordinates to appear, e.g. "X: {x} Y: {y}" could appear as "X: 100 Y: 200".')
+
+    parser.add_argument(*opt('--background'), '-bg', nargs='+', default=(0, 0, 0, 0), metavar=('HEXCODE or RGBA'),
         help='Specify an RGBA color to use for the background of the image. Empty space is fully transparent by default.\n' +
         'A hexcode (e.g. FF0000) can be used as well, and an 8-character hex code can be used to specify alpha with the last two bytes.\n' +
         'If only RED, GREEN, and BLUE are given, the alpha is set to 255 (fully opaque) automatically.')
@@ -580,6 +590,7 @@ def main():
     grid_interval: tuple[int, int] = filled_tuple(args.use_grid)
     use_grid: bool = all(n > 0 for n in grid_interval)
     show_grid_coords: bool = args.show_coords
+    coords_format: str = args.coords_format
 
     if len(args.background) == 1:
         hex_color: str = args.background[0]
@@ -643,8 +654,10 @@ def main():
         use_tqdm=True,
         interactive=True,
         grid_interval=grid_interval if use_grid else None,
+        grid_coords_format=coords_format,
         bg_color=background
     )
+
     image = combiner.combine(
         world,
         detail,
