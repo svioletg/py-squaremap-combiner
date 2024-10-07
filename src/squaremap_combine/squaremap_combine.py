@@ -53,11 +53,11 @@ def snap_box(box: Rectangle, multiple: int) -> Rectangle:
 def draw_grid(image: Image.Image, interval: int | tuple[int, int], line_color: ColorRGB, origin: tuple[int, int]=(0, 0)) -> None:
     """Draws a grid onto an `Image` with the given intervals.
 
-    @param interval: An interval of pixels at which lines should be drawn.
+    :param interval: An interval of pixels at which lines should be drawn.
         Giving a single integer will use the same interval for X and Y, otherwise a tuple of two integers can be given
         to specify each.
-    @param line_color: What color to draw the grid lines with.
-    @param origin: Where to start drawing grid lines from on the image.
+    :param line_color: What color to draw the grid lines with.
+    :param origin: Where to start drawing grid lines from on the image.
         Lines will be drawn from this position moving outwards in both directions until the edge of the image is reached.
     """
     if isinstance(interval, int):
@@ -163,9 +163,9 @@ class MapImage:
     """
     def __init__(self, image: Image.Image, game_zero: Coord2i, detail_mul: int):
         """
-        @param image: The `Image` to convert.
-        @param game_zero: At what coordinate on this image 0, 0 would be located in the Minecraft world it represents.
-        @param detail_mul: The detail multiplier for this map.
+        :param image: The `Image` to convert.
+        :param game_zero: At what coordinate on this image 0, 0 would be located in the Minecraft world it represents.
+        :param detail_mul: The detail multiplier for this map.
         """
         self.img = image
         self.game_zero = game_zero
@@ -224,7 +224,7 @@ class MapImage:
         """Returns this image centered within a new canvas of the given size,
         centered by a specified coordinate of the original image.
 
-        @param center_on: What coordinate of the Minecraft world to center the image on. Defaults to 0,0.
+        :param center_on: What coordinate of the Minecraft world to center the image on. Defaults to 0,0.
         """
         center_on = self.game_coord_in_image(center_on)
         center_distance = center_on, Coord2i(*self.img.size) - center_on
@@ -345,17 +345,17 @@ class Combiner:
         ) -> MapImage | None:
         """Combine the given world (dimension) tile images into one large map.
 
-        @param world: Name of the world to combine images of.\
+        :param world: Name of the world to combine images of.\
             Should be the name of a subdirectory located in this instance's `tiles_dir`.
-        @param detail: The level of detail, 0 up through 3, to use for this map.\
+        :param detail: The level of detail, 0 up through 3, to use for this map.\
             Will correspond to which numbered subdirectory within the given world to use images from.
-        @param area: Specifies an area of the world to export rather than rendering the full map.\
+        :param area: Specifies an area of the world to export rather than rendering the full map.\
             Takes coordinates as they would appear in Minecraft. Using this will disable `autotrim` implicitly.
-        @param force_size: Centers the final image in a new image of this size.\
+        :param force_size: Centers the final image in a new image of this size.\
             Using this will disable `autotrim` implicitly.
-        @param use_grid: Draws a grid onto this image.\
+        :param use_grid: Draws a grid onto this image.\
             Uses this `Combiner` instance's `grid_interval` and `grid_color` properties.
-        @param show_grid_coords: Adds Minecraft coordinates to the top-left of every `grid_interval` intersection on this image.\
+        :param show_grid_coords: Adds Minecraft coordinates to the top-left of every `grid_interval` intersection on this image.\
             This can be used on its own without `use_grid` to draw only the coordinate text.
         """
         if world not in self.mapped_worlds:
