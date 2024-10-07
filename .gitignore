@@ -1,5 +1,6 @@
 .venv/
 html/
 testimg/
+docs/build/
 gui-wrapping/
 __pycache__/
