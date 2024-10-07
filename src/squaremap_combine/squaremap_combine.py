@@ -406,7 +406,7 @@ class Combiner:
 
         ta = time.perf_counter()
         # Represents where 0, 0 in our Minecraft world is, in relation to the image's coordinates
-        game_zero_in_image: Coord2i
+        game_zero_in_image: Coord2i | None = None
         for c, r in tqdm_product(column_range, row_range, disable=not self.use_tqdm, desc='Columns'):
             if (c not in regions) or (r not in regions[c]):
                 continue
@@ -417,8 +417,8 @@ class Combiner:
             if self.use_tqdm:
                 tqdm.write(f'Pasting image: {tile_path}')
             paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
-            if (c, r) == (0, 0):
-                game_zero_in_image = Coord2i(x, y)
+            if not game_zero_in_image:
+                game_zero_in_image = (Coord2i(x, y) - (Coord2i(c, r) * self.TILE_SIZE)) // detail_mul
             image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
 
         assert(game_zero_in_image)
@@ -541,7 +541,7 @@ def main():
     parser.add_argument(*opt('--show-coords'), '-gc', action='store_true',
         help='Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.')
 
-    parser.add_argument(*opt('--background'), '-bg', type=int, nargs='+', default=(0, 0, 0, 0), metavar=('HEXCODE or RED GREEN BLUE ALPHA'),
+    parser.add_argument(*opt('--background'), '-bg', nargs='+', default=(0, 0, 0, 0), metavar=('HEXCODE or RED GREEN BLUE ALPHA'),
         help='Specify an RGBA color to use for the background of the image. Empty space is fully transparent by default.\n' +
         'A hexcode (e.g. FF0000) can be used as well, and an 8-character hex code can be used to specify alpha with the last two bytes.\n' +
         'If only RED, GREEN, and BLUE are given, the alpha is set to 255 (fully opaque) automatically.')
@@ -585,7 +585,7 @@ def main():
         hex_color: str = args.background[0]
         if len(hex_color) == 3:
             hex_color *= 2
-        if len(hex_color) != 6 or len(hex_color) != 8:
+        elif (len(hex_color) != 6) and (len(hex_color) != 8):
             raise ValueError('Given hex color code must be 3, 6, or 8 characters in length')
         rgba = []
         for chunk in batched(hex_color, 2):
@@ -598,7 +598,7 @@ def main():
         rgba = args.background
     else:
         raise ValueError('3 or 4 values are required for RGB / RGBA color argument')
-    background: ColorRGBA = tuple(rgba)
+    background: ColorRGBA = tuple(map(int, rgba)) # type: ignore
 
     yes_to_all = args.yes_to_all
 
