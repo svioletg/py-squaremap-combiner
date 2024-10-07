@@ -555,7 +555,7 @@ def main(): # pylint: disable=missing-function-docstring
 
     parser.add_argument(*opt('--background'), '-bg', nargs='+', default=(0, 0, 0, 0), metavar=('HEXCODE or RGBA'),
         help='Specify an RGBA color to use for the background of the image. Empty space is fully transparent by default.\n' +
-        'A hexcode (e.g. FF0000) can be used as well, and an 8-character hex code can be used to specify alpha with the last two bytes.\n' +
+        'A hexcode (e.g. FF0000) can be used as well, and an 8-character hex code can be used to specify alpha with the last byte.\n' +
         'If only RED, GREEN, and BLUE are given, the alpha is set to 255 (fully opaque) automatically.')
 
     parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
