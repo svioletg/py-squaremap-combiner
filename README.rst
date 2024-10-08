@@ -17,31 +17,27 @@ frequently large changes until that point. Right now version bumps are
 made subjectively and each bump just increases the minor version, but
 after 1.0.0 I plan to stick to semantic versioning.
 
+Contents
+-----
+
 - `Usage <#usage>`__
 - `Options <#options>`__
 
 Usage
 -----
 
-The script can either be directly run…
-
-.. code:: bash
-
-   python3 squaremap_combine.py my-tiles overworld 2 --output_ext jpg
-
-…or installed as a package
-(``pip install git+https://github.com/svioletg/py-squaremap-combiner.git``),
-then either imported…
+Install the package with pip (``pip install git+https://github.com/svioletg/py-squaremap-combiner.git``).
+It can then be used either as a module in another project...
 
 .. code:: python
 
-   import squaremap_combine.squaremap_combine as sq
+   from squaremap_combine.combine_core import Combiner
 
    combiner = Combiner('my-tiles')
    map_image = combiner.combine('minecraft_overworld', 2)
    map_image.save('output.jpg')
 
-…or run via the ``-m`` switch as its own command.
+…or run via the ``-m`` switch.
 
 .. code:: bash
 
@@ -61,7 +57,7 @@ then navigate to ``plugins/squaremap/web``. Inside, there will be a
 ``tiles`` folder which likely contains folders like
 ``minecraft_overworld``, ``minecraft_the_nether``, and
 ``minecraft_the_end``. You will supply the path to this ``tiles`` folder
-for the script to work, and then specify a “world” (dimension) to use
+for the script to work, and then specify a "world" (dimension) to use
 the tiles of, which will be one of the three aformentioned subfolders -
 the ``minecraft_`` prefix can be omitted when entering them, but you
 should not alter the folder names themselves.
@@ -93,7 +89,7 @@ Beyond this, there are various options that can be given to the script
 to alter its behavior. If you're not familiar with using the
 command-line, these options are typed out after the main command, in any
 order, with their associated values following directly after, like
-``squaremap_combine.py tiles overworld 3 --option value --option-two value``.
+``squaremap_combine tiles overworld 3 --option value --option-two value``.
 If any of the options below are not used, their **default** is used
 automatically.
 
@@ -260,7 +256,7 @@ Using some of these options, your command may look something like this:
 
 .. code:: bash
 
-   python3 squaremap_combine.py tiles overworld 3 --area -700 -500 100 200 --timestamp default --output-dir town-area --output-ext jpg -y
+   python3 -m squaremap_combine tiles overworld 3 --area -700 -500 100 200 --timestamp default --output-dir town-area --output-ext jpg -y
 
 .. |Python 3.12| image:: https://img.shields.io/badge/python-3.12-blue.svg
    :target: https://www.python.org/downloads/release/python-3120/
