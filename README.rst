@@ -100,157 +100,43 @@ Options
    the option will work the same, e.g. ``--output-ext`` or
    ``--output_ext``
 
-+-----------------------+-----------------------+-----------------------+
-| Option                | Description           | Default               |
-+=======================+=======================+=======================+
-| ``--output-dir`` or   | Specifies a folder to | ``.`` (The directory  |
-| ``-o``                | save the completed    | the script was run    |
-|                       | image to.             | from.)                |
-+-----------------------+-----------------------+-----------------------+
-| ``--output-ext`` or   | What file             | ``png``               |
-| ``-ext``              | extension/format to   |                       |
-|                       | give the resulting    |                       |
-|                       | image. ``png``,       |                       |
-|                       | ``jpg``, ``webp``,    |                       |
-|                       | etc.                  |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--timestamp`` or    | Adds a timestamp to   | Timestamp is omitted  |
-| ``-t``                | the beginning of the  | if this option is     |
-|                       | image's filename, in  | unused.               |
-|                       | the given format —    |                       |
-|                       | see                   |                       |
-|                       | `strftime.org <http   |                       |
-|                       | s://strftime.org/>`__ |                       |
-|                       | for a formatting code |                       |
-|                       | cheat sheet, however  |                       |
-|                       | note that you'll need |                       |
-|                       | to use question marks |                       |
-|                       | (``?``) rather than   |                       |
-|                       | percent symbols for   |                       |
-|                       | the codes in this     |                       |
-|                       | case. Using the       |                       |
-|                       | argument alone        |                       |
-|                       | without any string    |                       |
-|                       | given after it will   |                       |
-|                       | use automatically use |                       |
-|                       | the default format,   |                       |
-|                       | which is              |                       |
-|                       | ``?Y-?m-?d_?H-?M-?S`` |                       |
-|                       | (e.g. ``20            |                       |
-|                       | 24-06-06_07-41-00``). |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--overwrite`` or    | Flag that allows the  | Not using this flag   |
-| ``-ow``               | script to overwrite   | will result in a      |
-|                       | any image with the    | number being added to |
-|                       | same name as the one  | the filename before   |
-|                       | it wants to save to.  | saving, based on how  |
-|                       | The script saves      | many copies with the  |
-|                       | images in the format  | same name exist       |
-|                       | ``world_name          | already.              |
-|                       | -detail.(extension)`` |                       |
-|                       | (e.g. ``minecraf      |                       |
-|                       | t_overworld-3.png``), |                       |
-|                       | so if a file with     |                       |
-|                       | this name already     |                       |
-|                       | exists in the         |                       |
-|                       | targeted output       |                       |
-|                       | directory, it will be |                       |
-|                       | overwritten with this |                       |
-|                       | option.               |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--area`` or ``-a``  | Specifies a specific  | The full map is       |
-|                       | area to export an     | rendered if no area   |
-|                       | image of, rather than | is specified.         |
-|                       | the full map. This    |                       |
-|                       | option expects        |                       |
-|                       | coordinates as they   |                       |
-|                       | would appear in the   |                       |
-|                       | Minecraft world       |                       |
-|                       | itself, as the        |                       |
-|                       | top-left and          |                       |
-|                       | bottom-right corners  |                       |
-|                       | of a rectangle — in   |                       |
-|                       | the order of          |                       |
-|                       | ``X1 Y1 X2 Y2``.      |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--no-autotrim``     | Tells the script not  |                       |
-|                       | to trim off any empty |                       |
-|                       | (as in, fully         |                       |
-|                       | transparent) space    |                       |
-|                       | around the created    |                       |
-|                       | image.                |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--force-size`` or   | Centers the image     |                       |
-| ``-fs``               | within the given      |                       |
-|                       | width and height, in  |                       |
-|                       | that order, and then  |                       |
-|                       | crops the image to    |                       |
-|                       | that size before      |                       |
-|                       | saving. If only one   |                       |
-|                       | number is given, it   |                       |
-|                       | will be used for both |                       |
-|                       | the width and height. |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--use-grid`` or     | Adds a grid onto the  | No grid is added.     |
-| ``-g``                | final image in the    |                       |
-|                       | given X and Y         |                       |
-|                       | intervals. If only    |                       |
-|                       | X_INTERVAL is given,  |                       |
-|                       | the same interval     |                       |
-|                       | will be used for both |                       |
-|                       | X and Y grid lines.   |                       |
-|                       | The resulting grid    |                       |
-|                       | will be based on the  |                       |
-|                       | coordinates as they   |                       |
-|                       | would be in           |                       |
-|                       | Minecraft, not of the |                       |
-|                       | image itself.         |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--show-coords`` or  | Adds coordinate text  | No coordinates are    |
-| ``-gc``               | to every grid         | shown.                |
-|                       | interval              |                       |
-|                       | intersection.         |                       |
-|                       | Requires the use of   |                       |
-|                       | the -use-grid option. |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--coords-format``   | A string to format    | ``({x}, {y})``        |
-| or ``-gcf``           | how grid coordinates  |                       |
-|                       | appear. Use “{x}” and |                       |
-|                       | “{y}” (curly-braces   |                       |
-|                       | included) where you   |                       |
-|                       | want the X and Y      |                       |
-|                       | coordinates to        |                       |
-|                       | appear, e.g. “X: {x}  |                       |
-|                       | Y: {y}” could appear  |                       |
-|                       | as “X: 100 Y: 200”.   |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--background`` or   | Specify an RGBA color | Background is fully   |
-| ``-bg``               | (with values from 0   | transparent.          |
-|                       | to 255 for each) to   |                       |
-|                       | use for the           |                       |
-|                       | background of the     |                       |
-|                       | image. A hexcode      |                       |
-|                       | (e.g. FF0000) can be  |                       |
-|                       | used as well, and an  |                       |
-|                       | 8-character hex code  |                       |
-|                       | can be used to        |                       |
-|                       | specify alpha with    |                       |
-|                       | the last two bytes.   |                       |
-|                       | If only RED, GREEN,   |                       |
-|                       | and BLUE are given,   |                       |
-|                       | the alpha is set to   |                       |
-|                       | 255 (fully opaque)    |                       |
-|                       | automatically.        |                       |
-+-----------------------+-----------------------+-----------------------+
-| ``--yes-to-all`` or   | Automatically skips   |                       |
-| ``-y``                | and approves any      |                       |
-|                       | prompts for user      |                       |
-|                       | confirmation. This is |                       |
-|                       | useful if you intend  |                       |
-|                       | to run this script    |                       |
-|                       | automatically, like   |                       |
-|                       | in a crontab.         |                       |
-+-----------------------+-----------------------+-----------------------+
+-o, --output-dir PATH
+   Directory to save the completed image to. Defaults to the directory in which this script was run.
+
+-ext, --output-ext EXTENSION
+   The output file extension (format) to use for the created image. Default is ``png``.
+
+-t, --timestamp FORMAT_STRING
+   Adds a timestamp of the given format to the beginning of the image file name. Default format ``?Y-?m-?d_?H-?M-?S`` will be used if no format is specified after this argument. See: https://docs.python.org/3/library/datetime.html#format-codes for formatting string examples.
+   NOTE: Due to a quirk with the argparse library, you must use a question mark (?) instead of a percent symbol for any format strings.
+
+-ow, --overwrite
+   Using this flag will allow the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.
+
+-a, --area <X1 Y1 X2 Y2>
+   A rectangle area of the world (top, left, bottom, right) to export an image from. This can save time when using a very large world map, as this will only combine the minimum amount of regions needed to cover this area, before finally cropping it down to only the given area. These values should be the coordinates of the area as they would be in the actual Minecraft world.
+
+--no-autotrim
+   By default, excess empty space is trimmed off of the final image. Using this argument with disable that behavior.
+   NOTE: Autotrimming is automatically disabled if ``--force-size`` or ``--area`` are used.
+
+-fs, --force-size <WIDTH [HEIGHT]>
+   Centers the assembled map inside an image of this size. Can be used to make images a consistent size if you're using them for a timelapse, for example. Only specifying one integer for this argument will use the same value for both width and height.
+
+-g, --use-grid <X_INTERVAL [Y_INTERVAL]>
+   Adds a grid onto the final image in the given X and Y intervals. If only X_INTERVAL is given, the same interval will be used for both X and Y grid lines. The resulting grid will be based on the coordinates as they would be in Minecraft, not of the image itself.
+
+-gc, --show-coords
+   Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.
+
+-gcf, --coords-format
+   A string to format how grid coordinates appear. Use "{x}" and "{y}" (curly-braces included) where you want the X and Y coordinates to appear, e.g. "``X: {x} Y: {y}``" could appear as "``X: 100 Y: 200``".
+
+-bg, --background COLOR
+   Specify an color to use for the background of the image. Empty space is fully transparent by default. Accepted color formats are hexcode (e.g. ``FF0000``) or a set of RGB values (e.g. ``255 0 0``), and an extra hex code byte (e.g. ``FF0000FF`` or integer value (e.g. ``255 0 0 255``) can be added to determine the alpha of the color.
+
+-y, --yes-to-all
+   Automatically accepts any requests for user confirmation.
 
 Using some of these options, your command may look something like this:
 
