@@ -5,7 +5,8 @@ import operator
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Optional, Self, Sequence, TypeVar, cast
+from typing import (Callable, Iterator, Literal, Optional, Self, Sequence,
+                    TypeVar, cast)
 
 from loguru import logger
 from PIL import Image, ImageDraw
@@ -15,7 +16,7 @@ from tqdm.contrib.itertools import product as tqdm_product
 from squaremap_combine.errors import AssertionMessage, CombineError
 from squaremap_combine.helper import (Color, StyleJSONEncoder, confirm_yn,
                                       copy_method_signature, snap_box)
-from squaremap_combine.type_alias import ColorRGB, ColorRGBA, Rectangle
+from squaremap_combine.type_alias import Rectangle
 
 logger.remove() # Don't output anything if this is just being imported
 
@@ -194,16 +195,20 @@ class CombinerStyle:
         # Force type conversion and validation
         for attr, cls in cast(dict[str, type], self.__annotations__).items(): # pylint: disable=no-member; false positive, __annotations__ is valid
             val = getattr(self, attr)
-            if not isinstance(val, cls):
-                if cls is Color:
-                    if isinstance(val, str):
-                        val = Color.from_hex(val)
-                    elif isinstance(val, Sequence):
-                        val = cls(*val)
+            if isinstance(val, cls):
+                continue
+            if cls is Color:
+                if isinstance(val, str):
+                    if hexcode := Color.ensure_hex_format(val):
+                        val = Color.from_hex(hexcode)
                     else:
-                        raise TypeError(f'Invalid type given for Color construction: {val!r} is of type {type(val)}')
+                        val = Color.from_name(val)
+                elif isinstance(val, Sequence):
+                    val = cls(*val)
                 else:
-                    val = cls(val)
+                    raise TypeError(f'Invalid type given for Color construction: {val!r} is of type {type(val)}')
+            else:
+                val = cls(val)
             setattr(self, attr, val)
 
     @classmethod
@@ -222,6 +227,8 @@ class CombinerStyle:
         """Dumps this object as a JSON string."""
         return json.dumps(self, cls=StyleJSONEncoder)
 
+DEFAULT_COMBINER_STYLE = CombinerStyle()
+
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,
     and is able to export full map images.
@@ -236,10 +243,8 @@ class Combiner:
             use_tqdm=False,
             skip_confirmation: bool=False,
             grid_interval: Optional[tuple[int, int]]=None,
-            grid_line_color: ColorRGB=(0, 0, 0),
-            grid_text_color: ColorRGB=(0, 0, 0),
             grid_coords_format: str=DEFAULT_COORDS_FORMAT,
-            bg_color: ColorRGBA=(0, 0, 0, 0)
+            style: CombinerStyle=DEFAULT_COMBINER_STYLE
         ):
         """
         :param tiles_dir: A path to a directory in the same format as what squaremap automatically generates.
@@ -268,11 +273,9 @@ class Combiner:
             in this class to run unattended to.
         :param grid_interval: An X and Y interval that should be used for things like drawing grid lines or coordinates onto \
             the finished image.
-        :param grid_line_color: RGBA color to be used for drawing grid lines.
-        :param grid_text_color: RGBA color to be used for drawing grid coordinates and other text.
         :param grid_coords_format: A format string to be used when drawing grid coordinates. \
             Valid formatting options are `{x}` and {y}`.
-        :param bg_color: RGBA color to be used for the image's background, replacing any transparency.
+        :param style: `CombinerStyle` instance to define styling rules with.
         """
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
@@ -280,10 +283,8 @@ class Combiner:
         self.use_tqdm           = use_tqdm
         self.skip_confirmation  = skip_confirmation
         self.grid_interval      = grid_interval or (self.TILE_SIZE, self.TILE_SIZE)
-        self.grid_line_color    = grid_line_color
-        self.grid_text_color    = grid_text_color
         self.grid_coords_format = grid_coords_format
-        self.bg_color           = bg_color
+        self.style              = style
 
         self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
         """What valid world folders the given `tiles_dir` contains."""
@@ -307,9 +308,9 @@ class Combiner:
         }
 
         for x in coord_axes['h']:
-            idraw.line((x, 0, x, image.height), fill=self.grid_line_color)
+            idraw.line((x, 0, x, image.height), fill=self.style.grid_line_color.to_rgba())
         for y in coord_axes['v']:
-            idraw.line((0, y, image.width, y), fill=self.grid_line_color)
+            idraw.line((0, y, image.width, y), fill=self.style.grid_line_color.to_rgba())
 
     def draw_grid_coords_text(self, image: MapImage) -> None:
         """Draws coordinate text onto a `MapImage` at every interval as defined for this `Combiner` instance.
@@ -352,7 +353,7 @@ class Combiner:
             coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
             if self.use_tqdm and (total_intervals <= 5000):
                 pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
-            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.grid_text_color)
+            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color)
 
     def combine(self,
             world: str | Path,
@@ -483,8 +484,8 @@ class Combiner:
             image = image.crop(bbox)
 
         # Apply desired background color, if any
-        if self.bg_color != (0, 0, 0, 0):
-            image_bg = Image.new('RGBA', size=image.size, color=self.bg_color)
+        if self.style.background_color != (0, 0, 0, 0):
+            image_bg = Image.new('RGBA', size=image.size, color=self.style.background_color.to_rgba())
             image_bg.alpha_composite(image.img)
             image = MapImage(image_bg, image.game_zero, image.detail_mul)
 

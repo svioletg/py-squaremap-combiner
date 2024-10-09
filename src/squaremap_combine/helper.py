@@ -73,6 +73,19 @@ class Color:
             return str(self.to_rgba())
         return self.__str__()
 
+    @staticmethod
+    def ensure_hex_format(hexcode: str) -> str | None:
+        """Checks whether the given string is a valid 6 or 8 character hexcode, and returns the string if so, returning `None` if invalid.
+        A 3 or 6 character hexcode will be converte to 8 by this function.
+        """
+        if len(hexcode) == 3:
+            hexcode *= 2
+        if len(hexcode) == 6:
+            hexcode += 'ff'
+        if len(hexcode) != 8:
+            return None
+        return hexcode
+
     @classmethod
     def from_name(cls, color_name: str) -> Self:
         """Creates a `Color` from a common name. The name must be present in the `Color.COMMON` dictionary."""
@@ -86,13 +99,9 @@ class Color:
         The last 2 characters of an 8-character hexcode are used for the alpha value.
         Any 6-character hexcode will have the resulting color's alpha assumed to be 255.
         """
-        if len(hex_string) == 3:
-            hex_string *= 2
-        if len(hex_string) == 6:
-            hex_string += 'ff'
-        if len(hex_string) != 8:
+        if not (hexcode := cls.ensure_hex_format(hex_string)):
             raise ValueError('Invalid hexcode given; must be 3, 6, or 8 characters long')
-        return cls(*[int(''.join(channel), 16) for channel in batched(hex_string, 2)])
+        return cls(*[int(''.join(channel), 16) for channel in batched(hexcode, 2)])
 
     def to_rgb(self) -> tuple[int, int, int]:
         """Converts this color to a three-integer tuple representing its RGB values."""
