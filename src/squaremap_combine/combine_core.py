@@ -12,7 +12,7 @@ from tqdm import tqdm
 from tqdm.contrib.itertools import product as tqdm_product
 
 from squaremap_combine.errors import AssertionMessage, CombineError
-from squaremap_combine.helper import (confirm_yn, copy_method_signature,
+from squaremap_combine.helper import (Color, confirm_yn, copy_method_signature,
                                       snap_box)
 from squaremap_combine.type_alias import ColorRGB, ColorRGBA, Rectangle
 
@@ -173,12 +173,12 @@ class MapImage:
 
 @dataclass
 class CombinerStyle:
-    grid_color      : ColorRGBA = (0, 0, 0, 255)
-    grid_line_color : ColorRGBA = (0, 0, 0, 0)
-    grid_text_color : ColorRGBA = (0, 0, 0, 0)
-    grid_text_size  : ColorRGBA = (0, 0, 0, 0)
-    show_grid_lines : bool      = False
-    show_grid_text  : bool      = False
+    grid_color      : Color = Color(0, 0, 0, 255)
+    grid_line_color : Color = Color(0, 0, 0, 0)
+    grid_text_color : Color = Color(0, 0, 0, 0)
+    grid_text_size  : Color = Color(0, 0, 0, 0)
+    show_grid_lines : bool  = False
+    show_grid_text  : bool  = False
 
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,
