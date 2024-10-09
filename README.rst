@@ -133,10 +133,10 @@ Options
    If only ``X_INTERVAL`` is given, the same value is used for ``Y_INTERVAL``.
 
 -gl, --show-grid-lines
-   (Requires the use of --grid-interval) Adds grid lines onto the map at the defined intervals.
+   *(Requires the use of --grid-interval)* Adds grid lines onto the map at the defined intervals.
 
 -gc, --show-coords
-   (Requires the use of --grid-interval) Adds coordinate text to every grid interval intersection.
+   *(Requires the use of --grid-interval)* Adds coordinate text to every grid interval intersection.
 
 -gcf, --coords-format
    A string to format how grid coordinates appear. Use "{x}" and "{y}" (curly-braces included) where you want the X and Y coordinates to appear, e.g. "``X: {x} Y: {y}``" could appear as "``X: 100 Y: 200``".

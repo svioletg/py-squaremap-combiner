@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 from tqdm import tqdm
 from tqdm.contrib.itertools import product as tqdm_product
 
-from squaremap_combine.errors import CombineError
+from squaremap_combine.errors import AssertionMessage, CombineError
 from squaremap_combine.helper import (confirm_yn, copy_method_signature,
                                       snap_box)
 from squaremap_combine.type_alias import ColorRGB, ColorRGBA, Rectangle
@@ -80,11 +80,35 @@ class Coord2i:
     def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.pow, other, 'r')
 
+class GameCoord(Coord2i):
+    """A coordinate as relative to a Minecraft world.
+    Largely identical to `Coord2i`, but used mainly for typing to more effectively signal what kind of coordinate is expected
+    for a given class or function.
+    """
+    def __repr__(self):
+        return f'GameCoord(x={self.x}, y={self.y})'
+
+    def to_image_coord(self, image: 'MapImage'):
+        """Converts this Minecraft coordinate to its position on the given `MapImage`."""
+        return image.game_zero + (self // image.detail_mul)
+
+class MapImageCoord(Coord2i):
+    """A coordinate as relative to a `MapImage`.
+    Largely identical to `Coord2i`, but used mainly for typing to more effectively signal what kind of coordinate is expected
+    for a given class or function.
+    """
+    def __repr__(self):
+        return f'MapImageCoord(x={self.x}, y={self.y})'
+
+    def to_game_coord(self, image: 'MapImage'):
+        """Converts this image coordinate to its position on the Minecraft world it represents."""
+        return (self - image.game_zero) * image.detail_mul
+
 class MapImage:
     """A delegator class to extend `Image` with Minecraft-map-specific functionality,
     like automatically recalculating the world's 0, 0 position in the image upon any crops or other changes.
     """
-    def __init__(self, image: Image.Image, game_zero: Coord2i, detail_mul: int):
+    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord', detail_mul: int):
         """
         :param image: The `Image` to convert.
         :param game_zero: At what coordinate on this image 0, 0 would be located in the Minecraft world it represents.
@@ -93,11 +117,6 @@ class MapImage:
         self.img = image
         self.game_zero = game_zero
         self.detail_mul = detail_mul
-
-    def __getattr__(self, key):
-        if key == 'img':
-            raise AttributeError
-        return getattr(self.img, key)
 
     @property
     def mode(self): # pylint: disable=missing-function-docstring
@@ -116,18 +135,6 @@ class MapImage:
         """Returns a copy of this `MapImage` with only the internal `Image` object changed."""
         return MapImage(new_image, self.game_zero, self.detail_mul)
 
-    def game_coord_in_image(self, coordinate_in_game: Coord2i) -> Coord2i:
-        """Takes a coordinate within the Minecraft world this image represents,
-        and returns the location of that coordinate's location within the image.
-        """
-        return self.game_zero + (coordinate_in_game // self.detail_mul)
-
-    def image_coord_in_game(self, coordinate_in_image: Coord2i) -> Coord2i:
-        """Takes a coordinate within the image, and returns the corresponding coordinate within the Minecraft world
-        this image represents.
-        """
-        return (coordinate_in_image - self.game_zero) * self.detail_mul
-
     # Copy signatures for intellisense
     @copy_method_signature(Image.Image.getbbox)
     def getbbox(self): # pylint: disable=missing-function-docstring
@@ -141,16 +148,16 @@ class MapImage:
 
     def crop(self, box: Rectangle) -> 'MapImage':
         """Returns a cropped portion of the original image, along with an accordingly updated `game_zero` property."""
-        return MapImage(self.img.crop(box), self.game_zero - Coord2i(*box[0:2]), self.detail_mul)
+        return MapImage(self.img.crop(box), MapImageCoord(*self.game_zero - box[0:2]), self.detail_mul)
 
-    def resize_canvas(self, width: int, height: int, center_on: Coord2i=Coord2i(0, 0)) -> 'MapImage':
+    def resize_canvas(self, width: int, height: int, center_on: GameCoord=GameCoord(0, 0)) -> 'MapImage':
         """Returns this image centered within a new canvas of the given size,
         centered by a specified coordinate of the original image.
 
         :param center_on: What coordinate of the Minecraft world to center the image on. Defaults to 0,0.
         """
-        center_on = self.game_coord_in_image(center_on)
-        center_distance = center_on, Coord2i(*self.img.size) - center_on
+        origin_in_image = center_on.to_image_coord(self)
+        center_distance = origin_in_image, MapImageCoord(*self.size) - origin_in_image
         paste_area: Rectangle = (
             (width // 2) - center_distance[0].x,
             (height // 2) - center_distance[0].y,
@@ -159,7 +166,7 @@ class MapImage:
         )
         new_canvas = Image.new(mode=self.mode, size=(width, height))
         new_canvas.paste(self.img, paste_area)
-        return MapImage(new_canvas, self.game_zero + Coord2i(*paste_area[0:2]), self.detail_mul)
+        return MapImage(new_canvas, MapImageCoord(*self.game_zero + paste_area[0:2]), self.detail_mul)
 
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,
@@ -274,7 +281,7 @@ class Combiner:
                 ),
         }
 
-        interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
+        interval_coords: list[MapImageCoord] = [MapImageCoord(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
         total_intervals = len(interval_coords)
 
         if total_intervals > 50000:
@@ -290,7 +297,7 @@ class Combiner:
         logger.info('Drawing coordinates...')
         idraw = ImageDraw.Draw(image.img)
         for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
-            game_coord = image.image_coord_in_game(img_coord)
+            game_coord = img_coord.to_game_coord(image)
             coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
             if self.use_tqdm and (total_intervals <= 5000):
                 pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
@@ -383,27 +390,18 @@ class Combiner:
                 game_zero_in_image = Coord2i(x, y) - (Coord2i(c, r) * self.TILE_SIZE)
             image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
 
-        assert game_zero_in_image
-        image = MapImage(image, game_zero_in_image, detail_mul)
-
-        # If a specific area of the Minecraft world is desired, we need to find out where 0,0 would be
-        # in relation to the image that's been created (its coordinates aren't helpful, as the top left will always be 0,0)
-        # Tiles are always the same size, and the top left coordinate of the 0,0 region is also 0,0
-        # So by seeing how far away the top left region used in the image is from that, we have our in-game coordinates
-        top_left_region: tuple[int, int] = column_range[0], row_range[0]
-        top_left_game_coord = Coord2i(*top_left_region) * detail_mul * self.TILE_SIZE
+        assert game_zero_in_image, AssertionMessage.GAME_ZERO_IS_NONE
+        image = MapImage(image, MapImageCoord(*game_zero_in_image), detail_mul)
+        del game_zero_in_image
 
         # Crop if an area is specified
         if area:
             crop_area = (
-                *image.game_coord_in_image(Coord2i(area[0], area[1])).as_tuple(),
-                *image.game_coord_in_image(Coord2i(area[2], area[3])).as_tuple()
+                *GameCoord(area[0], area[1]).to_image_coord(image).as_tuple(),
+                *GameCoord(area[2], area[3]).to_image_coord(image).as_tuple()
             )
             image = image.crop(crop_area)
             autotrim = False
-
-        # Once the image has been cropped, this is no longer useful
-        del top_left_game_coord
 
         # Crop and resize if given an explicit size
         if force_size and all(n > 0 for n in force_size):
@@ -414,8 +412,7 @@ class Combiner:
         # Things like grid lines and coordinate text are likely to end up drawn outside of the image's original bounding box,
         # alterting what getbbox() would return. Get this bounding box *first*, and then use it to autotrim later.
         bbox = image.getbbox()
-        assert bbox, 'getbbox() failed! This is likely a bug;' + \
-            ' please open an issue at https://github.com/svioletg/py-squaremap-combiner/issues and provide the above traceback'
+        assert bbox, AssertionMessage.BBOX_IS_NONE
 
         # Add grid and/or coordinates
         if show_grid_lines or show_grid_coords:
