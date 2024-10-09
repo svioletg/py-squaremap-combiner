@@ -1,3 +1,5 @@
+"""A basic CLI app for interacting with squaremap_combine."""
+
 import argparse
 import sys
 import textwrap

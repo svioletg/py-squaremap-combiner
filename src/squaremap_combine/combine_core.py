@@ -1,3 +1,5 @@
+"""Core functionality for squaremap_combine, providing the `Combiner` class amongst others."""
+
 import operator
 import time
 from pathlib import Path

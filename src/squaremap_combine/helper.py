@@ -1,3 +1,5 @@
+"""Miscellaneous helper and auxiliary utility functions."""
+
 from functools import wraps
 from math import floor
 from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
