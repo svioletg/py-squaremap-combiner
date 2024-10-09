@@ -4,3 +4,4 @@ testimg/
 docs/build/
 gui-wrapping/
 __pycache__/
+*.log

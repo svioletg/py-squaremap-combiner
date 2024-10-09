@@ -1,13 +1,93 @@
-"""Miscellaneous helper and auxiliary utility functions."""
+"""Miscellaneous helper utility functions and classes."""
 
 from functools import wraps
+from itertools import batched
 from math import floor
-from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
+from typing import Any, Callable, Concatenate, ParamSpec, Self, TypeVar
 
 from squaremap_combine.type_alias import Rectangle
 
 T = TypeVar('T')
 P = ParamSpec('P')
+
+class Color:
+    """Represents a 24-bit color.
+    Can be constructed from supplied `red`, `green`, `blue`, and `alpha` values between 0 and 255,
+    or `from_hex()` can be used to create a `Color` instance from a hexcode string.
+
+    It can then be converted back out to hex code, three-integer tuple representing RGB, or four-integer tuple representing RGBA.
+
+    Format strings are also available:
+
+    ==================  ======================
+    Specifier           Output
+    ==================  ======================
+    `"{magenta:hex}"`  `"ff00ff"`
+    `"{magenta:rgb}"`  `"(255, 0, 255)"`
+    `"{magenta:rgba}"` `"(255, 0, 255, 255)"`
+    ==================  ======================
+    """
+    def __init__(self, red: int, green: int, blue: int, alpha: int=255):
+        if 0 >= red > 255:
+            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a red value of {red}')
+        self.red   = red
+        if 0 >= green > 255:
+            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a green value of {green}')
+        self.green = green
+        if 0 >= blue > 255:
+            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a blue value of {blue}')
+        self.blue  = blue
+        if 0 >= alpha > 255:
+            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given an alpha value of {alpha}')
+        self.alpha = alpha
+
+    def __iter__(self):
+        for i in [self.red, self.green, self.blue, self.alpha]:
+            yield i
+
+    def __repr__(self) -> str:
+        return f'Color(red={self.red}, green={self.green}, blue={self.blue}, alpha={self.alpha})'
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __format__(self, fmt: str) -> str:
+        if fmt.startswith('hex'):
+            return self.to_hex()[:int(fmt.split('hex')[1] or len(self.to_hex()) + 1)]
+        if fmt == 'rgb':
+            return str(self.to_rgb())
+        if fmt == 'rgba':
+            return str(self.to_rgba())
+        return self.__str__()
+
+    @classmethod
+    def from_hex(cls, hex_string: str) -> Self:
+        """Creates a `Color` instance from the a hexcode string.
+        String must be either 3, 6, or 8 characters long.
+        If 3 characters are used, they are doubled to create a 6-character hexcode to be used instead.
+        The last 2 characters of an 8-character hexcode are used for the alpha value.
+        Any 6-character hexcode will have the resulting color's alpha assumed to be 255.
+        """
+        if len(hex_string) == 3:
+            hex_string *= 2
+        if len(hex_string) == 6:
+            hex_string += 'ff'
+        if len(hex_string) != 8:
+            raise ValueError('Invalid hexcode given; must be 3, 6, or 8 characters long')
+        return cls(*[int(''.join(channel), 16) for channel in batched(hex_string, 2)])
+
+    def to_rgb(self) -> tuple[int, int, int]:
+        """Converts this color to a three-integer tuple representing its RGB values."""
+        return self.red, self.green, self.blue
+
+    def to_rgba(self) -> tuple[int, int, int, int]:
+        """Converts this color to a four-integer tuple representing its RGBA values."""
+        return self.red, self.green, self.blue, self.alpha
+
+    def to_hex(self) -> str:
+        """Converts this color to a hexcode string."""
+        return ''.join([hex(channel)[2:].zfill(2) for channel in self])
+
 
 def confirm_yn(message: str, override: bool=False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""

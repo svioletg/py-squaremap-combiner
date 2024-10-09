@@ -1,5 +1,6 @@
 """Core functionality for squaremap_combine, providing the `Combiner` class amongst others."""
 
+from dataclasses import dataclass
 import operator
 import time
 from pathlib import Path
@@ -169,6 +170,15 @@ class MapImage:
         new_canvas = Image.new(mode=self.mode, size=(width, height))
         new_canvas.paste(self.img, paste_area)
         return MapImage(new_canvas, MapImageCoord(*self.game_zero + paste_area[0:2]), self.detail_mul)
+
+@dataclass
+class CombinerStyle:
+    grid_color      : ColorRGBA = (0, 0, 0, 255)
+    grid_line_color : ColorRGBA = (0, 0, 0, 0)
+    grid_text_color : ColorRGBA = (0, 0, 0, 0)
+    grid_text_size  : ColorRGBA = (0, 0, 0, 0)
+    show_grid_lines : bool      = False
+    show_grid_text  : bool      = False
 
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,

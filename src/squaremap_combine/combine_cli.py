@@ -22,7 +22,8 @@ def opt(*names: str) -> list[str]:
 def main(): # pylint: disable=missing-function-docstring
     logger.level('WARNING', color='<yellow>')
     logger.level('ERROR', color='<red>')
-    logger.add(sys.stdout, colorize=True, format="<level>{level}: {message}</level>", level='INFO')
+    stdout_handler = logger.add(sys.stdout, colorize=True, format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level='INFO')
+    # file_handler = logger.add('squaremap_combine_{time}.log', format="[{time:HH:mm:ss}] {level}: {message}", level='INFO')
 
     #region ARGUMENTS
 
