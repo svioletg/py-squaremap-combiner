@@ -353,7 +353,7 @@ class Combiner:
             coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
             if self.use_tqdm and (total_intervals <= 5000):
                 pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
-            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color)
+            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba())
 
     def combine(self,
             world: str | Path,

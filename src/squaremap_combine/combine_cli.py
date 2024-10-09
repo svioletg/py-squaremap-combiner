@@ -184,8 +184,7 @@ def main(): # pylint: disable=missing-function-docstring
         use_tqdm=True,
         skip_confirmation=yes_to_all,
         grid_interval=grid_interval if show_grid_lines else None,
-        grid_coords_format=coords_format,
-        bg_color=background
+        grid_coords_format=coords_format
     )
 
     image = combiner.combine(
