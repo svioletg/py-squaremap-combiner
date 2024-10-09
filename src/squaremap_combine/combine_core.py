@@ -240,25 +240,22 @@ class Combiner:
         :param image: The `MapImage` to draw coordinates onto. Its `game_zero` attribute is used as the origin point.
         """
         idraw = ImageDraw.Draw(image.img)
-        # TODO: Replace with for-loops over ranges
-        origin = image.game_zero
-        x, y = origin
-        while x <= image.width:
-            idraw.line((x, 0, x, image.height), fill=self.grid_line_color)
-            x += self.grid_interval[0]
-        x, y = origin
-        while x >= 0:
-            idraw.line((x, 0, x, image.height), fill=self.grid_line_color)
-            x -= self.grid_interval[0]
+        grid_origin = image.game_zero
+        coord_axes: dict[str, set[int]] = {
+            'h': set(
+                [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
+                [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)]
+                ),
+            'v': set(
+                [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
+                [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)]
+                ),
+        }
 
-        x, y = origin
-        while y <= image.height:
+        for x in coord_axes['h']:
+            idraw.line((x, 0, x, image.height), fill=self.grid_line_color)
+        for y in coord_axes['v']:
             idraw.line((0, y, image.width, y), fill=self.grid_line_color)
-            y += self.grid_interval[1]
-        x, y = origin
-        while y >= 0:
-            idraw.line((0, y, image.width, y), fill=self.grid_line_color)
-            y -= self.grid_interval[1]
 
     def draw_grid_coords_text(self, image: MapImage) -> None:
         """Draws coordinate text onto a `MapImage` at every interval as defined for this `Combiner` instance.
