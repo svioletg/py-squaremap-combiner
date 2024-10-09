@@ -64,13 +64,15 @@ def main(): # pylint: disable=missing-function-docstring
         'Can be used to make images a consistent size if you\'re using them for a timelapse, for example.\n' +
         'Only specifying one integer for this argument will use the same value for both width and height.')
 
-    parser.add_argument(*opt('--use-grid'), '-g', type=int, nargs='+', default=[0], metavar=('X_INTERVAL, Y_INTERVAL'),
-        help='Adds a grid onto the final image in the given X and Y intervals.\n' +
-        'If only X_INTERVAL is given, the same interval will be used for both X and Y grid lines.\n' +
-        'The resulting grid will be based on the coordinates as they would be in Minecraft, not of the image itself.')
+    parser.add_argument(*opt('--grid-interval'), '-g', type=int, nargs='+', default=[0], metavar=('X_INTERVAL, Y_INTERVAL'),
+        help='Defines the interval to be used for any grid-based options.\n' +
+        'Providing only X_INTERVAL will use the same value for both X and Y intervals.')
+
+    parser.add_argument(*opt('--show-grid-lines'), '-gl', action='store_true',
+        help='(Requires the use of --grid-interval) Adds grid lines onto the final image.')
 
     parser.add_argument(*opt('--show-coords'), '-gc', action='store_true',
-        help='Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.')
+        help='(Requires the use of --grid-interval) Adds coordinate text to every grid interval intersection.')
 
     parser.add_argument(*opt('--coords-format'), '-gcf', type=str, metavar='FORMAT_STRING', default=DEFAULT_COORDS_FORMAT,
         help='A string to format how grid coordinates appear. Use "{x}" and "{y}" (curly-braces included)' +
@@ -110,10 +112,10 @@ def main(): # pylint: disable=missing-function-docstring
         raise ValueError('--force-size argument can only take up to 2 integers')
     force_size: tuple[int, int] = filled_tuple(args.force_size)
 
-    if len(args.use_grid) > 2:
+    if len(args.grid_interval) > 2:
         raise ValueError('--use-grid argument can only take up to 2 integers')
-    grid_interval: tuple[int, int] = filled_tuple(args.use_grid)
-    use_grid: bool = all(n > 0 for n in grid_interval)
+    grid_interval: tuple[int, int] = filled_tuple(args.grid_interval)
+    show_grid_lines: bool = args.show_grid_lines
     show_grid_coords: bool = args.show_coords
     coords_format: str = args.coords_format
 
@@ -146,6 +148,7 @@ def main(): # pylint: disable=missing-function-docstring
         Detail level: {detail}
         Output directory: {output_dir.absolute()}
         Output file extension: {output_ext}
+        Grid interval: {grid_interval}
         Specified area: {area if area else 'None, will render the entire map'}
         Background color: {background}
 
@@ -154,9 +157,9 @@ def main(): # pylint: disable=missing-function-docstring
         Allow overwriting images? {overwrite}
         Auto-trim? {autotrim}
         Force final size? {('True; ' + str(force_size)) if any(n > 0 for n in force_size) else 'False'}
-        Show grid on map? {(f'True; X interval: {grid_interval[0]}, Y interval: {grid_interval[1]}') if use_grid else 'False'}
+        Show grid lines on map? {show_grid_lines}
         Show grid coordinates on map? {show_grid_coords}
-        Auto-confirm? {yes_to_all}
+        Skip confirmation prompts? {yes_to_all}
     """))
 
     if not confirm_yn('Continue with these parameters?', yes_to_all):
@@ -176,8 +179,8 @@ def main(): # pylint: disable=missing-function-docstring
     combiner = Combiner(
         tiles_dir,
         use_tqdm=True,
-        interactive=True,
-        grid_interval=grid_interval if use_grid else None,
+        skip_confirmation=yes_to_all,
+        grid_interval=grid_interval if show_grid_lines else None,
         grid_coords_format=coords_format,
         bg_color=background
     )
@@ -188,7 +191,7 @@ def main(): # pylint: disable=missing-function-docstring
         autotrim=autotrim,
         area=area,
         force_size=force_size,
-        use_grid=use_grid,
+        show_grid_lines=show_grid_lines,
         show_grid_coords=show_grid_coords
     )
 

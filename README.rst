@@ -107,7 +107,10 @@ Options
    The output file extension (format) to use for the created image. Default is ``png``.
 
 -t, --timestamp FORMAT_STRING
-   Adds a timestamp of the given format to the beginning of the image file name. Default format ``?Y-?m-?d_?H-?M-?S`` will be used if no format is specified after this argument. See: https://docs.python.org/3/library/datetime.html#format-codes for formatting string examples.
+   Adds a timestamp of the given format to the beginning of the image file name. Default format ``?Y-?m-?d_?H-?M-?S`` will
+   be used if no format is specified after this argument. See: https://docs.python.org/3/library/datetime.html#format-codes
+   for formatting string examples.
+
    NOTE: Due to a quirk with the argparse library, you must use a question mark (?) instead of a percent symbol for any format strings.
 
 -ow, --overwrite
@@ -118,16 +121,22 @@ Options
 
 --no-autotrim
    By default, excess empty space is trimmed off of the final image. Using this argument with disable that behavior.
+
    NOTE: Autotrimming is automatically disabled if ``--force-size`` or ``--area`` are used.
 
 -fs, --force-size <WIDTH [HEIGHT]>
    Centers the assembled map inside an image of this size. Can be used to make images a consistent size if you're using them for a timelapse, for example. Only specifying one integer for this argument will use the same value for both width and height.
 
--g, --use-grid <X_INTERVAL [Y_INTERVAL]>
-   Adds a grid onto the final image in the given X and Y intervals. If only X_INTERVAL is given, the same interval will be used for both X and Y grid lines. The resulting grid will be based on the coordinates as they would be in Minecraft, not of the image itself.
+-g, --grid-interval <X_INTERVAL [Y_INTERVAL]>
+   Defines the coordinate intervals to be used for any grid-based options.
+   Grid is drawn relative to the coordinates of the Minecraft world being mapped.
+   If only ``X_INTERVAL`` is given, the same value is used for ``Y_INTERVAL``.
+
+-gl, --show-grid-lines
+   (Requires the use of --grid-interval) Adds grid lines onto the map at the defined intervals.
 
 -gc, --show-coords
-   Adds coordinate text to every grid interval intersection. Requires the use of the --use-grid option.
+   (Requires the use of --grid-interval) Adds coordinate text to every grid interval intersection.
 
 -gcf, --coords-format
    A string to format how grid coordinates appear. Use "{x}" and "{y}" (curly-braces included) where you want the X and Y coordinates to appear, e.g. "``X: {x} Y: {y}``" could appear as "``X: 100 Y: 200``".

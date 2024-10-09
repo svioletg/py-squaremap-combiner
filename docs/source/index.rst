@@ -10,14 +10,4 @@ squaremap_combine
    :maxdepth: 2
    :caption: Contents:
 
-   squaremap_combine
-
-.. automodule:: squaremap_combine.squaremap_combine
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: squaremap_combine.errors
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   modules

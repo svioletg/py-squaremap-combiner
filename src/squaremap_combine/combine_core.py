@@ -23,37 +23,6 @@ DEFAULT_COORDS_FORMAT = '({x}, {y})'
 DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 """Square-blocks-per-pixel for each detail level."""
 
-def draw_grid(image: Image.Image, interval: int | tuple[int, int], line_color: ColorRGB, origin: tuple[int, int]=(0, 0)) -> None:
-    """Draws a grid onto an `Image` with the given intervals.
-
-    :param interval: An interval of pixels at which lines should be drawn.
-        Giving a single integer will use the same interval for X and Y, otherwise a tuple of two integers can be given
-        to specify each.
-    :param line_color: What color to draw the grid lines with.
-    :param origin: Where to start drawing grid lines from on the image.
-        Lines will be drawn from this position moving outwards in both directions until the edge of the image is reached.
-    """
-    if isinstance(interval, int):
-        interval = interval, interval
-    idraw = ImageDraw.Draw(image)
-    x, y = origin
-    while x <= image.width:
-        idraw.line((x, 0, x, image.height), fill=line_color)
-        x += interval[0]
-    x, y = origin
-    while x >= 0:
-        idraw.line((x, 0, x, image.height), fill=line_color)
-        x -= interval[0]
-
-    x, y = origin
-    while y <= image.height:
-        idraw.line((0, y, image.width, y), fill=line_color)
-        y += interval[1]
-    x, y = origin
-    while y >= 0:
-        idraw.line((0, y, image.width, y), fill=line_color)
-        y -= interval[1]
-
 class Coord2i:
     """Represents a 2D integer coordinate pair."""
     def __init__(self, x: int, y: int):
@@ -82,10 +51,9 @@ class Coord2i:
 
         if direction == 'l':
             return Coord2i(math_op(self.x, other[0]), math_op(self.y, other[1]))
-        elif direction == 'r':
+        if direction == 'r':
             return Coord2i(math_op(other[0], self.x), math_op(other[1], self.y))
-        else:
-            raise ValueError(f'_math direction must be "l" or "r"; got {direction!r}')
+        raise ValueError(f'_math direction must be "l" or "r"; got {direction!r}')
 
     def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.add, other)
@@ -205,84 +173,128 @@ class Combiner:
     def __init__(self,
             tiles_dir: str | Path,
             use_tqdm=False,
-            interactive: bool=False,
+            skip_confirmation: bool=False,
             grid_interval: Optional[tuple[int, int]]=None,
-            grid_color: ColorRGB=(0, 0, 0),
+            grid_line_color: ColorRGB=(0, 0, 0),
+            grid_text_color: ColorRGB=(0, 0, 0),
             grid_coords_format: str=DEFAULT_COORDS_FORMAT,
             bg_color: ColorRGBA=(0, 0, 0, 0)
         ):
+        """
+        :param tiles_dir: A path to a directory in the same format as what squaremap automatically generates.
+            Example:
+
+        .. code-block:: text
+            tiles (<- what this path should point to)
+            ├───minecraft_overworld
+            |   ├───0
+            |   ├───1
+            |   ├───2
+            |   └───3
+            ├───minecraft_the_nether
+            |   ├───0
+            |   ├───1
+            |   ├───2
+            |   └───3
+            └───minecraft_the_end
+                ├───0
+                ├───1
+                ├───2
+                └───3
+
+        :param use_tqdm: Whether to show a `tqdm` progress bar for any functions that support it.
+        :param skip_confirmation: Whether to skip any confirmation prompts. Setting to `True` allows any function
+            in this class to run unattended to.
+        :param grid_interval: An X and Y interval that should be used for things like drawing grid lines or coordinates onto \
+            the finished image.
+        :param grid_line_color: RGBA color to be used for drawing grid lines.
+        :param grid_text_color: RGBA color to be used for drawing grid coordinates and other text.
+        :param grid_coords_format: A format string to be used when drawing grid coordinates. \
+            Valid formatting options are `{x}` and {y}`.
+        :param bg_color: RGBA color to be used for the image's background, replacing any transparency.
+        """
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
-        self.tiles_dir = tiles_dir
-        self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
-        self.use_tqdm = use_tqdm
-        self.interactive = interactive
-        self.grid_interval = grid_interval
-        self.grid_color = grid_color
+        self.tiles_dir          = tiles_dir
+        self.use_tqdm           = use_tqdm
+        self.skip_confirmation  = skip_confirmation
+        self.grid_interval      = grid_interval or (self.TILE_SIZE, self.TILE_SIZE)
+        self.grid_line_color    = grid_line_color
+        self.grid_text_color    = grid_text_color
         self.grid_coords_format = grid_coords_format
-        self.bg_color = bg_color
+        self.bg_color           = bg_color
 
-    def _add_grid_to_image(self,
-            image: MapImage,
-            show_grid_lines: bool,
-            show_grid_coords: bool,
-            coords_format_string: str=DEFAULT_COORDS_FORMAT
-        ) -> tuple[MapImage, Rectangle] | None:
-        if not self.grid_interval:
-            raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
-        # grid_origin starts out the same as the game's origin coord, which is used as a basic orientation point
-        # before moving by intervals from 0, 0 until the point is within the image
-        # (otherwise the grid calculations later won't work)
+        self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
+        """What valid world folders the given `tiles_dir` contains."""
+
+    def draw_grid_lines(self, image: MapImage) -> None:
+        """Draws grid lines onto a `MapImage` at the intervals defined for this `Combiner` instance.
+
+        :param image: The `MapImage` to draw coordinates onto. Its `game_zero` attribute is used as the origin point.
+        """
+        idraw = ImageDraw.Draw(image.img)
+        # TODO: Replace with for-loops over ranges
+        origin = image.game_zero
+        x, y = origin
+        while x <= image.width:
+            idraw.line((x, 0, x, image.height), fill=self.grid_line_color)
+            x += self.grid_interval[0]
+        x, y = origin
+        while x >= 0:
+            idraw.line((x, 0, x, image.height), fill=self.grid_line_color)
+            x -= self.grid_interval[0]
+
+        x, y = origin
+        while y <= image.height:
+            idraw.line((0, y, image.width, y), fill=self.grid_line_color)
+            y += self.grid_interval[1]
+        x, y = origin
+        while y >= 0:
+            idraw.line((0, y, image.width, y), fill=self.grid_line_color)
+            y -= self.grid_interval[1]
+
+    def draw_grid_coords_text(self, image: MapImage) -> None:
+        """Draws coordinate text onto a `MapImage` at every interval as defined for this `Combiner` instance.
+
+        :param image: The `MapImage` to draw coordinates onto. Its `game_zero` attribute is used as the origin point.
+        """
+        bbox_before_grid = image.getbbox()
+        assert bbox_before_grid
+
         grid_origin = image.game_zero
 
-        if show_grid_coords:
-            # Remove large empty areas, but still keep things in easily workable dimensions
-            # We don't want to alter the image before doing all these calculations, so store it for later
-            bbox_before_grid = image.getbbox()
-            assert(bbox_before_grid)
+        coord_axes: dict[str, set[int]] = {
+            'h': set(
+                [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
+                [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)]
+                ),
+            'v': set(
+                [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
+                [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)]
+                ),
+        }
 
-            coord_axes: dict[str, set[int]] = {
-                'h': set(
-                    [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
-                    [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)]
-                    ),
-                'v': set(
-                    [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
-                    [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)]
-                    ),
-            }
+        interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
+        total_intervals = len(interval_coords)
 
-            interval_coords: list[Coord2i] = [Coord2i(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
-            total_intervals = len(interval_coords)
+        if total_intervals > 50000:
+            logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
+            if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
+                ' You can press Ctrl+C to cancel during this process if needed. Continue?'):
+                logger.info('Cancelling...')
+                return
+        elif total_intervals > 5000:
+            logger.info('More than 5000 grid intervals will be iterated over;' +
+                ' the progress bar\'s description text will not update per iteration in order to save speed.')
 
-            if total_intervals > 50000:
-                logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
-                if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
-                    ' You can press Ctrl+C to cancel during this process if needed. Continue?'):
-                    logger.info('Cancelling...')
-                    return None
-            elif total_intervals > 5000:
-                logger.info('More than 5000 grid intervals will be iterated over;' +
-                    ' the progress bar\'s description text will not update per iteration in order to save speed.')
-
-            logger.info('Drawing coordinates...')
-            idraw = ImageDraw.Draw(image.img)
-            for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
-                game_coord = image.image_coord_in_game(img_coord)
-                coord_text = coords_format_string.format(x=game_coord.x, y=game_coord.y)
-                if self.use_tqdm and (total_intervals <= 5000):
-                    pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
-                idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.grid_color)
-
-        if show_grid_lines:
-            logger.info('Drawing grid lines...')
-            draw_grid(
-                image.img,
-                (self.grid_interval[0] // image.detail_mul, self.grid_interval[1] // image.detail_mul),
-                self.grid_color,
-                (grid_origin.x, grid_origin.y)
-            )
-        return image, bbox_before_grid
+        logger.info('Drawing coordinates...')
+        idraw = ImageDraw.Draw(image.img)
+        for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
+            game_coord = image.image_coord_in_game(img_coord)
+            coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
+            if self.use_tqdm and (total_intervals <= 5000):
+                pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
+            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.grid_text_color)
 
     def combine(self,
             world: str | Path,
@@ -290,7 +302,7 @@ class Combiner:
             autotrim: bool=False,
             area: Optional[Rectangle]=None,
             force_size: Optional[tuple[int, int]]=None,
-            use_grid: bool=False,
+            show_grid_lines: bool=False,
             show_grid_coords: bool=False
         ) -> MapImage | None:
         """Combine the given world (dimension) tile images into one large map.
@@ -303,10 +315,11 @@ class Combiner:
             Takes coordinates as they would appear in Minecraft. Using this will disable `autotrim` implicitly.
         :param force_size: Centers the final image in a new image of this size.\
             Using this will disable `autotrim` implicitly.
-        :param use_grid: Draws a grid onto this image.\
-            Uses this `Combiner` instance's `grid_interval` and `grid_color` properties.
-        :param show_grid_coords: Adds Minecraft coordinates to the top-left of every `grid_interval` intersection on this image.\
-            This can be used on its own without `use_grid` to draw only the coordinate text.
+        :param show_grid_lines: Adds a grid of lines at every interval defined for this `Combiner` instance.
+        :param show_grid_coords: Adds Minecraft coordinates to the top-left of every interval intersection on this image.
+
+        :returns: Returns the created `MapImage` if successful, or `None` if the process failed or was cancelled at any point.
+        :rtype: MapImage, None
         """
         if world not in self.mapped_worlds:
             raise ValueError(f'No world directory of name "{world}" exists in "{self.tiles_dir}"')
@@ -342,10 +355,9 @@ class Combiner:
             row_range = range(area_regions[1], area_regions[3] + 1)
 
         size_estimate = f'{self.TILE_SIZE * len(column_range)}x{self.TILE_SIZE * len(row_range)}'
-        if self.interactive:
-            if not confirm_yn(f'Estimated image size: {size_estimate}\nContinue?'):
-                logger.info('Cancelling...')
-                return None
+        if not confirm_yn(f'Estimated image size: {size_estimate}\nContinue?', self.skip_confirmation):
+            logger.info('Cancelling...')
+            return None
 
         # Start stitching
         image = Image.new(
@@ -371,7 +383,7 @@ class Combiner:
                 game_zero_in_image = Coord2i(x, y) - (Coord2i(c, r) * self.TILE_SIZE)
             image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
 
-        assert(game_zero_in_image)
+        assert game_zero_in_image
         image = MapImage(image, game_zero_in_image, detail_mul)
 
         # If a specific area of the Minecraft world is desired, we need to find out where 0,0 would be
@@ -399,22 +411,26 @@ class Combiner:
             image = image.resize_canvas(*force_size)
             autotrim = False
 
-        # Add grid and/or coordinates
-        if use_grid or show_grid_coords:
-            if result := self._add_grid_to_image(image, show_grid_coords, use_grid, coords_format_string=self.grid_coords_format):
-                image, bbox_before_grid = result
-            else:
-                return None
+        # Things like grid lines and coordinate text are likely to end up drawn outside of the image's original bounding box,
+        # alterting what getbbox() would return. Get this bounding box *first*, and then use it to autotrim later.
+        bbox = image.getbbox()
+        assert bbox, 'getbbox() failed! This is likely a bug;' + \
+            ' please open an issue at https://github.com/svioletg/py-squaremap-combiner/issues and provide the above traceback'
 
-        # Trim excess
+        # Add grid and/or coordinates
+        if show_grid_lines or show_grid_coords:
+            if not self.grid_interval:
+                raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
+
+            if show_grid_coords:
+                self.draw_grid_coords_text(image)
+
+            if show_grid_lines:
+                logger.info('Drawing grid lines...')
+                self.draw_grid_lines(image)
+
+        # Trim transparent excess space
         if autotrim:
-            if use_grid or show_grid_coords:
-                bbox = bbox_before_grid
-            else:
-                bbox = image.getbbox()
-            if not bbox:
-                raise CombineError('getbbox() failed! This is likely a bug with the script;' +
-                    ' please open an issue at https://github.com/svioletg/py-squaremap-combiner/issues and provide the above traceback')
             logger.info(f'Trimming out blank space... ({image.width}x{image.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
             image = image.crop(bbox)
 
@@ -424,7 +440,8 @@ class Combiner:
             image_bg.alpha_composite(image.img)
             image = MapImage(image_bg, image.game_zero, image.detail_mul)
 
+        # Done.
         tb = time.perf_counter()
+        logger.info(f'Image creation finished in {tb - ta:04f}s')
 
-        logger.info(f'Finished in {tb - ta:04f}s')
         return image

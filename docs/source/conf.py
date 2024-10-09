@@ -24,6 +24,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_rtd_theme'
 ]
+autodoc_member_order = 'bysource'
 autosummary_generate = True
 
 templates_path = ['_templates']

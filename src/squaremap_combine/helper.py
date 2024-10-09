@@ -5,6 +5,7 @@ from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
 from squaremap_combine.type_alias import Rectangle
 
 T = TypeVar('T')
+P = ParamSpec('P')
 
 def confirm_yn(message: str, override: bool=False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
@@ -15,8 +16,6 @@ def filled_tuple(source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
     or a new tuple consisting of the first value having been doubled if only one value is present.
     """
     return source_tuple if len(source_tuple) == 2 else (source_tuple[0], source_tuple[0])
-
-P = ParamSpec('P')
 
 def copy_method_signature(source: Callable[Concatenate[Any, P], T]) -> Callable[[Callable[..., T]], Callable[Concatenate[Any, P], T]]:
     """Copies a method signature onto the decorated method.
