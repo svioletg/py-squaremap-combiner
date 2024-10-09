@@ -1,10 +1,11 @@
 """Core functionality for squaremap_combine, providing the `Combiner` class amongst others."""
 
-from dataclasses import dataclass
+import json
 import operator
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Optional, TypeVar
+from typing import Callable, Iterator, Literal, Optional, Self, Sequence, TypeVar, cast
 
 from loguru import logger
 from PIL import Image, ImageDraw
@@ -12,8 +13,8 @@ from tqdm import tqdm
 from tqdm.contrib.itertools import product as tqdm_product
 
 from squaremap_combine.errors import AssertionMessage, CombineError
-from squaremap_combine.helper import (Color, confirm_yn, copy_method_signature,
-                                      snap_box)
+from squaremap_combine.helper import (Color, StyleJSONEncoder, confirm_yn,
+                                      copy_method_signature, snap_box)
 from squaremap_combine.type_alias import ColorRGB, ColorRGBA, Rectangle
 
 logger.remove() # Don't output anything if this is just being imported
@@ -173,12 +174,53 @@ class MapImage:
 
 @dataclass
 class CombinerStyle:
+    """Defines styling rules for `Combiner`-generated map images."""
+
+    background_color: Color = Color(0, 0, 0, 0)
     grid_color      : Color = Color(0, 0, 0, 255)
-    grid_line_color : Color = Color(0, 0, 0, 0)
-    grid_text_color : Color = Color(0, 0, 0, 0)
-    grid_text_size  : Color = Color(0, 0, 0, 0)
+    """Used as the base for any grid-related colors."""
     show_grid_lines : bool  = False
+    grid_line_color : Color = Color(0, 0, 0, 0)
+
     show_grid_text  : bool  = False
+    grid_text_font  : str   = 'arial'
+    """Name of a font to use for drawing coordinate text onto the image.
+    Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g. "documents/my_font.otf".
+    """
+    grid_text_color : Color = Color(0, 0, 0, 0)
+    grid_text_size  : int = 12
+
+    def __post_init__(self):
+        # Force type conversion and validation
+        for attr, cls in cast(dict[str, type], self.__annotations__).items(): # pylint: disable=no-member; false positive, __annotations__ is valid
+            val = getattr(self, attr)
+            if not isinstance(val, cls):
+                if cls is Color:
+                    if isinstance(val, str):
+                        val = Color.from_hex(val)
+                    elif isinstance(val, Sequence):
+                        val = cls(*val)
+                    else:
+                        raise TypeError(f'Invalid type given for Color construction: {val!r} is of type {type(val)}')
+                else:
+                    val = cls(val)
+            setattr(self, attr, val)
+
+    @classmethod
+    def from_json(cls, json_str_or_path: str | Path) -> Self:
+        """Creates a `CombinerStyle` instance from a JSON file path, or a JSON-formatted string."""
+        if Path(json_str_or_path).is_file():
+            with open(Path(json_str_or_path), 'r', encoding='utf-8') as f:
+                d = json.load(f)
+        elif isinstance(json_str_or_path, str):
+            d = json.loads(json_str_or_path)
+        else:
+            raise ValueError(f'{json_str_or_path!r} is not a file or could not be found')
+        return cls(**d)
+
+    def to_json(self) -> str:
+        """Dumps this object as a JSON string."""
+        return json.dumps(self, cls=StyleJSONEncoder)
 
 class Combiner:
     """Takes a squaremap `tiles` directory path, handles calculating rows/columns,

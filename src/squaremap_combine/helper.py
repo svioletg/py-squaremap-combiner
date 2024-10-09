@@ -2,6 +2,7 @@
 
 from functools import wraps
 from itertools import batched
+from json import JSONEncoder
 from math import floor
 from typing import Any, Callable, Concatenate, ParamSpec, Self, TypeVar
 
@@ -27,6 +28,18 @@ class Color:
     `"{magenta:rgba}"` `"(255, 0, 255, 255)"`
     ==================  ======================
     """
+    COMMON: dict[str, tuple[int, ...]] = {
+        'transparent': (  0,   0,   0,   0),
+        'white'      : (255, 255, 255),
+        'black'      : (  0,   0,   0),
+        'red'        : (255,   0,   0),
+        'green'      : (  0, 255, 0  ),
+        'blue'       : (  0,   0, 255),
+        'yellow'     : (255, 255,   0),
+        'magenta'    : (255,   0, 255),
+        'cyan'       : (  0, 255, 255),
+    }
+
     def __init__(self, red: int, green: int, blue: int, alpha: int=255):
         if 0 >= red > 255:
             raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a red value of {red}')
@@ -61,6 +74,11 @@ class Color:
         return self.__str__()
 
     @classmethod
+    def from_name(cls, color_name: str) -> Self:
+        """Creates a `Color` from a common name. The name must be present in the `Color.COMMON` dictionary."""
+        return cls(*cls.COMMON[color_name])
+
+    @classmethod
     def from_hex(cls, hex_string: str) -> Self:
         """Creates a `Color` instance from the a hexcode string.
         String must be either 3, 6, or 8 characters long.
@@ -88,6 +106,12 @@ class Color:
         """Converts this color to a hexcode string."""
         return ''.join([hex(channel)[2:].zfill(2) for channel in self])
 
+class StyleJSONEncoder(JSONEncoder):
+    """Extended JSON encoder to aid in serializing `CombinerStyle` objects."""
+    def default(self, o: Any) -> tuple | dict:
+        if isinstance(o, Color):
+            return tuple(o)
+        return o.__dict__
 
 def confirm_yn(message: str, override: bool=False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
