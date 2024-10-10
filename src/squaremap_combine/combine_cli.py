@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 import textwrap
 from datetime import datetime
@@ -20,10 +21,18 @@ def opt(*names: str) -> list[str]:
 
 @logger.catch
 def main(): # pylint: disable=missing-function-docstring
+    MODULE_DIR = Path(os.path.realpath(__file__)).parent
+    LOGS_DIR = MODULE_DIR / 'logs'
+
     logger.level('WARNING', color='<yellow>')
     logger.level('ERROR', color='<red>')
     stdout_handler = logger.add(sys.stdout, colorize=True, format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level='INFO')
-    file_handler = logger.add('squaremap_combine.log', format="[{time:HH:mm:ss}] {level}: {message}", level='DEBUG')
+    file_handler = logger.add(LOGS_DIR / '{time:YYYY-MM-DD_HH-mm-ss}.log',
+        format="[{time:HH:mm:ss}] {level}: {message}", level='DEBUG', mode='w', retention=5)
+
+    if '--find-logs' in sys.argv:
+        print(LOGS_DIR)
+        return
 
     #region ARGUMENTS
 
@@ -87,6 +96,9 @@ def main(): # pylint: disable=missing-function-docstring
     parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
         help='Automatically accepts any requests for user confirmation.')
 
+    parser.add_argument(*opt('--find-logs'), action='store_true',
+        help='Prints the path to where logs are being kept, and exits the script.')
+
     args = parser.parse_args()
 
     tiles_dir   : Path = args.tiles_dir
@@ -128,6 +140,12 @@ def main(): # pylint: disable=missing-function-docstring
         style_string = style_string.replace("'", '"')
 
     yes_to_all: bool = args.yes_to_all
+
+    find_logs: bool = args.find_logs
+
+    if find_logs:
+        print(LOGS_DIR)
+        return
 
     #endregion ARGUMENTS
     logger.info(textwrap.dedent(f"""

@@ -11,7 +11,7 @@ The seed used for the world the sample images were created from is
 ``-2590089827693666277``.
 
 Until I release version 1.0.0 I do not consider this project stable —
-there are bound to be a number of bugs or quirks that I haven’t
+there are bound to be a number of bugs or quirks that I haven't
 discovered and/or fixed yet, and the code will likely be seeing
 frequently large changes until that point. Right now version bumps are
 made subjectively and each bump just increases the minor version, but
@@ -29,7 +29,7 @@ Usage
 Install the package with pip (``pip install git+https://github.com/svioletg/py-squaremap-combiner.git``).
 It can then be used either as a module in another project...
 
-.. code:: python
+.. code-block:: python
 
    from squaremap_combine.combine_core import Combiner
 
@@ -39,12 +39,41 @@ It can then be used either as a module in another project...
 
 …or run via the ``-m`` switch.
 
-.. code:: bash
+.. code-block:: bash
 
    python3 -m squaremap_combine my-tiles overworld 2 --output_ext jpg
 
-Use the ``-h`` or ``--help`` argument to see full arguments and their
-defaults.
+This project uses [loguru](https://github.com/Delgan/loguru) for its logging.
+Logging is disabled by default, but enabled at the `INFO` level when running
+the package as a command. If you're importing any modules from this package
+and want to make use of its logs, import `logger` from the `combine_core` module
+and [use ``logger.add()``](https://github.com/Delgan/loguru?tab=readme-ov-file#no-handler-no-formatter-no-filter-one-function-to-rule-them-all)
+to enable log output.
+
+Logs are recorded to disk in a `logs` directory where the package was installed, the location of which
+can be revealed by running the script with the `--find-logs` option.
+
+.. code-block:: bash
+
+   python3 -m squaremap_combine --find-logs
+
+By default, the five most recent log outputs are kept and named by the date and time
+at which they were created. If there are already five log files present,
+the oldest file is deleted before writing a new one.
+
+e.g.
+
+::
+   (package directory)
+   ├───logs
+   |   ├───2023-06-16_09-44-06.log
+   |   ├───2023-12-22_03-21-02.log
+   |   ├───2024-01-03_15-03-10.log
+   |   ├───2024-08-09_03-58-07.log
+   |   └──-2024-08-09_07-41-07.log
+   ├───combine_core.py
+   └───combine_cli.py
+   etc.
 
 To find squaremap's tiles, go to the folder your server JAR is in, and
 then navigate to ``plugins/squaremap/web``. Inside, there will be a
@@ -93,6 +122,9 @@ Options
    Note: You can use either hyphens (``-``) or underscores (``_``) and
    the option will work the same, e.g. ``--output-ext`` or
    ``--output_ext``
+
+-h, --help
+   Displays information about every argument / option and their parameters.
 
 -o, --output-dir PATH
    Directory to save the completed image to. Defaults to the directory in which this script was run.
