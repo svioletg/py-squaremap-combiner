@@ -11,6 +11,7 @@ from squaremap_combine.type_alias import Rectangle
 
 T = TypeVar('T')
 P = ParamSpec('P')
+"""@private"""
 
 class Color:
     """Represents a 24-bit color.
@@ -21,13 +22,15 @@ class Color:
 
     Format strings are also available:
 
-    ==================  ======================
-    Specifier           Output
-    ==================  ======================
-    `"{magenta:hex}"`  `"ff00ff"`
-    `"{magenta:rgb}"`  `"(255, 0, 255)"`
-    `"{magenta:rgba}"` `"(255, 0, 255, 255)"`
-    ==================  ======================
+    +--------------------+------------------------+
+    | Specifier          | Output                 |
+    +--------------------+------------------------+
+    | `"{magenta:hex}"`  | `"ff00ff"`             |
+    +--------------------+------------------------+
+    | `"{magenta:rgb}"`  | `"(255, 0, 255)"`      |
+    +--------------------+------------------------+
+    | `"{magenta:rgba}"` | `"(255, 0, 255, 255)"` |
+    +--------------------+------------------------+
     """
     HEXCODE_REGEX = r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$"
     COMMON: dict[str, tuple[int, ...]] = {
