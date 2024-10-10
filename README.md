@@ -26,7 +26,7 @@ after 1.0.0 I plan to stick to semantic versioning.
     - [`-ext, --output-ext EXTENSION`](#-ext---output-ext-extension)
     - [`-t, --timestamp FORMAT_STRING`](#-t---timestamp-format_string)
     - [`-ow, --overwrite`](#-ow---overwrite)
-    - [`-a, --area \<X1 Y1 X2 Y2\>`](#-a---area-x1-y1-x2-y2)
+    - [`-a, --area <X1 Y1 X2 Y2>`](#-a---area-x1-y1-x2-y2)
     - [`-fs, --force-size <WIDTH [HEIGHT]>`](#-fs---force-size-width-height)
     - [`-g, --grid-interval <X_INTERVAL [Y_INTERVAL]>`](#-g---grid-interval-x_interval-y_interval)
     - [`-gcf, --coords-format`](#-gcf---coords-format)
@@ -177,7 +177,7 @@ Using this flag will allow the script to overwrite an existing file
     image with the same path already exists, a numbered suffix is added.
 
 ---
-#### `-a, --area \<X1 Y1 X2 Y2\>`
+#### `-a, --area <X1 Y1 X2 Y2>`
 
 A rectangle area of the world (top, left, bottom, right) to export
     an image from. This can save time when using a very large world map,
