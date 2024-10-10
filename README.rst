@@ -64,6 +64,7 @@ the oldest file is deleted before writing a new one.
 e.g.
 
 ::
+
    (package directory)
    ├───logs
    |   ├───2023-06-16_09-44-06.log
