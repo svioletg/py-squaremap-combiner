@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (Callable, Iterator, Literal, Optional, Self, Sequence,
-                    TypeVar, cast)
+                    TypeVar, cast, get_args)
 
 from loguru import logger
 from PIL import Image, ImageDraw
@@ -178,23 +178,29 @@ class CombinerStyle:
     """Defines styling rules for `Combiner`-generated map images."""
 
     background_color: Color = Color(0, 0, 0, 0)
-    grid_color      : Color = Color(0, 0, 0, 255)
+    grid_color: Color = Color(0, 0, 0, 255)
     """Used as the base for any grid-related colors."""
-    show_grid_lines : bool  = False
-    grid_line_color : Color = Color(0, 0, 0, 0)
+    show_grid_lines: bool  = True
+    """Draw grid lines at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
+    grid_line_color: Optional[Color] = None
 
-    show_grid_text  : bool  = False
-    grid_text_font  : str   = 'arial'
+    show_grid_text: bool  = True
+    """Draw grid coordinates at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
+    grid_text_font: str   = 'arial'
     """Name of a font to use for drawing coordinate text onto the image.
     Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g. "documents/my_font.otf".
     """
-    grid_text_color : Color = Color(0, 0, 0, 0)
-    grid_text_size  : int = 12
+    grid_text_color: Optional[Color] = None
+    grid_text_size: int = 12
 
     def __post_init__(self):
         # Force type conversion and validation
         for attr, cls in cast(dict[str, type], self.__annotations__).items(): # pylint: disable=no-member; false positive, __annotations__ is valid
             val = getattr(self, attr)
+            if str(cls).startswith('typing.Optional'):
+                if val is None:
+                    continue
+                cls: type = get_args(cls)[0]
             if isinstance(val, cls):
                 continue
             if cls is Color:
@@ -210,6 +216,8 @@ class CombinerStyle:
             else:
                 val = cls(val)
             setattr(self, attr, val)
+        self.grid_line_color = self.grid_line_color or self.grid_color
+        self.grid_text_color = self.grid_text_color or self.grid_color
 
     @classmethod
     def from_json(cls, json_str_or_path: str | Path) -> Self:
@@ -360,9 +368,7 @@ class Combiner:
             detail: int,
             autotrim: bool=False,
             area: Optional[Rectangle]=None,
-            force_size: Optional[tuple[int, int]]=None,
-            show_grid_lines: bool=False,
-            show_grid_coords: bool=False
+            force_size: Optional[tuple[int, int]]=None
         ) -> MapImage | None:
         """Combine the given world (dimension) tile images into one large map.
 
@@ -374,8 +380,6 @@ class Combiner:
             Takes coordinates as they would appear in Minecraft. Using this will disable `autotrim` implicitly.
         :param force_size: Centers the final image in a new image of this size.\
             Using this will disable `autotrim` implicitly.
-        :param show_grid_lines: Adds a grid of lines at every interval defined for this `Combiner` instance.
-        :param show_grid_coords: Adds Minecraft coordinates to the top-left of every interval intersection on this image.
 
         :returns: Returns the created `MapImage` if successful, or `None` if the process failed or was cancelled at any point.
         :rtype: MapImage, None
@@ -467,14 +471,14 @@ class Combiner:
         assert bbox, AssertionMessage.BBOX_IS_NONE
 
         # Add grid and/or coordinates
-        if show_grid_lines or show_grid_coords:
+        if self.style.show_grid_lines or self.style.show_grid_text:
             if not self.grid_interval:
                 raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
 
-            if show_grid_coords:
+            if self.style.show_grid_text:
                 self.draw_grid_coords_text(image)
 
-            if show_grid_lines:
+            if self.style.show_grid_lines:
                 logger.info('Drawing grid lines...')
                 self.draw_grid_lines(image)
 

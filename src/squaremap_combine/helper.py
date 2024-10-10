@@ -4,6 +4,7 @@ from functools import wraps
 from itertools import batched
 from json import JSONEncoder
 from math import floor
+import re
 from typing import Any, Callable, Concatenate, ParamSpec, Self, TypeVar
 
 from squaremap_combine.type_alias import Rectangle
@@ -28,6 +29,7 @@ class Color:
     `"{magenta:rgba}"` `"(255, 0, 255, 255)"`
     ==================  ======================
     """
+    HEXCODE_REGEX = r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$"
     COMMON: dict[str, tuple[int, ...]] = {
         'transparent': (  0,   0,   0,   0),
         'white'      : (255, 255, 255),
@@ -78,12 +80,12 @@ class Color:
         """Checks whether the given string is a valid 6 or 8 character hexcode, and returns the string if so, returning `None` if invalid.
         A 3 or 6 character hexcode will be converte to 8 by this function.
         """
+        if not re.match(Color.HEXCODE_REGEX, hexcode):
+            return None
         if len(hexcode) == 3:
             hexcode *= 2
         if len(hexcode) == 6:
             hexcode += 'ff'
-        if len(hexcode) != 8:
-            return None
         return hexcode
 
     @classmethod

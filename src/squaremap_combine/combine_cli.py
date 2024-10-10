@@ -1,17 +1,17 @@
 """A basic CLI app for interacting with squaremap_combine."""
 
 import argparse
+import json
 import sys
 import textwrap
 from datetime import datetime
-from itertools import batched
 from pathlib import Path
 
 from squaremap_combine.combine_core import (DEFAULT_COORDS_FORMAT,
                                             DEFAULT_TIME_FORMAT, Combiner,
-                                            logger)
+                                            CombinerStyle, logger)
 from squaremap_combine.helper import confirm_yn, filled_tuple
-from squaremap_combine.type_alias import ColorRGBA, Rectangle
+from squaremap_combine.type_alias import Rectangle
 
 
 def opt(*names: str) -> list[str]:
@@ -23,7 +23,7 @@ def main(): # pylint: disable=missing-function-docstring
     logger.level('WARNING', color='<yellow>')
     logger.level('ERROR', color='<red>')
     stdout_handler = logger.add(sys.stdout, colorize=True, format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level='INFO')
-    # file_handler = logger.add('squaremap_combine_{time}.log', format="[{time:HH:mm:ss}] {level}: {message}", level='INFO')
+    file_handler = logger.add('squaremap_combine.log', format="[{time:HH:mm:ss}] {level}: {message}", level='DEBUG')
 
     #region ARGUMENTS
 
@@ -71,20 +71,18 @@ def main(): # pylint: disable=missing-function-docstring
         help='Defines the interval to be used for any grid-based options.\n' +
         'Providing only X_INTERVAL will use the same value for both X and Y intervals.')
 
-    parser.add_argument(*opt('--show-grid-lines'), '-gl', action='store_true',
-        help='(Requires the use of --grid-interval) Adds grid lines onto the final image.')
-
-    parser.add_argument(*opt('--show-coords'), '-gc', action='store_true',
-        help='(Requires the use of --grid-interval) Adds coordinate text to every grid interval intersection.')
-
     parser.add_argument(*opt('--coords-format'), '-gcf', type=str, metavar='FORMAT_STRING', default=DEFAULT_COORDS_FORMAT,
         help='A string to format how grid coordinates appear. Use "{x}" and "{y}" (curly-braces included)' +
         ' where you want the X and Y coordinates to appear, e.g. "X: {x} Y: {y}" could appear as "X: 100 Y: 200".')
 
-    parser.add_argument(*opt('--background'), '-bg', nargs='+', default=(0, 0, 0, 0), metavar=('HEXCODE or RGBA'),
-        help='Specify an RGBA color to use for the background of the image. Empty space is fully transparent by default.\n' +
-        'A hexcode (e.g. FF0000) can be used as well, and an 8-character hex code can be used to specify alpha with the last byte.\n' +
-        'If only RED, GREEN, and BLUE are given, the alpha is set to 255 (fully opaque) automatically.')
+    parser.add_argument(*opt('--style-file'), '-sf', type=Path, default=None, metavar=('JSON_FILEPATH'),
+        help='A set of styling rules for the combiner, in the form of a path to a JSON file.\n' +
+        'The values set in this JSON file will override that of the default styling settings, and can then be overridden themselves' +
+        ' by any values present in the JSON given for the --style-override argument, if it is present.')
+
+    parser.add_argument(*opt('--style-override'), '-so', type=str, default=None, metavar=('JSON_STRING'),
+        help='A set of styling rules for the combiner, in the form of a JSON-formatted string.\n' +
+        'These values take highest priority on overriding the already set rules.')
 
     parser.add_argument(*opt('--yes-to-all'), '-y', action='store_true',
         help='Automatically accepts any requests for user confirmation.')
@@ -118,28 +116,16 @@ def main(): # pylint: disable=missing-function-docstring
     if len(args.grid_interval) > 2:
         raise ValueError('--use-grid argument can only take up to 2 integers')
     grid_interval: tuple[int, int] = filled_tuple(args.grid_interval)
-    show_grid_lines: bool = args.show_grid_lines
-    show_grid_coords: bool = args.show_coords
     coords_format: str = args.coords_format
 
-    if len(args.background) == 1:
-        hex_color: str = args.background[0]
-        if len(hex_color) == 3:
-            hex_color *= 2
-        elif (len(hex_color) != 6) and (len(hex_color) != 8):
-            raise ValueError('Given hex color code must be 3, 6, or 8 characters in length')
-        rgba = []
-        for chunk in batched(hex_color, 2):
-            rgba.append(int(''.join(chunk), 16))
-        if len(rgba) == 3:
-            rgba.append(255)
-    elif len(args.background) == 3:
-        rgba = args.background + [255]
-    elif len(args.background) == 4:
-        rgba = args.background
-    else:
-        raise ValueError('3 or 4 values are required for RGB / RGBA color argument')
-    background: ColorRGBA = tuple(map(int, rgba)) # type: ignore
+    style_file: Path | None = args.style_file
+    if style_file and (not style_file.is_file()):
+        raise ValueError(f'--style-file: No file could be found at path {style_file}')
+    style_string: str | None = args.style_override
+    if style_string and (not style_string.startswith('{')):
+        raise ValueError(f'--style-override: Not a valid JSON string: {style_string}')
+    elif style_string:
+        style_string = style_string.replace("'", '"')
 
     yes_to_all: bool = args.yes_to_all
 
@@ -153,17 +139,19 @@ def main(): # pylint: disable=missing-function-docstring
         Output file extension: {output_ext}
         Grid interval: {grid_interval}
         Specified area: {area if area else 'None, will render the entire map'}
-        Background color: {background}
 
         -- ADDITIONAL OPTIONS --
         Add timestamp? {f'True, using format "{time_format}"' if time_format else 'False'}
         Allow overwriting images? {overwrite}
         Auto-trim? {autotrim}
         Force final size? {('True; ' + str(force_size)) if any(n > 0 for n in force_size) else 'False'}
-        Show grid lines on map? {show_grid_lines}
-        Show grid coordinates on map? {show_grid_coords}
         Skip confirmation prompts? {yes_to_all}
+        Use a styling JSON file? {f'True, at {style_file}' if style_file else 'False'}
+        Use a styling JSON string? {bool(style_file)}
     """))
+
+    logger.debug(f'Style JSON filepath: {style_file}')
+    logger.debug(f'Style JSON string: {style_string}')
 
     if not confirm_yn('Continue with these parameters?', yes_to_all):
         logger.info('Cancelling...')
@@ -179,12 +167,22 @@ def main(): # pylint: disable=missing-function-docstring
         copies = [*output_dir.glob(f'{out_file.stem}*')]
         out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)
 
+    user_style_rules = {}
+
+    if style_file:
+        with open(style_file, 'r', encoding='utf-8') as f:
+            user_style_rules.update(json.load(f))
+
+    if style_string:
+        user_style_rules.update(json.loads(style_string))
+
     combiner = Combiner(
         tiles_dir,
         use_tqdm=True,
         skip_confirmation=yes_to_all,
-        grid_interval=grid_interval if show_grid_lines else None,
-        grid_coords_format=coords_format
+        grid_interval=grid_interval,
+        grid_coords_format=coords_format,
+        style=CombinerStyle(**user_style_rules)
     )
 
     image = combiner.combine(
@@ -192,9 +190,7 @@ def main(): # pylint: disable=missing-function-docstring
         detail,
         autotrim=autotrim,
         area=area,
-        force_size=force_size,
-        show_grid_lines=show_grid_lines,
-        show_grid_coords=show_grid_coords
+        force_size=force_size
     )
 
     if not image:
