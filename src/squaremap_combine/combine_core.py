@@ -178,6 +178,9 @@ class CombinerStyle:
     """Defines styling rules for `Combiner`-generated map images."""
 
     background_color: Color = Color(0, 0, 0, 0)
+    """By default, empty areas of the image will be rendered as fully transparent.
+    Any transparent areas will be replaced with this color, if one is set.
+    """
     grid_color: Color = Color(0, 0, 0, 255)
     """Used as the base for any grid-related colors."""
     show_grid_lines: bool  = True
@@ -250,7 +253,7 @@ class Combiner:
             tiles_dir: str | Path,
             use_tqdm=False,
             skip_confirmation: bool=False,
-            grid_interval: Optional[tuple[int, int]]=None,
+            grid_interval: tuple[int, int]=(0, 0),
             grid_coords_format: str=DEFAULT_COORDS_FORMAT,
             style: CombinerStyle=DEFAULT_COMBINER_STYLE
         ):
@@ -333,11 +336,11 @@ class Combiner:
         coord_axes: dict[str, set[int]] = {
             'h': set(
                 [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
-                [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)]
+                [*range(grid_origin.x, -1, -self.grid_interval[0] // image.detail_mul)]
                 ),
             'v': set(
                 [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
-                [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)]
+                [*range(grid_origin.y, -1, -self.grid_interval[1] // image.detail_mul)]
                 ),
         }
 
@@ -472,10 +475,7 @@ class Combiner:
         assert bbox, AssertionMessage.BBOX_IS_NONE
 
         # Add grid and/or coordinates
-        if self.style.show_grid_lines or self.style.show_grid_text:
-            if not self.grid_interval:
-                raise CombineError('A grid interval must be set for this Combiner instance to add grid lines or grid coordinates')
-
+        if all(n > 0 for n in self.grid_interval):
             if self.style.show_grid_text:
                 self.draw_grid_coords_text(image)
 

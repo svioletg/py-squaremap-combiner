@@ -30,7 +30,6 @@ after 1.0.0 I plan to stick to semantic versioning.
     - [`-fs, --force-size <WIDTH [HEIGHT]>`](#-fs---force-size-width-height)
     - [`-g, --grid-interval <X_INTERVAL [Y_INTERVAL]>`](#-g---grid-interval-x_interval-y_interval)
     - [`-gcf, --coords-format`](#-gcf---coords-format)
-    - [`-bg, --background COLOR`](#-bg---background-color)
     - [`-sf, --style-file`](#-sf---style-file)
     - [`-so, --style-override`](#-so---style-override)
     - [`-y, --yes-to-all`](#-y---yes-to-all)
@@ -216,15 +215,6 @@ A string to format how grid coordinates appear. Use \"{x}\" and
     \"{y}\" (curly-braces included) where you want the X and Y
     coordinates to appear, e.g. \"`X: {x} Y: {y}`\" could appear as
     \"`X: 100 Y: 200`\".
-
----
-#### `-bg, --background COLOR`
-
-Specify an color to use for the background of the image. Empty space
-    is fully transparent by default. Accepted color formats are hexcode
-    (e.g. `FF0000`) or a set of RGB values (e.g. `255 0 0`), and an
-    extra hex code byte (e.g. `FF0000FF`) or integer value (e.g.
-    `255 0 0 255`) can be added to determine the alpha of the color.
 
 ---
 #### `-sf, --style-file`
