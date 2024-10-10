@@ -132,17 +132,20 @@ Options
    Grid is drawn relative to the coordinates of the Minecraft world being mapped.
    If only ``X_INTERVAL`` is given, the same value is used for ``Y_INTERVAL``.
 
--gl, --show-grid-lines
-   *(Requires the use of --grid-interval)* Adds grid lines onto the map at the defined intervals.
-
--gc, --show-coords
-   *(Requires the use of --grid-interval)* Adds coordinate text to every grid interval intersection.
-
 -gcf, --coords-format
    A string to format how grid coordinates appear. Use "{x}" and "{y}" (curly-braces included) where you want the X and Y coordinates to appear, e.g. "``X: {x} Y: {y}``" could appear as "``X: 100 Y: 200``".
 
 -bg, --background COLOR
    Specify an color to use for the background of the image. Empty space is fully transparent by default. Accepted color formats are hexcode (e.g. ``FF0000``) or a set of RGB values (e.g. ``255 0 0``), and an extra hex code byte (e.g. ``FF0000FF`` or integer value (e.g. ``255 0 0 255``) can be added to determine the alpha of the color.
+
+-sf, --style-file
+   A set of styling rules for the combiner, in the form of a path to a JSON file.
+   The values set in this JSON file will override that of the default styling settings, and can then be overridden themselves
+   by any values present in the JSON given for the --style-override argument, if it is present.
+
+-so, --style-override
+   A set of styling rules for the combiner, in the form of a JSON-formatted string.
+   These values take highest priority on overriding the already set rules.
 
 -y, --yes-to-all
    Automatically accepts any requests for user confirmation.
