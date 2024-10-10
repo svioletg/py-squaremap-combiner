@@ -46,12 +46,6 @@ It can then be used either as a module in another project...
 Use the ``-h`` or ``--help`` argument to see full arguments and their
 defaults.
 
-Installing this repository as a package is only a convenience feature.
-If you don't want to install it, this package only really contains a
-single script, so you can download it and use it on its own, provided
-you have the required packages installed. The script can be found in
-this repository at ``src/squaremap_combine/squaremap_combine.py``.
-
 To find squaremap's tiles, go to the folder your server JAR is in, and
 then navigate to ``plugins/squaremap/web``. Inside, there will be a
 ``tiles`` folder which likely contains folders like
