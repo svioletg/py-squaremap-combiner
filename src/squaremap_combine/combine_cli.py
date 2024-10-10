@@ -106,7 +106,7 @@ def main(): # pylint: disable=missing-function-docstring
     detail      : int  = args.detail
     output_dir  : Path = args.output_dir
     output_ext  : str  = args.output_ext
-    time_format: str
+    time_format : str
     if isinstance(args.timestamp, list):
         if len(args.timestamp) == 0:
             time_format = DEFAULT_TIME_FORMAT

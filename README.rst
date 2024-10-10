@@ -43,11 +43,11 @@ It can then be used either as a module in another project...
 
    python3 -m squaremap_combine my-tiles overworld 2 --output_ext jpg
 
-This project uses [loguru](https://github.com/Delgan/loguru) for its logging.
+This project uses `loguru <https://github.com/Delgan/loguru>`_ for its logging.
 Logging is disabled by default, but enabled at the `INFO` level when running
 the package as a command. If you're importing any modules from this package
 and want to make use of its logs, import `logger` from the `combine_core` module
-and [use ``logger.add()``](https://github.com/Delgan/loguru?tab=readme-ov-file#no-handler-no-formatter-no-filter-one-function-to-rule-them-all)
+and `use logger.add() <https://github.com/Delgan/loguru?tab=readme-ov-file#no-handler-no-formatter-no-filter-one-function-to-rule-them-all>`_
 to enable log output.
 
 Logs are recorded to disk in a `logs` directory where the package was installed, the location of which
@@ -104,7 +104,7 @@ might look something like this:
 
 .. code:: bash
 
-   python3 squaremap_combine.py server-tiles overworld 3
+   python3 -m squaremap_combine server-tiles overworld 3
 
 Note that very large maps can of course easily result in very large
 images, and it may take a while for the full image to be completed.
@@ -169,10 +169,14 @@ Options
    A set of styling rules for the combiner, in the form of a path to a JSON file.
    The values set in this JSON file will override that of the default styling settings, and can then be overridden themselves
    by any values present in the JSON given for the --style-override argument, if it is present.
+   See `the docs <https://squaremap-combine.readthedocs.io/en/latest/squaremap_combine/combine_core.html#CombinerStyle>`_ for information
+   on each styling rule.
 
 -so, --style-override
    A set of styling rules for the combiner, in the form of a JSON-formatted string.
    These values take highest priority on overriding the already set rules.
+   See `the docs <https://squaremap-combine.readthedocs.io/en/latest/squaremap_combine/combine_core.html#CombinerStyle>`_ for information
+   on each styling rule.
 
 -y, --yes-to-all
    Automatically accepts any requests for user confirmation.
@@ -181,7 +185,7 @@ Using some of these options, your command may look something like this:
 
 .. code:: bash
 
-   python3 -m squaremap_combine tiles overworld 3 --area -700 -500 100 200 --timestamp default --output-dir town-area --output-ext jpg -y
+   python3 -m squaremap_combine tiles overworld 3 --area -700 -500 100 200 --timestamp --output-dir town-area --output-ext jpg -y
 
 .. |Python 3.12| image:: https://img.shields.io/badge/python-3.12-blue.svg
    :target: https://www.python.org/downloads/release/python-3120/

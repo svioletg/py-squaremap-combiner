@@ -93,7 +93,7 @@ class GameCoord(Coord2i):
     def __repr__(self):
         return f'GameCoord(x={self.x}, y={self.y})'
 
-    def to_image_coord(self, image: 'MapImage'):
+    def to_image_coord(self, image: 'MapImage') -> Coord2i:
         """Converts this Minecraft coordinate to its position on the given `MapImage`."""
         return image.game_zero + (self // image.detail_mul)
 
@@ -105,7 +105,7 @@ class MapImageCoord(Coord2i):
     def __repr__(self):
         return f'MapImageCoord(x={self.x}, y={self.y})'
 
-    def to_game_coord(self, image: 'MapImage'):
+    def to_game_coord(self, image: 'MapImage') -> Coord2i:
         """Converts this image coordinate to its position on the Minecraft world it represents."""
         return (self - image.game_zero) * image.detail_mul
 
