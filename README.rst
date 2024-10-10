@@ -10,7 +10,7 @@ Not affiliated with squaremap or its authors.
 The seed used for the world the sample images were created from is
 ``-2590089827693666277``.
 
-Until I release version 1.0.0 I do not consider this project stable —
+Until I release version 1.0.0, I do not consider this project stable —
 there are bound to be a number of bugs or quirks that I haven't
 discovered and/or fixed yet, and the code will likely be seeing
 frequently large changes until that point. Right now version bumps are
@@ -20,8 +20,17 @@ after 1.0.0 I plan to stick to semantic versioning.
 Contents
 -----
 
+- `Features <#features>`__
 - `Usage <#usage>`__
 - `Options <#options>`__
+
+Features
+--------
+
+- Stitch all images for a given world into a single large map
+- Export an image of :ref:`only a certain region of the Minecraft world<Area Option>`, by their in-game coordinates
+- :ref:`Grid overlay<Grid Option>` for maps, representing in-game coordinates
+   - Grid lines and coordinate text can be toggled individually, and :ref:`styled<Style Option>` to a given color, font, and font size
 
 Usage
 -----
@@ -143,6 +152,8 @@ Options
 -ow, --overwrite
    Using this flag will allow the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.
 
+.. _Area Option::
+
 -a, --area <X1 Y1 X2 Y2>
    A rectangle area of the world (top, left, bottom, right) to export an image from. This can save time when using a very large world map, as this will only combine the minimum amount of regions needed to cover this area, before finally cropping it down to only the given area. These values should be the coordinates of the area as they would be in the actual Minecraft world.
 
@@ -154,6 +165,8 @@ Options
 -fs, --force-size <WIDTH [HEIGHT]>
    Centers the assembled map inside an image of this size. Can be used to make images a consistent size if you're using them for a timelapse, for example. Only specifying one integer for this argument will use the same value for both width and height.
 
+.. _Grid Option::
+
 -g, --grid-interval <X_INTERVAL [Y_INTERVAL]>
    Defines the coordinate intervals to be used for any grid-based options.
    Grid is drawn relative to the coordinates of the Minecraft world being mapped.
@@ -164,6 +177,8 @@ Options
 
 -bg, --background COLOR
    Specify an color to use for the background of the image. Empty space is fully transparent by default. Accepted color formats are hexcode (e.g. ``FF0000``) or a set of RGB values (e.g. ``255 0 0``), and an extra hex code byte (e.g. ``FF0000FF`` or integer value (e.g. ``255 0 0 255``) can be added to determine the alpha of the color.
+
+.. _Style Option::
 
 -sf, --style-file
    A set of styling rules for the combiner, in the form of a path to a JSON file.

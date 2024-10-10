@@ -9,7 +9,7 @@ from typing import (Callable, Iterator, Literal, Optional, Self, Sequence,
                     TypeVar, cast, get_args)
 
 from loguru import logger
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 from tqdm.contrib.itertools import product as tqdm_product
 
@@ -356,12 +356,13 @@ class Combiner:
 
         logger.info('Drawing coordinates...')
         idraw = ImageDraw.Draw(image.img)
+        font = ImageFont.truetype(self.style.grid_text_font, size=self.style.grid_text_size)
         for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
             game_coord = img_coord.to_game_coord(image)
             coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
             if self.use_tqdm and (total_intervals <= 5000):
                 pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
-            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba())
+            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba(), font=font)
 
     def combine(self,
             world: str | Path,
