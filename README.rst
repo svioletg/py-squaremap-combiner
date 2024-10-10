@@ -30,8 +30,7 @@ Features
 - Stitch all images for a given world into a single large map
 - Export an image of only a certain region of the Minecraft world, by their in-game coordinates
 - Grid overlay for maps, representing in-game coordinates
-
-   - Grid lines and coordinate text can be toggled individually, and styled to a given color, font, and font size
+- Grid lines and coordinate text can be toggled individually, and styled to a given color, font, and font size
 
 Usage
 -----
