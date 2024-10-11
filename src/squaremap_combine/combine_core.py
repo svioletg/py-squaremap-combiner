@@ -1,4 +1,6 @@
-"""Core functionality for squaremap_combine, providing the `Combiner` class amongst others."""
+"""
+Core functionality for squaremap_combine, providing the `Combiner` class amongst others.
+"""
 
 import json
 import operator

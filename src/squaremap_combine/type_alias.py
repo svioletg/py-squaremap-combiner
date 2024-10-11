@@ -1,4 +1,6 @@
-"""Type aliases for commonly used long type-hints, for convenience."""
+"""
+Type aliases for commonly used long type-hints, for convenience.
+"""
 
 Rectangle = tuple[int, int, int, int]
 

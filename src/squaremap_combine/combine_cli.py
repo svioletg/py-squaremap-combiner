@@ -1,8 +1,9 @@
-"""A basic CLI app for interacting with squaremap_combine."""
+"""
+A basic CLI app for interacting with squaremap_combine.
+"""
 
 import argparse
 import json
-import os
 import sys
 import textwrap
 from datetime import datetime
@@ -12,6 +13,7 @@ from squaremap_combine.combine_core import (DEFAULT_COORDS_FORMAT,
                                             DEFAULT_TIME_FORMAT, Combiner,
                                             CombinerStyle, logger)
 from squaremap_combine.helper import confirm_yn, filled_tuple
+from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION
 from squaremap_combine.type_alias import Rectangle
 
 
@@ -21,9 +23,6 @@ def opt(*names: str) -> list[str]:
 
 @logger.catch
 def main(): # pylint: disable=missing-function-docstring
-    MODULE_DIR = Path(os.path.realpath(__file__)).parent
-    LOGS_DIR = MODULE_DIR / 'logs'
-
     logger.level('WARNING', color='<yellow>')
     logger.level('ERROR', color='<red>')
     stdout_handler = logger.add(sys.stdout, colorize=True, format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level='INFO')
@@ -33,6 +32,8 @@ def main(): # pylint: disable=missing-function-docstring
     if '--find-logs' in sys.argv:
         print(LOGS_DIR)
         return
+
+    logger.info(f'squaremap_combine v{PROJECT_VERSION}')
 
     #region ARGUMENTS
 

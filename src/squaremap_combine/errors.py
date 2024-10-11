@@ -1,4 +1,6 @@
-"""Exceptions and common error messages for use across the package."""
+"""
+Exceptions and common error messages for use across the package.
+"""
 
 REPORT_BUG = 'This is likely a bug;' + \
     ' please open an issue at https://github.com/svioletg/py-squaremap-combiner/issues and provide the above traceback'

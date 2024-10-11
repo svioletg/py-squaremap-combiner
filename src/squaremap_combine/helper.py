@@ -1,4 +1,6 @@
-"""Miscellaneous helper utility functions and classes."""
+"""
+Miscellaneous helper utility functions and classes.
+"""
 
 from functools import wraps
 from itertools import batched
