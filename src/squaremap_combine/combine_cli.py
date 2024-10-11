@@ -12,7 +12,7 @@ from pathlib import Path
 from squaremap_combine.combine_core import (DEFAULT_COORDS_FORMAT,
                                             DEFAULT_TIME_FORMAT, Combiner,
                                             CombinerStyle, logger)
-from squaremap_combine.helper import confirm_yn, filled_tuple
+from squaremap_combine.helper import confirm_yn, enable_logging, filled_tuple
 from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION
 from squaremap_combine.type_alias import Rectangle
 
@@ -23,11 +23,7 @@ def opt(*names: str) -> list[str]:
 
 @logger.catch
 def main(): # pylint: disable=missing-function-docstring
-    logger.level('WARNING', color='<yellow>')
-    logger.level('ERROR', color='<red>')
-    stdout_handler = logger.add(sys.stdout, colorize=True, format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level='INFO')
-    file_handler = logger.add(LOGS_DIR / '{time:YYYY-MM-DD_HH-mm-ss}.log',
-        format="[{time:HH:mm:ss}] {level}: {message}", level='DEBUG', mode='w', retention=5)
+    stdout_handler, file_handler = enable_logging(logger)
 
     if '--find-logs' in sys.argv:
         print(LOGS_DIR)
