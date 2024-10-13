@@ -19,26 +19,21 @@ MESSAGE_NO_DIR = 'None to display; choose a valid tiles directory above.'
 
 def build_layout():
     """Builds the basic GUI app layout."""
-    #region INTERNAL USE / STORAGE
-    with dpg.window(tag='script-storage', show=False):
-        dpg.add_text(tag='modal-confirm-value', default_value='')
-    #endregion INTERNAL USE / STORAGE
-
     #region LAYOUT
-    # Modal confirmation dialog
-    with dpg.window(tag='modal-confirm', label='User confirmation needed', modal=True, show=False,
-        no_resize=True, pos=(200, 200), no_close=True, max_size=MODAL_DIALOG_MAX_SIZE):
-        dpg.add_text(tag='modal-confirm-message', default_value='Continue?', wrap=MODAL_DIALOG_MAX_SIZE[0] - 50)
-
+    # Modal notice box
+    with dpg.window(tag='modal-notice', label='Notice', modal=True, show=False, no_resize=True, max_size=MODAL_DIALOG_MAX_SIZE):
+        dpg.add_text(tag='modal-notice-message', wrap=MODAL_DIALOG_MAX_SIZE[0] - 50)
         dpg.add_spacer(height=SPACER_HEIGHT)
+        dpg.add_button(tag='ok-button', label='OK', width=75, callback=actions.close_notice_dialog_callback)
 
+    # Modal confirmation dialog
+    with dpg.window(tag='modal-confirm', label='User confirmation needed', modal=True, show=False, no_resize=True,
+        no_close=True, max_size=MODAL_DIALOG_MAX_SIZE):
+        dpg.add_text(tag='modal-confirm-message', default_value='Continue?', wrap=MODAL_DIALOG_MAX_SIZE[0] - 50)
+        dpg.add_spacer(height=SPACER_HEIGHT)
         with dpg.group(horizontal=True):
-            dpg.add_button(tag='yes-button', label='Yes', width=75, callback=actions.close_confirm_dialog)
-            dpg.add_button(tag='no-button', label='No', width=75, callback=actions.close_confirm_dialog)
-
-    with dpg.item_handler_registry(tag='widget-handler'):
-        dpg.add_item_resize_handler(callback=actions.center_in_window_callback, user_data=UserData(other=('modal-confirm', 'main-window')))
-    dpg.bind_item_handler_registry('modal-confirm', 'widget-handler')
+            dpg.add_button(tag='yes-button', label='Yes', width=75, callback=actions.close_confirm_dialog_callback)
+            dpg.add_button(tag='no-button', label='No', width=75, callback=actions.close_confirm_dialog_callback)
 
     # Primary window
     with dpg.window(tag='main-window'):
@@ -49,8 +44,12 @@ def build_layout():
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Tiles directory:')
             dpg.add_text(tag='tiles-dir-label', default_value='None chosen; click the button below to select one', wrap=640)
-        dpg.add_button(tag='tiles-dir-button', label='Choose folder...', callback=actions.dir_dialog,
-                        user_data=UserData(display='tiles-dir-label', forward=actions.validate_tiles_dir))
+        dpg.add_button(tag='tiles-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
+            user_data=UserData(
+                cb_display_with='tiles-dir-label',
+                cb_store_in='tiles-dir-label',
+                cb_forward_to=actions.validate_tiles_dir
+            ))
 
         # World selection
         dpg.add_text('World:')
@@ -66,12 +65,10 @@ def build_layout():
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Output directory:')
             dpg.add_text(tag='out-dir-label', default_value='None chosen; click the button below to select one', wrap=640)
-        dpg.add_button(tag='out-dir-button', label='Choose folder...', callback=actions.dir_dialog,
-                        user_data=UserData(display='out-dir-label'))
+        dpg.add_button(tag='out-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
+            user_data=UserData(cb_display_with='out-dir-label', cb_store_in='out-dir-label'))
 
         # End options
-        dpg.add_button(label='Ask', callback=actions.open_confirm_dialog_callback, user_data=UserData(other='More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
-                ' Continue?'))
         dpg.add_button(label='Start', callback=actions.create_image_callback)
 
         dpg.add_spacer(height=SPACER_HEIGHT)
@@ -85,3 +82,13 @@ def build_layout():
 
         dpg.add_progress_bar(tag='progress-bar', width=-1, show=False)
     #endregion LAYOUT
+
+    #region EVENT HANDLERS
+    with dpg.item_handler_registry(tag='widget-handler'):
+        dpg.add_item_resize_handler(callback=actions.center_in_window_callback,
+            user_data=UserData(other=('modal-notice', 'main-window')))
+        dpg.add_item_resize_handler(callback=actions.center_in_window_callback,
+            user_data=UserData(other=('modal-confirm', 'main-window')))
+    dpg.bind_item_handler_registry('modal-notice', 'widget-handler')
+    dpg.bind_item_handler_registry('modal-confirm', 'widget-handler')
+    #endregion EVENT HANDLERS

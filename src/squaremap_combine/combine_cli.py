@@ -181,6 +181,7 @@ def main(): # pylint: disable=missing-function-docstring
         detail=detail,
         output_ext=output_ext
     )
+
     if out_file.exists() and (not overwrite):
         copies = [*output_dir.glob(f'{out_file.stem}*')]
         out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)

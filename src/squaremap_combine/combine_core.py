@@ -443,7 +443,7 @@ class Combiner:
             row_range = range(area_regions[1], area_regions[3] + 1)
 
         size_estimate = f'{self.TILE_SIZE * len(column_range)}x{self.TILE_SIZE * len(row_range)}'
-        if not self.confirmation_callback(f'Estimated image size: {size_estimate}\nContinue?'):
+        if not self.confirmation_callback(f'Estimated image size before trimming: {size_estimate}\nContinue?'):
             logger.info('Cancelling...')
             return None
 

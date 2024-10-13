@@ -1,6 +1,7 @@
 """
 Dataclasses for usage across GUI modules.
 """
+
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
@@ -12,10 +13,12 @@ class UserData:
     """
     other: Any = None
     """Miscellaneous info to be passed on for any purpose. Should only be used if no other properties fit."""
-    display: Optional[str | int] = None
-    """The ID of a GUI element whose value should be set to the result of this element's callback."""
-    forward: Optional[Callable[..., None]] = None
-    """A callable to forward the result of this element's callback to."""
+    cb_display_with: Optional[str | int] = None
+    """ID of an item to call `dearpygui.dearpygui.set_value` on with the callback return value."""
+    cb_store_in: Optional[str | int] = None
+    """ID of an item whose `user_data` will be used to store the callback return value."""
+    cb_forward_to: Optional[Callable[..., None]] = None
+    """A callable to forward the callback return value to."""
 
 @dataclass
 class CallbackArgs(dict):

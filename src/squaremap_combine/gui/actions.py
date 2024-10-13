@@ -33,27 +33,32 @@ def dpg_callback(func):
     def wrapper(sender: str | int, app_data, user_data: Optional[UserData]=None) -> None:
         user_data = user_data or UserData()
         result = func(CallbackArgs(sender=sender, app_data=app_data, user_data=user_data))
-        if display := user_data.display:
-            dpg.set_value(display, str(result))
-        if forward := user_data.forward:
-            forward(result)
+        if display_with := user_data.cb_display_with:
+            dpg.set_value(display_with, str(result))
+        if store_in := user_data.cb_store_in:
+            dpg.set_item_user_data(store_in, result)
+        if forward_to := user_data.cb_forward_to:
+            forward_to(result)
         return result
     return wrapper
 
 @dpg_callback
-def dir_dialog(_args: CallbackArgs) -> Path:
+def dir_dialog_callback(_args: CallbackArgs) -> Path | None:
     """Opens a dialog for choosing a directory."""
-    return Path(askdirectory())
+    result = Path(askdirectory())
+    return result if result != Path('.') else None
 
 @dpg_callback
-def file_open_dialog(_args: CallbackArgs) -> Path:
+def file_open_dialog_callback(_args: CallbackArgs) -> Path | None:
     """Opens a dialog for choosing a file."""
-    return Path(askopenfilename())
+    result = Path(askopenfilename())
+    return result if result != Path('.') else None
 
 @dpg_callback
-def file_save_dialog(_args: CallbackArgs) -> Path:
+def file_save_dialog_callback(_args: CallbackArgs) -> Path | None:
     """Opens a dialog for saving a file."""
-    return Path(asksaveasfilename())
+    result = Path(asksaveasfilename())
+    return result if result != Path('.') else None
 
 @dpg_callback
 def update_detail_choices_callback(args: CallbackArgs):
@@ -64,10 +69,25 @@ def update_detail_choices(world: str):
     """Updates what radio buttons are available for map detail based on
     the contents of the selected world folder.
     """
-    tiles_dir: str = dpg.get_value('tiles-dir-label')
+    tiles_dir: str = dpg.get_item_user_data('tiles-dir-label') or ''
     levels: list[str] = [p.stem for p in Path(tiles_dir, world).rglob('*/')]
     dpg.configure_item('detail-invalid', show=not bool(levels))
     dpg.configure_item('detail-choices', items=levels, show=bool(levels), default_value=levels[0])
+
+@dpg_callback
+def open_notice_dialog_callback(args: CallbackArgs):
+    """Callback form of `open_notice_dialog`. `user_data.other` is used as the message."""
+    open_notice_dialog(args.user_data.other)
+
+def open_notice_dialog(message: str):
+    """Spawns a modal notice box with an OK button and the given `message` as its text body."""
+    dpg.configure_item('modal-notice', show=True)
+    dpg.configure_item('modal-notice-message', default_value=message)
+
+@dpg_callback
+def close_notice_dialog_callback(_args: CallbackArgs):
+    """Closes any present modal notice box."""
+    dpg.configure_item('modal-notice', show=False)
 
 @dpg_callback
 def open_confirm_dialog_callback(args: CallbackArgs):
@@ -81,30 +101,74 @@ def open_confirm_dialog(message: str) -> bool:
     :param message: Dialog body text to display.
 
     .. warning::
-        Must be run as a `threading.Thread` target, or else the call will never complete.
+        Must be run in a `threading.Thread`, or else the call will never complete.
     """
     dpg.configure_item('modal-confirm', show=True, pos=(200, 200))
     dpg.configure_item('modal-confirm-message', default_value=message)
     EVENT.clear()
     EVENT.wait()
-    result = dpg.get_value('modal-confirm-value')
+    result = dpg.get_item_user_data('modal-confirm')
     if result not in ['yes-button', 'no-button']:
         raise ValueError(f'open_confirm_dialog received an unexpected value: {result}')
     return result == 'yes-button'
 
 @dpg_callback
-def close_confirm_dialog(args: CallbackArgs):
+def close_confirm_dialog_callback(args: CallbackArgs):
     """Closes any currently open modal confirmation dialog and stores the sender of this callback."""
     EVENT.clear()
     EVENT.set()
     dpg.configure_item('modal-confirm', show=False)
-    dpg.configure_item('modal-confirm-value', default_value=str(args.sender))
+    dpg.set_item_user_data('modal-confirm', args.sender)
 
 @dpg_callback
 def create_image_callback(_args: CallbackArgs):
     """Callback form of `create_image`."""
     th = threading.Thread(target=create_image)
     th.start()
+
+def create_image() -> Image.Image | None:
+    """Prepares a `Combiner` instance with the selected options and creates the map image.
+
+    .. warning::
+        Must be run in a `threading.Thread`, or else the call will never complete.
+    """
+    tiles_dir: str = dpg.get_item_user_data('tiles-dir-label') or ''
+    world: str = dpg.get_value('world-choices') or ''
+    level: str = dpg.get_value('detail-choices') or ''
+    output_dir: str = dpg.get_item_user_data('out-dir-label') or ''
+
+    if not all(arg for arg in [tiles_dir, world, level, output_dir]):
+        open_notice_dialog('One or more required options have not been set. Check that you\'ve set:\n' +
+            '- A valid tiles directory\n' +
+            '- World to render\n' +
+            '- Detail level\n' +
+            '- Output directory')
+        return None
+
+    combiner = Combiner(tiles_dir, use_tqdm=True, confirmation_callback=open_confirm_dialog)
+    result = combiner.combine(world, int(level))
+
+    if not result:
+        logger.info('No image was created; process either failed or was cancelled.')
+        return None
+
+    out_file = Path(output_dir, DEFAULT_OUTFILE_FORMAT.format(
+        timestamp='',
+        world=world,
+        detail=level,
+        output_ext='png'
+    ))
+
+    if out_file.is_file():
+        copies = [*out_file.parent.glob(f'{out_file.stem}*')]
+        new_out_file = Path(out_file.stem + f'_{len(copies)}.' + 'png')
+        if not open_confirm_dialog(f'A file at the path "{out_file}" already exists.\n' +
+            f'Do you want to overwrite it? If you choose no, the file will be saved to "{new_out_file.stem}" instead.'):
+            out_file = new_out_file
+
+    result.img.save(out_file)
+    logger.info(f'Image saved to: {out_file}')
+    return result.img
 
 @dpg_callback
 def center_in_window_callback(args: CallbackArgs):
@@ -127,42 +191,15 @@ def center_in_window(target: str | int, parent: str | int):
     dpg.configure_item(target,
         pos=((parent_size[0] // 2) - (target_size[0] // 2), (parent_size[1] // 2) - (target_size[1] // 2)))
 
-def create_image() -> Image.Image | None:
-    """Prepares a `Combiner` instance with the selected options and creates the map image.
-    
-    .. warning::
-        Must be run as a `threading.Thread` target, or else the call will never complete.
-    """
-    tiles_dir: str = dpg.get_value('tiles-dir-label')
-    world: str = dpg.get_value('world-choices')
-    level: str = dpg.get_value('detail-choices')
-    output_dir: str = dpg.get_value('out-dir-label')
-
-    combiner = Combiner(tiles_dir, use_tqdm=True, confirmation_callback=open_confirm_dialog)
-    result = combiner.combine(world, int(level))
-
-    out_file = Path(output_dir, DEFAULT_OUTFILE_FORMAT.format(
-        timestamp='',
-        world=world,
-        detail=level,
-        output_ext='png'
-    ))
-
-    if not result:
-        logger.info('No image was created; process either failed or was cancelled.')
-        return None
-
-    result.img.save(out_file)
-    logger.info(f'Image saved to: {out_file}')
-    return result.img
-
 def update_console(message: str):
-    """Updates the "console" window in the GUI a new log message."""
+    """Processes the received log message. An associated action will be performed if the log
+    is of level "GUI_COMMAND", "DEBUG" logs are ignored, and anything else is printed to the
+    on-screen "console" window.
+    """
     if not (level := re.findall(r"^(\w+): .*", message)):
         raise ValueError(f'update_console received a log message with an unexpected format: {message}')
     match level[0]:
         case 'GUI_COMMAND':
-            # TODO: Create a class to handle GUI commands instead of branching like this
             command: list[str] = re.findall(r"^\w+: (.*)", message)[0].split()
             if command[0] == '/pbar':
                 if command[1] == 'hide':
@@ -183,6 +220,9 @@ def update_console(message: str):
 
 def validate_tiles_dir(source_dir: Path):
     """Check that the given directory contains a valid path to tiles, and update the choices."""
+    if source_dir is None:
+        return
+
     dpg.configure_item('world-no-valid-dir', default_value='Searching...')
     source_dir = Path(source_dir)
     world_paths: set[Path] = set()
