@@ -132,6 +132,8 @@ def create_image() -> Image.Image | None:
     .. warning::
         Must be run in a `threading.Thread`, or else the call will never complete.
     """
+    dpg.set_item_user_data('console-output-window', {'allow-output': True})
+
     tiles_dir: str = dpg.get_item_user_data('tiles-dir-label') or ''
     world: str = dpg.get_value('world-choices') or ''
     level: str = dpg.get_value('detail-choices') or ''
@@ -168,6 +170,8 @@ def create_image() -> Image.Image | None:
 
     result.img.save(out_file)
     logger.info(f'Image saved to: {out_file}')
+
+    dpg.set_item_user_data('console-output-window', {'allow-output': False})
     return result.img
 
 @dpg_callback
@@ -209,6 +213,9 @@ def update_console(message: str):
             return
         case 'DEBUG':
             return
+
+    if (user_data := dpg.get_item_user_data('console-output-window')) and not user_data['allow-output']:
+        return
 
     new_log = dpg.add_text(default_value=message, parent='console-output-window', wrap=CONSOLE_TEXT_WRAP)
     match level[0]:

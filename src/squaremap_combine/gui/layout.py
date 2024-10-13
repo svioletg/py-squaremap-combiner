@@ -69,16 +69,16 @@ def build_layout():
             user_data=UserData(cb_display_with='out-dir-label', cb_store_in='out-dir-label'))
 
         # End options
-        dpg.add_button(label='Start', callback=actions.create_image_callback)
-
         dpg.add_spacer(height=SPACER_HEIGHT)
         dpg.add_separator()
         dpg.add_spacer(height=SPACER_HEIGHT)
 
+        dpg.add_button(label='Start', callback=actions.create_image_callback)
+
         # Log ouptut window
         dpg.add_text('Combiner output:')
-        with dpg.child_window(tag='console-output-window', height=200):
-            dpg.add_text(tag='console-output-text', default_value='(Nothing has run.)', wrap=CONSOLE_TEXT_WRAP)
+        with dpg.child_window(tag='console-output-window', height=200, user_data={'allow-output': False}):
+            dpg.add_text(tag='console-output-text', default_value='', wrap=CONSOLE_TEXT_WRAP)
 
         dpg.add_progress_bar(tag='progress-bar', width=-1, show=False)
     #endregion LAYOUT
