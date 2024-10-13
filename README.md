@@ -19,8 +19,10 @@ after 1.0.0 I plan to stick to semantic versioning.
 
 ## Contents <!-- omit in toc -->
 - [Features](#features)
-- [Usage](#usage)
-- [Options](#options)
+- [Usage: Setup](#usage-setup)
+- [Usage: Logs](#usage-logs)
+- [Usage: Using the CLI](#usage-using-the-cli)
+- [CLI Options](#cli-options)
     - [`-h, --help`](#-h---help)
     - [`-o, --output-dir PATH`](#-o---output-dir-path)
     - [`-ext, --output-ext EXTENSION`](#-ext---output-ext-extension)
@@ -43,7 +45,7 @@ after 1.0.0 I plan to stick to semantic versioning.
   - Grid lines and coordinate text can be toggled individually, and
     styled to a given color, font, and font size
 
-## Usage
+## Usage: Setup
 
 Install the package with pip
 (`pip install git+https://github.com/svioletg/py-squaremap-combiner.git`).
@@ -80,14 +82,14 @@ squaremap-combine gui
 the former will keep a command prompt or terminal window open while the GUI app runs, and the latter
 does not open any sort of terminal.
 
+## Usage: Logs
+
 This project uses [loguru](https://github.com/Delgan/loguru) for its
 logging. Logging is disabled by default, but enabled at the
 `INFO` level when running the package as a command. If
 you\'re importing any modules from this package and want to make use of
-its logs, import `logger` from the
-`combine_core` module and [use
-`logger.add()`](https://github.com/Delgan/loguru?tab=readme-ov-file#no-handler-no-formatter-no-filter-one-function-to-rule-them-all)
-to enable log output.
+its logs, import `logger` from the `combine_core` module and use `helper.enable_logging()` to
+enable log output.
 
 Logs are recorded to disk in a `logs` directory where the
 package was installed, the location of which can be revealed by running
@@ -113,6 +115,8 @@ files present, the oldest file is deleted before writing a new one. An example f
     └───combine_cli.py
     etc.
 ```
+
+## Usage: Using the CLI
 
 To find squaremap's tiles, go to the folder your server JAR is in, and
 then navigate to `plugins/squaremap/web`. Inside, there will be a
@@ -153,7 +157,7 @@ order, with their associated values following directly after, like
 If any of the options below are not used, their **default** is used
 automatically.
 
-## Options
+## CLI Options
 
 > Note: You can use either hyphens (`-`) or underscores (`_`) and the
 > option will work the same, e.g. `--output-ext` or `--output_ext`
