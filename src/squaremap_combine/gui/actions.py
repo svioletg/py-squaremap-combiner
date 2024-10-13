@@ -4,6 +4,7 @@ Callables primarily for use in GUI callbacks.
 
 import re
 import threading
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from tkinter.filedialog import askdirectory, askopenfilename, asksaveasfilename
@@ -15,7 +16,7 @@ from PIL import Image
 from squaremap_combine.combine_core import DEFAULT_OUTFILE_FORMAT, Combiner, logger
 from squaremap_combine.gui.layout import CONSOLE_TEXT_WRAP
 from squaremap_combine.gui.models import CallbackArgs, UserData
-from squaremap_combine.gui.themes import Themes
+from squaremap_combine.gui.styling import Themes
 
 TILES_DIR_REGEX = r"^[\w-]+\\\w+\\[0-3]\\[-|]\d_[-|]\d"
 
@@ -194,6 +195,15 @@ def center_in_window(target: str | int, parent: str | int):
     parent_size = cast(tuple[int, int], parent_size)
     dpg.configure_item(target,
         pos=((parent_size[0] // 2) - (target_size[0] // 2), (parent_size[1] // 2) - (target_size[1] // 2)))
+
+@dpg_callback
+def timestamp_format_updated_callback(_args: CallbackArgs):
+    """Runs when the timestamp format input field is updated, and updates the preview text accordingly."""
+    try:
+        timestamp = datetime(2023, 6, 16, 9, 48, 2).strftime(dpg.get_value('timestamp-format-input'))
+    except ValueError:
+        timestamp = dpg.get_value('timestamp-format-input')
+    dpg.set_value('timestamp-format-preview', timestamp)
 
 def update_console(message: str):
     """Processes the received log message. An associated action will be performed if the log

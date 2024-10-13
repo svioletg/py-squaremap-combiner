@@ -35,11 +35,7 @@ def build_layout():
             dpg.add_button(tag='yes-button', label='Yes', width=75, callback=actions.close_confirm_dialog_callback)
             dpg.add_button(tag='no-button', label='No', width=75, callback=actions.close_confirm_dialog_callback)
 
-    # Primary window
-    with dpg.window(tag='main-window'):
-        dpg.add_text(default_value=f'squaremap_combine v{PROJECT_VERSION}')
-        dpg.add_separator()
-
+    def primary_tab_content():
         # Tiles directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Tiles directory:')
@@ -68,6 +64,39 @@ def build_layout():
         dpg.add_button(tag='out-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
             user_data=UserData(cb_display_with='out-dir-label', cb_store_in='out-dir-label'))
 
+    def secondary_tab_content():
+        with dpg.group(horizontal=True):
+            dpg.add_text(default_value='Output format:')
+            dpg.add_input_text(tag='output-ext-input', width=75, default_value='png')
+
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(tag='timestamp-checkbox',
+                callback=lambda s,a,d: dpg.configure_item('timestamp-format-input', enabled=a))
+            dpg.add_text(default_value='Add timestamp to filename?')
+
+        with dpg.group(tag='timestamp-format-input-group', horizontal=True):
+            dpg.add_text(default_value='Timestamp format:')
+            dpg.add_input_text(tag='timestamp-format-input', width=300, enabled=False)
+
+        with dpg.group(tag='timestamp-format-preview-group', horizontal=True):
+            dpg.add_text(default_value='Timestamp Preview:')
+            dpg.add_text(tag='timestamp-format-preview', default_value='')
+
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(tag='autotrim-checkbox')
+            dpg.add_text(default_value='Trim empty areas of the map?')
+
+    # Primary window
+    with dpg.window(tag='main-window'):
+        dpg.add_text(tag='title-text', default_value=f'squaremap_combine v{PROJECT_VERSION}')
+        dpg.add_spacer(height=SPACER_HEIGHT)
+
+        with dpg.tab_bar(tag='tabs'):
+            with dpg.tab(tag='tab-primary', label='Basic'):
+                primary_tab_content()
+            with dpg.tab(tag='tab-secondary', label='Additional Options'):
+                secondary_tab_content()
+
         # End options
         dpg.add_spacer(height=SPACER_HEIGHT)
         dpg.add_separator()
@@ -84,11 +113,15 @@ def build_layout():
     #endregion LAYOUT
 
     #region EVENT HANDLERS
+    with dpg.handler_registry(tag='handler-reg'):
+        dpg.add_key_down_handler(-1, callback=actions.timestamp_format_updated_callback)
+
     with dpg.item_handler_registry(tag='widget-handler'):
         dpg.add_item_resize_handler(callback=actions.center_in_window_callback,
             user_data=UserData(other=('modal-notice', 'main-window')))
         dpg.add_item_resize_handler(callback=actions.center_in_window_callback,
             user_data=UserData(other=('modal-confirm', 'main-window')))
+
     dpg.bind_item_handler_registry('modal-notice', 'widget-handler')
     dpg.bind_item_handler_registry('modal-confirm', 'widget-handler')
     #endregion EVENT HANDLERS
