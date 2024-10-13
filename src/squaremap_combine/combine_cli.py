@@ -9,9 +9,8 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
-from squaremap_combine.combine_core import (DEFAULT_COORDS_FORMAT,
-                                            DEFAULT_TIME_FORMAT, Combiner,
-                                            CombinerStyle, logger)
+from squaremap_combine.combine_core import (DEFAULT_COORDS_FORMAT, DEFAULT_OUTFILE_FORMAT,
+                                            DEFAULT_TIME_FORMAT, Combiner, CombinerStyle, logger)
 from squaremap_combine.helper import confirm_yn, enable_logging, filled_tuple
 from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION
 from squaremap_combine.type_alias import Rectangle
@@ -21,9 +20,8 @@ def opt(*names: str) -> list[str]:
     """Short for "option". Returns the given argument names with underscore versions appended."""
     return [*names] + [('--' + n.lstrip('-').replace('-', '_')) for n in names if '-' in n.lstrip('-')]
 
-@logger.catch
 def main(): # pylint: disable=missing-function-docstring
-    stdout_handler, file_handler = enable_logging(logger)
+    stdout_handler, file_handler = enable_logging(logger) # pylint: disable=unused-variable
 
     if '--find-logs' in sys.argv:
         print(LOGS_DIR)
@@ -177,7 +175,12 @@ def main(): # pylint: disable=missing-function-docstring
 
     timestamp = (datetime.strftime(datetime.now(), time_format) + '_') if time_format else ''
 
-    out_file: Path = output_dir / f'{timestamp}{world}-{detail}.{output_ext}'
+    out_file: Path = output_dir / DEFAULT_OUTFILE_FORMAT.format(
+        timestamp=timestamp,
+        world=world,
+        detail=detail,
+        output_ext=output_ext
+    )
     if out_file.exists() and (not overwrite):
         copies = [*output_dir.glob(f'{out_file.stem}*')]
         out_file = Path(out_file.stem + f'_{len(copies)}.' + output_ext)

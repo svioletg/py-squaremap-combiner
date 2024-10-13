@@ -6,19 +6,20 @@ import json
 import operator
 import time
 from dataclasses import dataclass
+from itertools import product
 from pathlib import Path
-from typing import (Callable, Iterator, Literal, Optional, Self, Sequence,
-                    TypeVar, cast, get_args)
+from typing import Callable, Iterator, Literal, Optional, Self, Sequence, TypeVar, cast, get_args
 
 from loguru import logger
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
-from tqdm.contrib.itertools import product as tqdm_product
 
-from squaremap_combine.errors import AssertionMessage, CombineError
-from squaremap_combine.helper import (Color, StyleJSONEncoder, confirm_yn,
+from squaremap_combine.errors import AssertionMessage
+from squaremap_combine.helper import (Color, ConfirmationCallback, StyleJSONEncoder, confirm_yn,
                                       copy_method_signature, snap_box)
 from squaremap_combine.type_alias import Rectangle
+
+logger.level('GUI_COMMAND', no=0)
 
 logger.remove() # Don't output anything if this is just being imported
 
@@ -26,6 +27,13 @@ T = TypeVar('T')
 
 DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
 DEFAULT_COORDS_FORMAT = '({x}, {y})'
+DEFAULT_OUTFILE_FORMAT = '{timestamp}{world}-{detail}.{output_ext}'
+"""
+:param timestamp: A timestamp format string that will be passed to `strftime()`.
+:param world:
+:param detail:
+:param output_ext:
+"""
 
 DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 """Square-blocks-per-pixel for each detail level."""
@@ -255,6 +263,7 @@ class Combiner:
             tiles_dir: str | Path,
             use_tqdm=False,
             skip_confirmation: bool=False,
+            confirmation_callback: ConfirmationCallback=confirm_yn,
             grid_interval: tuple[int, int]=(0, 0),
             grid_coords_format: str=DEFAULT_COORDS_FORMAT,
             style: CombinerStyle=DEFAULT_COMBINER_STYLE
@@ -282,8 +291,14 @@ class Combiner:
                 └───3
 
         :param use_tqdm: Whether to show a `tqdm` progress bar for any functions that support it.
-        :param skip_confirmation: Whether to skip any confirmation prompts. Setting to `True` allows any function
-            in this class to run unattended to.
+        :param skip_confirmation: If `True`, sets `confirmation_callback` to a lambda which will always return `True`,\
+            thus bypassing any prompts.
+        :param confirmation_callback: A `Callable` to use in cases where any `Combiner` functions wish to\
+            ask for confirmation before continuing. The callable's first argument must be a `str` named `message`, and\
+            must return a `bool`.
+
+            Confirmation prompts can be skipped altogether by setting this to something like `lambda message: True`,
+            or by using the `skip_confirmation` argument, which will set `confirmation_callback ` to the lambda above.
         :param grid_interval: An X and Y interval that should be used for things like drawing grid lines or coordinates onto \
             the finished image.
         :param grid_coords_format: A format string to be used when drawing grid coordinates. \
@@ -292,12 +307,13 @@ class Combiner:
         """
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
-        self.tiles_dir          = tiles_dir
-        self.use_tqdm           = use_tqdm
-        self.skip_confirmation  = skip_confirmation
-        self.grid_interval      = grid_interval or (self.TILE_SIZE, self.TILE_SIZE)
-        self.grid_coords_format = grid_coords_format
-        self.style              = style
+        self.tiles_dir             = tiles_dir
+        self.use_tqdm              = use_tqdm
+        self.skip_confirmation     = skip_confirmation
+        self.confirmation_callback = confirmation_callback if not skip_confirmation else lambda message: True
+        self.grid_interval         = grid_interval or (self.TILE_SIZE, self.TILE_SIZE)
+        self.grid_coords_format    = grid_coords_format
+        self.style                 = style
 
         self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
         """What valid world folders the given `tiles_dir` contains."""
@@ -351,9 +367,9 @@ class Combiner:
 
         if total_intervals > 50000:
             logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
-            if not confirm_yn('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
-                ' You can press Ctrl+C to cancel during this process if needed. Continue?'):
-                logger.info('Cancelling...')
+            if not self.confirmation_callback('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
+                ' Continue?'):
+                logger.info('Skipping coordinates...')
                 return
         elif total_intervals > 5000:
             logger.info('More than 5000 grid intervals will be iterated over;' +
@@ -362,12 +378,15 @@ class Combiner:
         logger.info('Drawing coordinates...')
         idraw = ImageDraw.Draw(image.img)
         font = ImageFont.truetype(self.style.grid_text_font, size=self.style.grid_text_size)
+
         for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
+            logger.log('GUI_COMMAND', f'/pbar set {pbar.n / total_intervals}')
             game_coord = img_coord.to_game_coord(image)
             coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
             if self.use_tqdm and (total_intervals <= 5000):
                 pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
             idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba(), font=font)
+        logger.log('GUI_COMMAND', '/pbar hide')
 
     def combine(self,
             world: str | Path,
@@ -424,7 +443,7 @@ class Combiner:
             row_range = range(area_regions[1], area_regions[3] + 1)
 
         size_estimate = f'{self.TILE_SIZE * len(column_range)}x{self.TILE_SIZE * len(row_range)}'
-        if not confirm_yn(f'Estimated image size: {size_estimate}\nContinue?', self.skip_confirmation):
+        if not self.confirmation_callback(f'Estimated image size: {size_estimate}\nContinue?'):
             logger.info('Cancelling...')
             return None
 
@@ -438,19 +457,27 @@ class Combiner:
         ta = time.perf_counter()
         # Represents where 0, 0 in our Minecraft world is, in relation to the image's coordinates
         game_zero_in_image: Coord2i | None = None
-        for c, r in tqdm_product(column_range, row_range, disable=not self.use_tqdm, desc='Columns'):
+        regions_iter: list[tuple[int, int]] = list(product(column_range, row_range))
+        for c, r in (pbar := tqdm(regions_iter, disable=not self.use_tqdm)):
+            pbar.set_description(f'Region: {c}, {r}')
+            logger.log('GUI_COMMAND', f'/pbar set {pbar.n / len(regions_iter)}')
+
             if (c not in regions) or (r not in regions[c]):
                 continue
+
             # The pasting coordinates are determined based on what current column and row the for loops
             # are on, so they'll increase by a tile regardless of whether an image has actually been pasted
-            x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
             tile_path = regions[c][r]
             if self.use_tqdm:
                 tqdm.write(f'Pasting image: {tile_path}')
+
+            x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))
             paste_area = Rectangle([x, y, x + self.TILE_SIZE, y + self.TILE_SIZE])
             if not game_zero_in_image:
                 game_zero_in_image = Coord2i(x, y) - (Coord2i(c, r) * self.TILE_SIZE)
             image.paste((tile_img := Image.open(tile_path)), paste_area, mask=tile_img)
+
+        logger.log('GUI_COMMAND', '/pbar hide')
 
         assert game_zero_in_image, AssertionMessage.GAME_ZERO_IS_NONE
         image = MapImage(image, MapImageCoord(*game_zero_in_image), detail_mul)

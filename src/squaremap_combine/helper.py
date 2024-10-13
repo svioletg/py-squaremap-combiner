@@ -8,7 +8,7 @@ from functools import wraps
 from itertools import batched
 from json import JSONEncoder
 from math import floor
-from typing import Any, Callable, Concatenate, ParamSpec, Self, TypeVar
+from typing import Any, Callable, Concatenate, ParamSpec, Protocol, Self, TypeVar
 
 import loguru
 
@@ -18,6 +18,11 @@ from squaremap_combine.type_alias import Rectangle
 T = TypeVar('T')
 P = ParamSpec('P')
 """@private"""
+
+class ConfirmationCallback(Protocol):
+    """Typing protocol for `Combiner.combine()`'s `confirmation_callback` argument."""
+    def __call__(self, message: str, *args: Any, **kwargs: Any) -> bool:
+        ...
 
 class Color:
     """Represents a 24-bit color.
