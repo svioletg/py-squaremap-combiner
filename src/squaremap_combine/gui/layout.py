@@ -3,6 +3,7 @@ Handles building the main GUI layout.
 """
 
 from math import floor
+from pprint import pprint
 from typing import Any, Callable
 
 import dearpygui.dearpygui as dpg
@@ -26,17 +27,21 @@ class ElemGroup:
     _groups: dict[str, list[int | str]] = {}
 
     @classmethod
-    def add(cls, group_name: str, item: int | str) -> int | str:
+    def add(cls, groups: str | list[str], item: int | str) -> int | str:
         """Adds a `dearpygui` item to the named group.
 
-        :param group_name: Group to add this item to. If it does not exist, it will be created.
+        :param groups: Group to add this item to. If it does not exist, it will be created.
+            Can either be a single group name, or a list of multiple groups to add to.
         :param item: Item `int` or `str` identifier to add to the named group.
         :returns: The `item` originally passed to this method.
         :rtype: int | str
         """
-        if group_name not in cls._groups:
-            cls._groups[group_name] = []
-        cls._groups[group_name].append(item)
+        if isinstance(groups, str):
+            groups = [groups]
+        for g in groups:
+            if g not in cls._groups:
+                cls._groups[g] = []
+            cls._groups[g].append(item)
         return item
 
     @classmethod
@@ -87,8 +92,8 @@ def build_layout(debugging: bool=False):
         # Tiles directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Tiles directory:')
-            dpg.add_input_text(tag='tiles-dir-input', default_value='', width=700,
-                callback=actions.validate_tiles_dir_callback, on_enter=True)
+            ElemGroup.add(['img-required', 'image-settings'], dpg.add_input_text(tag='tiles-dir-input', default_value='', width=700,
+                callback=actions.validate_tiles_dir_callback, on_enter=True))
         dpg.add_button(tag='tiles-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
             user_data=UserData(
                 cb_display_with='tiles-dir-input',
@@ -98,17 +103,19 @@ def build_layout(debugging: bool=False):
         # World selection
         dpg.add_text('World:')
         dpg.add_text(tag='world-no-valid-dir', default_value=MESSAGE_NO_DIR)
-        dpg.add_radio_button(tag='world-choices', items=[], show=False, callback=actions.update_detail_choices_callback)
+        ElemGroup.add(['img-required', 'image-settings'], dpg.add_radio_button(tag='world-choices', items=[], show=False,
+            callback=actions.update_detail_choices_callback))
 
         # Detail selection
         dpg.add_text('Map detail level:')
         dpg.add_text(tag='detail-invalid', default_value=MESSAGE_NO_DIR)
-        dpg.add_radio_button(tag='detail-choices', items=[], show=False, horizontal=True)
+        ElemGroup.add(['img-required', 'image-settings'],
+            dpg.add_radio_button(tag='detail-choices', items=[], show=False, horizontal=True))
 
         # Output directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Output directory:')
-            dpg.add_input_text(tag='out-dir-input', default_value='', width=700)
+            ElemGroup.add(['img-required', 'image-settings'], dpg.add_input_text(tag='out-dir-input', default_value='', width=700))
         dpg.add_button(tag='out-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
             user_data=UserData(cb_display_with='out-dir-input'))
 
@@ -116,17 +123,18 @@ def build_layout(debugging: bool=False):
         # Output extension
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Output format:')
-            dpg.add_input_text(tag='output-ext-input', width=75, default_value='png')
+            ElemGroup.add('image-settings', dpg.add_input_text(tag='output-ext-input', width=75, default_value='png'))
 
         # Timestamp format
         with dpg.group(horizontal=True):
-            dpg.add_checkbox(tag='timestamp-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('timestamp-opts', a))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='timestamp-checkbox',
+                callback=lambda s,a,d: ElemGroup.visbility('timestamp-opts', a)))
             dpg.add_text(default_value='Add timestamp to filename')
 
         with dpg.group(tag='timestamp-format-input-group', horizontal=True):
             ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp format:', show=False))
-            ElemGroup.add('timestamp-opts', dpg.add_input_text(tag='timestamp-format-input', width=300, show=False))
+            ElemGroup.add(['image-settings', 'timestamp-opts'],
+                dpg.add_input_text(tag='timestamp-format-input', width=300, show=False))
 
         with dpg.group(tag='timestamp-format-preview-group', horizontal=True):
             ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp Preview:', show=False))
@@ -134,39 +142,39 @@ def build_layout(debugging: bool=False):
 
         # Autotrim
         with dpg.group(horizontal=True):
-            dpg.add_checkbox(tag='autotrim-checkbox', default_value=True)
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='autotrim-checkbox', default_value=True))
             dpg.add_text(default_value='Trim empty areas of the map')
 
         # Area to render
         with dpg.group(horizontal=True):
-            dpg.add_checkbox(tag='area-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('area-opts', a))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='area-checkbox',
+                callback=lambda s,a,d: ElemGroup.visbility('area-opts', a)))
             dpg.add_text(default_value='Export a specific area of the world')
         ElemGroup.add('area-opts', dpg.add_text(default_value='Enter the top-left and bottom-right coordinates of the area you want:',
             show=False))
-        ElemGroup.add('area-opts', dpg.add_input_intx(tag='area-coord-input', size=4, width=300, show=False))
+        ElemGroup.add(['image-settings', 'area-opts'], dpg.add_input_intx(tag='area-coord-input', size=4, width=300, show=False))
 
         # Force output size
         with dpg.group(horizontal=True):
-            dpg.add_checkbox(tag='force-size-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('force-size-opts', a))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='force-size-checkbox',
+                callback=lambda s,a,d: ElemGroup.visbility('force-size-opts', a)))
             dpg.add_text(default_value='Crop final image size')
         ElemGroup.add('force-size-opts', dpg.add_text(default_value='Enter the desired width and height:', show=False))
-        ElemGroup.add('force-size-opts', dpg.add_input_intx(tag='force-size-input', size=2, width=150, show=False))
+        ElemGroup.add(['image-settings', 'force-size-opts'], dpg.add_input_intx(tag='force-size-input', size=2, width=150, show=False))
 
         # Grid overlay
         with dpg.group(horizontal=True):
-            dpg.add_checkbox(tag='grid-overlay-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('grid-opts', a))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='grid-overlay-checkbox',
+                callback=lambda s,a,d: ElemGroup.visbility('grid-opts', a)))
             dpg.add_text(default_value='Add a grid overlay to the image')
         ElemGroup.add('grid-opts', dpg.add_text(default_value='Enter the X and Y coordinate intervals for the grid:', show=False))
-        ElemGroup.add('grid-opts', dpg.add_input_intx(tag='grid-interval-input', size=2, width=150, show=False))
+        ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_input_intx(tag='grid-interval-input', size=2, width=150, show=False))
 
         with dpg.group(horizontal=True):
-            ElemGroup.add('grid-opts', dpg.add_checkbox(tag='grid-show-lines-checkbox'))
+            ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-lines-checkbox'))
             ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid lines'))
         with dpg.group(horizontal=True):
-            ElemGroup.add('grid-opts', dpg.add_checkbox(tag='grid-show-coords-checkbox'))
+            ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-coords-checkbox'))
             ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid coordinates'))
 
     def debug_tab_content():
@@ -182,6 +190,11 @@ def build_layout(debugging: bool=False):
         dpg.add_button(label='Hide progress bar', callback=lambda: dpg.configure_item('progress-bar', show=False))
         dpg.add_text(default_value='Progress bar value:')
         dpg.add_input_text(on_enter=True, callback=lambda s,a,d: dpg.configure_item('progress-bar', default_value=float(a)))
+        dpg.add_button(label='Print element groups', callback=lambda: pprint(ElemGroup._groups)) # pylint: disable=protected-access
+        dpg.add_button(label='Print image settings group',
+            callback=lambda: pprint(ElemGroup._groups['image-settings'])) # pylint: disable=protected-access
+        dpg.add_button(label='Print gathered image options',
+            callback=lambda: pprint(actions.gather_image_options()))
 
     # Primary window
     with dpg.window(tag='main-window'):
@@ -191,9 +204,9 @@ def build_layout(debugging: bool=False):
         # Tabs
         with dpg.group(tag='tabs-group'):
             with dpg.tab_bar(tag='tabs'):
-                with dpg.tab(tag='tab-primary', label='Basic'):
+                with dpg.tab(tag='tab-primary', label='Basic Settings'):
                     primary_tab_content()
-                with dpg.tab(tag='tab-secondary', label='Additional Options'):
+                with dpg.tab(tag='tab-secondary', label='Additional Settings'):
                     secondary_tab_content()
                 if debugging:
                     with dpg.tab(tag='tab-debug', label='Debug'):

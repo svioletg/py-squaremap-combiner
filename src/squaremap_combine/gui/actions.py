@@ -8,13 +8,13 @@ from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from tkinter.filedialog import askdirectory, askopenfilename, asksaveasfilename
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 import dearpygui.dearpygui as dpg
 from PIL import Image
 
 from squaremap_combine.combine_core import DEFAULT_OUTFILE_FORMAT, Combiner, logger
-from squaremap_combine.gui.layout import CONSOLE_TEXT_WRAP
+from squaremap_combine.gui.layout import CONSOLE_TEXT_WRAP, ElemGroup
 from squaremap_combine.gui.models import CallbackArgs, UserData
 from squaremap_combine.gui.styling import Themes
 
@@ -35,7 +35,8 @@ def dpg_callback(func):
         user_data = user_data or UserData()
         result = func(CallbackArgs(sender=sender, app_data=app_data, user_data=user_data))
         if display_with := user_data.cb_display_with:
-            dpg.set_value(display_with, str(result))
+            # Setting something like a text field to 'None' would then count as a non-None input if it were to be checked later
+            dpg.set_value(display_with, str(result if result is not None else ''))
         if store_in := user_data.cb_store_in:
             dpg.set_item_user_data(store_in, result)
         if forward_to := user_data.cb_forward_to:
@@ -122,26 +123,25 @@ def close_confirm_dialog_callback(args: CallbackArgs):
     dpg.set_item_user_data('modal-confirm', args.sender)
     dpg.set_value('debug-conf-response-text', args.sender)
 
+def gather_image_options() -> dict[str, Any]:
+    """Gets the value of every option input relating to creating an image, and returns them in a dictionary."""
+    opt_dict = {e:dpg.get_value(e) for e in ElemGroup.get('image-settings') if not isinstance(e, int)}
+    return opt_dict
+
 @dpg_callback
 def create_image_callback(_args: CallbackArgs):
     """Callback form of `create_image`."""
     th = threading.Thread(target=create_image)
     th.start()
 
+@logger.catch
 def create_image() -> Image.Image | None:
     """Prepares a `Combiner` instance with the selected options and creates the map image.
 
     .. warning::
         Must be run in a `threading.Thread`, or else the call will never complete.
     """
-    dpg.set_item_user_data('console-output-window', {'allow-output': True})
-
-    tiles_dir: str = dpg.get_value('tiles-dir-input') or ''
-    world: str = dpg.get_value('world-choices') or ''
-    level: str = dpg.get_value('detail-choices') or ''
-    output_dir: str = dpg.get_value('out-dir-input') or ''
-
-    if not all(arg for arg in [tiles_dir, world, level, output_dir]):
+    if not all(dpg.get_value(e) for e in ElemGroup.get('img-required')):
         open_notice_dialog('One or more required options have not been set. Check that you\'ve set:\n' +
             '- A valid tiles directory\n' +
             '- World to render\n' +
@@ -149,23 +149,27 @@ def create_image() -> Image.Image | None:
             '- Output directory')
         return None
 
-    output_ext: str = dpg.get_value('output-ext-input')
-    use_timestamp: bool = dpg.get_value('timestamp-checkbox')
-    timestamp: str = dpg.get_value('timestamp-format-input')
-    autotrim: bool = dpg.get_value('autotrim-checkbox')
+    opts = gather_image_options()
 
-    combiner = Combiner(tiles_dir, use_tqdm=True, confirmation_callback=open_confirm_dialog)
-    result = combiner.combine(world, int(level), autotrim=autotrim)
+    if not Path(opts['out-dir-input']).is_dir():
+        open_notice_dialog('Could not find a directory at the specified path:\n' +
+            str(Path(opts['out-dir-input']).absolute()))
+        return None
+
+    dpg.set_item_user_data('console-output-window', {'allow-output': True})
+
+    combiner = Combiner(opts['tiles-dir-input'], use_tqdm=True, confirmation_callback=open_confirm_dialog)
+    result = combiner.combine(opts['world-choices'], int(opts['detail-choices']), autotrim=opts['autotrim-checkbox'])
 
     if not result:
         logger.info('No image was created; process either failed or was cancelled.')
         return None
 
-    out_file = Path(output_dir, DEFAULT_OUTFILE_FORMAT.format(
-        timestamp=(datetime.now().strftime(timestamp) + '_') if use_timestamp else '',
-        world=world,
-        detail=level,
-        output_ext=output_ext
+    out_file = Path(opts['out-dir-input'], DEFAULT_OUTFILE_FORMAT.format(
+        timestamp=(datetime.now().strftime(opts['timestamp-format-input']) + '_') if opts['timestamp-checkbox'] else '',
+        world=opts['world-choices'],
+        detail=opts['detail-choices'],
+        output_ext=opts['output-ext-input']
     ))
 
     if out_file.is_file():
@@ -176,8 +180,11 @@ def create_image() -> Image.Image | None:
             out_file = new_out_file
 
     result.img.save(out_file)
-    logger.info(f'Image saved to: {out_file}')
+    logger.info(f'Image saved to: {out_file.absolute()}')
 
+    logger.info('Image creation complete!')
+    open_notice_dialog('Image creation complete!\n' +
+        f'Saved to: {out_file.absolute()}')
     dpg.set_item_user_data('console-output-window', {'allow-output': False})
     return result.img
 

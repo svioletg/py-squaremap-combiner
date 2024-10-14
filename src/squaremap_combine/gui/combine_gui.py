@@ -30,7 +30,7 @@ def main(): # pylint: disable=missing-function-docstring
     dpg.create_viewport(title='squaremap_combine GUI',
         width=window_size[0],
         height=window_size[1],
-        x_pos=100,
+        x_pos=300,
         y_pos=100
     )
     dpg.setup_dearpygui()
