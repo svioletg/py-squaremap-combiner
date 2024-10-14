@@ -91,11 +91,13 @@ def build_layout():
         dpg.add_text(tag='title-text', default_value=f'squaremap_combine v{PROJECT_VERSION}')
         dpg.add_spacer(height=SPACER_HEIGHT)
 
-        with dpg.tab_bar(tag='tabs'):
-            with dpg.tab(tag='tab-primary', label='Basic'):
-                primary_tab_content()
-            with dpg.tab(tag='tab-secondary', label='Additional Options'):
-                secondary_tab_content()
+        # Tabs
+        with dpg.group(tag='tabs-group'):
+            with dpg.tab_bar(tag='tabs'):
+                with dpg.tab(tag='tab-primary', label='Basic'):
+                    primary_tab_content()
+                with dpg.tab(tag='tab-secondary', label='Additional Options'):
+                    secondary_tab_content()
 
         # End options
         dpg.add_spacer(height=SPACER_HEIGHT)
@@ -114,7 +116,7 @@ def build_layout():
 
     #region EVENT HANDLERS
     with dpg.handler_registry(tag='handler-reg'):
-        dpg.add_key_down_handler(-1, callback=actions.timestamp_format_updated_callback)
+        dpg.add_key_press_handler(-1, callback=actions.timestamp_format_updated_callback)
 
     with dpg.item_handler_registry(tag='widget-handler'):
         dpg.add_item_resize_handler(callback=actions.center_in_window_callback,
