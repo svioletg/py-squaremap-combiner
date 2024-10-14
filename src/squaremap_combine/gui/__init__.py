@@ -16,6 +16,6 @@ python3 -m squaremap_combine gui
 Add `debug` to the end of the command to enable debug logs & the debug tab.
 
 This submodule is split up into further submodules to contain each aspect of the GUI creation / handling process.
-You can think of `gui.layout` as the HTML, `gui.styling` as the CSS, and `gui.actions` as the scripting, in a way.
-`gui.combine_gui` houses the main entrypoint to actually launch the GUI app.
+You can think of `layout` as the HTML, `styling` as the CSS, and `actions` as the scripting, in a way.
+`combine_gui` houses the main entrypoint to actually launch the GUI app.
 """
