@@ -70,7 +70,7 @@ def update_detail_choices(world: str):
     """Updates what radio buttons are available for map detail based on
     the contents of the selected world folder.
     """
-    tiles_dir: str = dpg.get_item_user_data('tiles-dir-label') or ''
+    tiles_dir: str = dpg.get_value('tiles-dir-label') or ''
     levels: list[str] = [p.stem for p in Path(tiles_dir, world).rglob('*/')]
     dpg.configure_item('detail-invalid', show=not bool(levels))
     dpg.configure_item('detail-choices', items=levels, show=bool(levels), default_value=levels[0])
@@ -120,6 +120,7 @@ def close_confirm_dialog_callback(args: CallbackArgs):
     EVENT.set()
     dpg.configure_item('modal-confirm', show=False)
     dpg.set_item_user_data('modal-confirm', args.sender)
+    dpg.set_value('debug-conf-response-text', args.sender)
 
 @dpg_callback
 def create_image_callback(_args: CallbackArgs):
@@ -135,10 +136,10 @@ def create_image() -> Image.Image | None:
     """
     dpg.set_item_user_data('console-output-window', {'allow-output': True})
 
-    tiles_dir: str = dpg.get_item_user_data('tiles-dir-label') or ''
+    tiles_dir: str = dpg.get_value('tiles-dir-label') or ''
     world: str = dpg.get_value('world-choices') or ''
     level: str = dpg.get_value('detail-choices') or ''
-    output_dir: str = dpg.get_item_user_data('out-dir-label') or ''
+    output_dir: str = dpg.get_value('out-dir-label') or ''
 
     if not all(arg for arg in [tiles_dir, world, level, output_dir]):
         open_notice_dialog('One or more required options have not been set. Check that you\'ve set:\n' +
@@ -234,6 +235,11 @@ def update_console(message: str):
         case 'ERROR':
             dpg.bind_item_theme(new_log, Themes().console_error)
     dpg.set_y_scroll('console-output-window', value=-1)
+
+@dpg_callback
+def validate_tiles_dir_callback(args: CallbackArgs):
+    """Callback form of `validate_tiles_dir`. Passes `app_data` as `source_dir`."""
+    validate_tiles_dir(args.app_data)
 
 def validate_tiles_dir(source_dir: Path):
     """Check that the given directory contains a valid path to tiles, and update the choices."""

@@ -13,6 +13,8 @@ Once the requirements are installed, you can open the GUI app by running the mod
 python3 -m squaremap_combine gui
 ```
 
+Add `debug` to the end of the command to enable debug logs & the debug tab.
+
 This submodule is split up into further submodules to contain each aspect of the GUI creation / handling process.
 You can think of `gui.layout` as the HTML, `gui.styling` as the CSS, and `gui.actions` as the scripting, in a way.
 `gui.combine_gui` houses the main entrypoint to actually launch the GUI app.

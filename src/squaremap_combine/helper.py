@@ -134,9 +134,12 @@ class StyleJSONEncoder(JSONEncoder):
             return tuple(o)
         return o.__dict__
 
-def enable_logging(logger: 'loguru.Logger') -> tuple[int, int]:
+def enable_logging(logger: 'loguru.Logger', stdout_level: str='INFO') -> tuple[int, int]:
     """Adds handlers (after clearing previous ones) to the given `loguru` logger and returns their `int` identifiers.
-    
+
+    :param logger: `loguru.Logger` to add handles to.
+    :param stdout_level: What level to set the `stdout` stream's handler to. Defaults to "INFO".
+
     :returns: stdout handler ID, file handler ID
     :rtype: int
     """
@@ -145,7 +148,8 @@ def enable_logging(logger: 'loguru.Logger') -> tuple[int, int]:
     logger.level('WARNING', color='<yellow>')
     logger.level('ERROR', color='<red>')
 
-    stdout_handler = logger.add(sys.stdout, colorize=True, format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level='INFO')
+    stdout_handler = logger.add(sys.stdout, colorize=True,
+        format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level=stdout_level)
     file_handler = logger.add(LOGS_DIR / '{time:YYYY-MM-DD_HH-mm-ss}.log',
         format="[{time:HH:mm:ss}] {level}: {message}", level='DEBUG', mode='w', retention=5)
 

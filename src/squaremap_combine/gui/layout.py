@@ -6,6 +6,7 @@ from math import floor
 
 import dearpygui.dearpygui as dpg
 
+from squaremap_combine.combine_core import logger
 from squaremap_combine.gui import actions
 from squaremap_combine.gui.models import UserData
 from squaremap_combine.project import PROJECT_VERSION
@@ -17,8 +18,11 @@ SPACER_HEIGHT = 10
 
 MESSAGE_NO_DIR = 'None to display; choose a valid tiles directory above.'
 
-def build_layout():
-    """Builds the basic GUI app layout."""
+def build_layout(debugging: bool=False):
+    """Builds the basic GUI app layout.
+    
+    :param debugging: If `True`, this will enable the "Debug" tab, and set the `sys.stdout` log handler's level to "DEBUG".
+    """
     #region LAYOUT
     # Modal notice box
     with dpg.window(tag='modal-notice', label='Notice', modal=True, show=False, no_resize=True, max_size=MODAL_DIALOG_MAX_SIZE):
@@ -39,11 +43,11 @@ def build_layout():
         # Tiles directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Tiles directory:')
-            dpg.add_text(tag='tiles-dir-label', default_value='None chosen; click the button below to select one', wrap=640)
+            dpg.add_input_text(tag='tiles-dir-label', default_value='', width=700,
+                callback=actions.validate_tiles_dir_callback, on_enter=True)
         dpg.add_button(tag='tiles-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
             user_data=UserData(
                 cb_display_with='tiles-dir-label',
-                cb_store_in='tiles-dir-label',
                 cb_forward_to=actions.validate_tiles_dir
             ))
 
@@ -60,9 +64,9 @@ def build_layout():
         # Output directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Output directory:')
-            dpg.add_text(tag='out-dir-label', default_value='None chosen; click the button below to select one', wrap=640)
+            dpg.add_input_text(tag='out-dir-label', default_value='', width=700)
         dpg.add_button(tag='out-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
-            user_data=UserData(cb_display_with='out-dir-label', cb_store_in='out-dir-label'))
+            user_data=UserData(cb_display_with='out-dir-label'))
 
     def secondary_tab_content():
         with dpg.group(horizontal=True):
@@ -86,6 +90,15 @@ def build_layout():
             dpg.add_checkbox(tag='autotrim-checkbox')
             dpg.add_text(default_value='Trim empty areas of the map?')
 
+    def debug_tab_content():
+        dpg.add_button(label='Modal dialog, notice', callback=actions.open_notice_dialog_callback,
+            user_data=UserData(other='Notice message body.'))
+        dpg.add_button(label='Modal dialog, confirmation', callback=actions.open_confirm_dialog_callback,
+            user_data=UserData(other='Confirmation message body.'))
+        with dpg.group(horizontal=True):
+            dpg.add_text(default_value='Last confirmation dialog response:')
+            dpg.add_text(tag='debug-conf-response-text', default_value='')
+
     # Primary window
     with dpg.window(tag='main-window'):
         dpg.add_text(tag='title-text', default_value=f'squaremap_combine v{PROJECT_VERSION}')
@@ -98,6 +111,9 @@ def build_layout():
                     primary_tab_content()
                 with dpg.tab(tag='tab-secondary', label='Additional Options'):
                     secondary_tab_content()
+                if debugging:
+                    with dpg.tab(tag='tab-debug', label='Debug'):
+                        debug_tab_content()
 
         # End options
         dpg.add_spacer(height=SPACER_HEIGHT)
@@ -109,7 +125,7 @@ def build_layout():
         # Log ouptut window
         dpg.add_text('Combiner output:')
         with dpg.child_window(tag='console-output-window', height=200, user_data={'allow-output': False}):
-            dpg.add_text(tag='console-output-text', default_value='', wrap=CONSOLE_TEXT_WRAP)
+            pass
 
         dpg.add_progress_bar(tag='progress-bar', width=-1, show=False)
     #endregion LAYOUT

@@ -2,6 +2,8 @@
 Main GUI entrypoint which will open the app.
 """
 
+import sys
+
 import dearpygui.dearpygui as dpg
 
 from squaremap_combine.combine_core import logger
@@ -11,7 +13,12 @@ from squaremap_combine.project import GUI_ASSETS, PROJECT_VERSION
 
 
 def main(): # pylint: disable=missing-function-docstring
-    stdout_handler, file_handler = enable_logging(logger) # pylint: disable=unused-variable
+    DEBUG_MODE = 'debug' in sys.argv # pylint: disable=invalid-name
+
+    stdout_handler, file_handler = enable_logging(logger, 'DEBUG' if DEBUG_MODE else 'INFO') # pylint: disable=unused-variable
+
+    if DEBUG_MODE:
+        logger.info('DEBUG_MODE is enabled.')
 
     logger.info(f'squaremap_combine v{PROJECT_VERSION}')
 
@@ -29,13 +36,13 @@ def main(): # pylint: disable=missing-function-docstring
     dpg.setup_dearpygui()
 
     logger.info('Building layout...')
-    layout.build_layout()
+    layout.build_layout(DEBUG_MODE)
 
-    logger.info('Building themes...')
+    logger.info('Applying themes...')
     styling.apply_themes()
 
-    logger.info('Adding fonts...')
-    styling.apply_fonts()
+    logger.info('Configuring fonts...')
+    styling.configure_fonts()
 
     logger.info('Setting icon...')
     dpg.set_viewport_small_icon(str(GUI_ASSETS / 'icon.ico'))
