@@ -87,11 +87,11 @@ def build_layout(debugging: bool=False):
         # Tiles directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Tiles directory:')
-            dpg.add_input_text(tag='tiles-dir-label', default_value='', width=700,
+            dpg.add_input_text(tag='tiles-dir-input', default_value='', width=700,
                 callback=actions.validate_tiles_dir_callback, on_enter=True)
         dpg.add_button(tag='tiles-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
             user_data=UserData(
-                cb_display_with='tiles-dir-label',
+                cb_display_with='tiles-dir-input',
                 cb_forward_to=actions.validate_tiles_dir
             ))
 
@@ -108,9 +108,9 @@ def build_layout(debugging: bool=False):
         # Output directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Output directory:')
-            dpg.add_input_text(tag='out-dir-label', default_value='', width=700)
+            dpg.add_input_text(tag='out-dir-input', default_value='', width=700)
         dpg.add_button(tag='out-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
-            user_data=UserData(cb_display_with='out-dir-label'))
+            user_data=UserData(cb_display_with='out-dir-input'))
 
     def secondary_tab_content():
         # Output extension

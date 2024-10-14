@@ -70,7 +70,7 @@ def update_detail_choices(world: str):
     """Updates what radio buttons are available for map detail based on
     the contents of the selected world folder.
     """
-    tiles_dir: str = dpg.get_value('tiles-dir-label') or ''
+    tiles_dir: str = dpg.get_value('tiles-dir-input') or ''
     levels: list[str] = [p.stem for p in Path(tiles_dir, world).rglob('*/')]
     dpg.configure_item('detail-invalid', show=not bool(levels))
     dpg.configure_item('detail-choices', items=levels, show=bool(levels), default_value=levels[0])
@@ -136,10 +136,10 @@ def create_image() -> Image.Image | None:
     """
     dpg.set_item_user_data('console-output-window', {'allow-output': True})
 
-    tiles_dir: str = dpg.get_value('tiles-dir-label') or ''
+    tiles_dir: str = dpg.get_value('tiles-dir-input') or ''
     world: str = dpg.get_value('world-choices') or ''
     level: str = dpg.get_value('detail-choices') or ''
-    output_dir: str = dpg.get_value('out-dir-label') or ''
+    output_dir: str = dpg.get_value('out-dir-input') or ''
 
     if not all(arg for arg in [tiles_dir, world, level, output_dir]):
         open_notice_dialog('One or more required options have not been set. Check that you\'ve set:\n' +
@@ -149,6 +149,10 @@ def create_image() -> Image.Image | None:
             '- Output directory')
         return None
 
+    output_ext: str = dpg.get_value('output-ext-input')
+    use_timestamp: bool = dpg.get_value('timestamp-checkbox')
+    timestamp: str = dpg.get_value('timestamp-format-input')
+
     combiner = Combiner(tiles_dir, use_tqdm=True, confirmation_callback=open_confirm_dialog)
     result = combiner.combine(world, int(level))
 
@@ -157,10 +161,10 @@ def create_image() -> Image.Image | None:
         return None
 
     out_file = Path(output_dir, DEFAULT_OUTFILE_FORMAT.format(
-        timestamp='',
+        timestamp=(datetime.now().strftime(timestamp) + '_') if use_timestamp else '',
         world=world,
         detail=level,
-        output_ext='png'
+        output_ext=output_ext
     ))
 
     if out_file.is_file():
