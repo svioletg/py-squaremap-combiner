@@ -11,7 +11,7 @@ The seed used for the world the sample images were created from is
 `-2590089827693666277`.
 
 Until I release version 1.0.0, I do not consider this project stable ---
-there are bound to be a number of bugs or quirks that I haven\'t
+there are bound to be a number of bugs or quirks that I haven't
 discovered and/or fixed yet, and the code will likely be seeing
 frequently large changes until that point. Right now version bumps are
 made subjectively and each bump just increases the minor version, but
@@ -89,7 +89,7 @@ Use `squaremap_combine gui debug` to enable debug logs & the debug tab for the G
 This project uses [loguru](https://github.com/Delgan/loguru) for its
 logging. Logging is disabled by default, but enabled at the
 `INFO` level when running the package as a command. If
-you\'re importing any modules from this package and want to make use of
+you're importing any modules from this package and want to make use of
 its logs, import `logger` from the `combine_core` module and use `helper.enable_logging()` to
 enable log output.
 
@@ -152,7 +152,7 @@ Note that very large maps can of course easily result in very large
 images, and it may take a while for the full image to be completed.
 
 Beyond this, there are various options that can be given to the script
-to alter its behavior. If you\'re not familiar with using the
+to alter its behavior. If you're not familiar with using the
 command-line, these options are typed out after the main command, in any
 order, with their associated values following directly after, like
 `squaremap_combine tiles overworld 3 --option value --option-two value`.
@@ -219,7 +219,7 @@ By default, excess empty space is trimmed off of the final image.
 #### `-fs, --force-size <WIDTH [HEIGHT]>`
 
 Centers the assembled map inside an image of this size. Can be used
-    to make images a consistent size if you\'re using them for a
+    to make images a consistent size if you're using them for a
     timelapse, for example. Only specifying one integer for this
     argument will use the same value for both width and height.
 
