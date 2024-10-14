@@ -152,9 +152,10 @@ def create_image() -> Image.Image | None:
     output_ext: str = dpg.get_value('output-ext-input')
     use_timestamp: bool = dpg.get_value('timestamp-checkbox')
     timestamp: str = dpg.get_value('timestamp-format-input')
+    autotrim: bool = dpg.get_value('autotrim-checkbox')
 
     combiner = Combiner(tiles_dir, use_tqdm=True, confirmation_callback=open_confirm_dialog)
-    result = combiner.combine(world, int(level))
+    result = combiner.combine(world, int(level), autotrim=autotrim)
 
     if not result:
         logger.info('No image was created; process either failed or was cancelled.')

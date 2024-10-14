@@ -58,6 +58,10 @@ class Themes:
                 dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (96, 96, 127, 255))
                 dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (96, 96, 127, 255))
 
+            with dpg.theme_component(dpg.mvProgressBar):
+                dpg.add_theme_color(dpg.mvThemeCol_PlotHistogram, (0, 196, 0, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (32, 32, 32, 255))
+
         with dpg.theme() as self.tabs:
             with dpg.theme_component(dpg.mvAll):
                 dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 16, 4)

@@ -134,7 +134,7 @@ def build_layout(debugging: bool=False):
 
         # Autotrim
         with dpg.group(horizontal=True):
-            dpg.add_checkbox(tag='autotrim-checkbox')
+            dpg.add_checkbox(tag='autotrim-checkbox', default_value=True)
             dpg.add_text(default_value='Trim empty areas of the map')
 
         # Area to render
@@ -178,6 +178,10 @@ def build_layout(debugging: bool=False):
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Last confirmation dialog response:')
             dpg.add_text(tag='debug-conf-response-text', default_value='')
+        dpg.add_button(label='Show progress bar', callback=lambda: dpg.configure_item('progress-bar', show=True))
+        dpg.add_button(label='Hide progress bar', callback=lambda: dpg.configure_item('progress-bar', show=False))
+        dpg.add_text(default_value='Progress bar value:')
+        dpg.add_input_text(on_enter=True, callback=lambda s,a,d: dpg.configure_item('progress-bar', default_value=float(a)))
 
     # Primary window
     with dpg.window(tag='main-window'):
