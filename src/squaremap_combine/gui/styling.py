@@ -32,16 +32,20 @@ class Themes:
 
                 dpg.add_theme_color(dpg.mvThemeCol_Separator, (127, 127, 255, 255))
 
-            with dpg.theme_component(dpg.mvInputText):
-                dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)
-                dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 4)
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (0, 0, 0, 255))
+            for comp in [dpg.mvInputText, dpg.mvInputIntMulti]:
+                with dpg.theme_component(comp):
+                    dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)
+                    dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 4)
+                    dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 0)
+                    dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (0, 0, 0, 255))
 
-            with dpg.theme_component(dpg.mvInputText, enabled_state=False):
-                dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)
-                dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 4)
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (127, 127, 127, 255))
-                dpg.add_theme_color(dpg.mvThemeCol_Text, (32, 32, 32, 255))
+            for comp in [dpg.mvInputText, dpg.mvInputIntMulti]:
+                with dpg.theme_component(comp, enabled_state=False):
+                    dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)
+                    dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 4)
+                    dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 0)
+                    dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (127, 127, 127, 255))
+                    dpg.add_theme_color(dpg.mvThemeCol_Text, (32, 32, 32, 255))
 
             with dpg.theme_component(dpg.mvButton):
                 dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)

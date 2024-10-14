@@ -3,10 +3,10 @@ Handles building the main GUI layout.
 """
 
 from math import floor
+from typing import Any, Callable
 
 import dearpygui.dearpygui as dpg
 
-from squaremap_combine.combine_core import logger
 from squaremap_combine.gui import actions
 from squaremap_combine.gui.models import UserData
 from squaremap_combine.project import PROJECT_VERSION
@@ -17,6 +17,50 @@ CONSOLE_TEXT_WRAP = 780
 SPACER_HEIGHT = 10
 
 MESSAGE_NO_DIR = 'None to display; choose a valid tiles directory above.'
+
+class ElemGroup:
+    """Class that allows putting individual items into named groups, primarily for batch operations on multiple items.
+    The class is not meant to be instanced; it holds one private `_groups` attribute can be accessed and modified with
+    the provided class methods.
+    """
+    _groups: dict[str, list[int | str]] = {}
+
+    @classmethod
+    def add(cls, group_name: str, item: int | str) -> int | str:
+        """Adds a `dearpygui` item to the named group.
+
+        :param group_name: Group to add this item to. If it does not exist, it will be created.
+        :param item: Item `int` or `str` identifier to add to the named group.
+        :returns: The `item` originally passed to this method.
+        :rtype: int | str
+        """
+        if group_name not in cls._groups:
+            cls._groups[group_name] = []
+        cls._groups[group_name].append(item)
+        return item
+
+    @classmethod
+    def get(cls, group_name: str) -> list[int | str]:
+        """Retrieves a list of items within the named group. An empty list is returned if the group does not exist."""
+        return cls._groups.get(group_name, [])
+
+    @classmethod
+    def action(cls, group_name: str, func: Callable, *args: Any, **kwargs: Any):
+        """Calls the given `func` for every item in the named group, using each item's identifier as the first argument.
+        Additional arguments can be supplied after `func` and will be passed to it.
+        
+        :param group_name: Group to iterate through and call `func` on each member of.
+        :param func: A `Callable` that will use the current item of the loop as its first argument.
+        :param args: Additional positional arguments that will be passed to `func` after its initial item argument.
+        :param kwargs: Keyword arguments that will be passed to `func` after its initial item argument.
+        """
+        for item in cls.get(group_name):
+            func(item, *args, **kwargs)
+
+    @classmethod
+    def visbility(cls, group_name: str, value: bool):
+        """Sets the `show` keyword of every item in the named group to the given `bool`."""
+        cls.action(group_name, dpg.configure_item, show=value)
 
 def build_layout(debugging: bool=False):
     """Builds the basic GUI app layout.
@@ -69,28 +113,64 @@ def build_layout(debugging: bool=False):
             user_data=UserData(cb_display_with='out-dir-label'))
 
     def secondary_tab_content():
+        # Output extension
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Output format:')
             dpg.add_input_text(tag='output-ext-input', width=75, default_value='png')
 
+        # Timestamp format
         with dpg.group(horizontal=True):
             dpg.add_checkbox(tag='timestamp-checkbox',
-                callback=lambda s,a,d: dpg.configure_item('timestamp-format-input', enabled=a))
-            dpg.add_text(default_value='Add timestamp to filename?')
+                callback=lambda s,a,d: ElemGroup.visbility('timestamp-opts', a))
+            dpg.add_text(default_value='Add timestamp to filename')
 
         with dpg.group(tag='timestamp-format-input-group', horizontal=True):
-            dpg.add_text(default_value='Timestamp format:')
-            dpg.add_input_text(tag='timestamp-format-input', width=300, enabled=False)
+            ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp format:', show=False))
+            ElemGroup.add('timestamp-opts', dpg.add_input_text(tag='timestamp-format-input', width=300, show=False))
 
         with dpg.group(tag='timestamp-format-preview-group', horizontal=True):
-            dpg.add_text(default_value='Timestamp Preview:')
-            dpg.add_text(tag='timestamp-format-preview', default_value='')
+            ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp Preview:', show=False))
+            ElemGroup.add('timestamp-opts', dpg.add_text(tag='timestamp-format-preview', default_value='', show=False))
 
+        # Autotrim
         with dpg.group(horizontal=True):
             dpg.add_checkbox(tag='autotrim-checkbox')
-            dpg.add_text(default_value='Trim empty areas of the map?')
+            dpg.add_text(default_value='Trim empty areas of the map')
+
+        # Area to render
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(tag='area-checkbox',
+                callback=lambda s,a,d: ElemGroup.visbility('area-opts', a))
+            dpg.add_text(default_value='Export a specific area of the world')
+        ElemGroup.add('area-opts', dpg.add_text(default_value='Enter the top-left and bottom-right coordinates of the area you want:',
+            show=False))
+        ElemGroup.add('area-opts', dpg.add_input_intx(tag='area-coord-input', size=4, width=300, show=False))
+
+        # Force output size
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(tag='force-size-checkbox',
+                callback=lambda s,a,d: ElemGroup.visbility('force-size-opts', a))
+            dpg.add_text(default_value='Crop final image size')
+        ElemGroup.add('force-size-opts', dpg.add_text(default_value='Enter the desired width and height:', show=False))
+        ElemGroup.add('force-size-opts', dpg.add_input_intx(tag='force-size-input', size=2, width=150, show=False))
+
+        # Grid overlay
+        with dpg.group(horizontal=True):
+            dpg.add_checkbox(tag='grid-overlay-checkbox',
+                callback=lambda s,a,d: ElemGroup.visbility('grid-opts', a))
+            dpg.add_text(default_value='Add a grid overlay to the image')
+        ElemGroup.add('grid-opts', dpg.add_text(default_value='Enter the X and Y coordinate intervals for the grid:', show=False))
+        ElemGroup.add('grid-opts', dpg.add_input_intx(tag='grid-interval-input', size=2, width=150, show=False))
+
+        with dpg.group(horizontal=True):
+            ElemGroup.add('grid-opts', dpg.add_checkbox(tag='grid-show-lines-checkbox'))
+            ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid lines'))
+        with dpg.group(horizontal=True):
+            ElemGroup.add('grid-opts', dpg.add_checkbox(tag='grid-show-coords-checkbox'))
+            ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid coordinates'))
 
     def debug_tab_content():
+        dpg.add_button(label='Open style editor', callback=dpg.show_style_editor)
         dpg.add_button(label='Modal dialog, notice', callback=actions.open_notice_dialog_callback,
             user_data=UserData(other='Notice message body.'))
         dpg.add_button(label='Modal dialog, confirmation', callback=actions.open_confirm_dialog_callback,
@@ -120,7 +200,7 @@ def build_layout(debugging: bool=False):
         dpg.add_separator()
         dpg.add_spacer(height=SPACER_HEIGHT)
 
-        dpg.add_button(label='Start', callback=actions.create_image_callback)
+        dpg.add_button(label='Start', width=-1, callback=actions.create_image_callback)
 
         # Log ouptut window
         dpg.add_text('Combiner output:')
