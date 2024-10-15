@@ -28,25 +28,7 @@ TILES_DIR_REGEX = r"^[\w-]+\\\w+\\[0-3]\\[-|]\d_[-|]\d"
 EVENT = threading.Event()
 """General-purpose event re-used across multiple functions for waiting on certain responses."""
 
-def notice_on_exception(func, exceptions: Optional[tuple[type[Exception], ...]]=None):
-    """Spawns a modal dialog if an exception is raised in the wrapped function. It also logs the error.
-    
-    :param exceptions: A tuple of exceptions this wrapper will intercept and display.
-    """
-    exceptions = exceptions or (Exception,)
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except exceptions as e:
-            logger.error(''.join(traceback.format_exception(e)))
-            open_notice_dialog('An error has occurred:\n' +
-                ''.join(traceback.format_exception_only(e)).replace('\n', ' ') +
-                '\nYour most recent log file will have more detailed information.'
-            )
-            return None
-    return wrapper
-
+#region WRAPPERS
 def dpg_callback(func):
     """Registers the wrapped function as a callback for `dearpygui` elements, consolidating its arguments
     into a `CallbackArgs` model and automatically handling some additional tasks after it's been called.
@@ -68,6 +50,27 @@ def dpg_callback(func):
         return result
     return wrapper
 
+def notice_on_exception(func, exceptions: Optional[tuple[type[Exception], ...]]=None):
+    """Spawns a modal dialog if an exception is raised in the wrapped function. It also logs the error.
+    
+    :param exceptions: A tuple of exceptions this wrapper will intercept and display.
+    """
+    exceptions = exceptions or (Exception,)
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except exceptions as e:
+            logger.error(''.join(traceback.format_exception(e)))
+            open_notice_dialog('An error has occurred:\n' +
+                ''.join(traceback.format_exception_only(e)).replace('\n', ' ') +
+                '\nYour most recent log file will have more detailed information.'
+            )
+            return None
+    return wrapper
+#endregion WRAPPERS
+
+#region GUI CALLBACKS
 @dpg_callback
 def dir_dialog_callback(_args: CallbackArgs) -> Path | None:
     """Opens a dialog for choosing a directory."""
@@ -319,7 +322,9 @@ def validate_tiles_dir(source_dir: Path):
         dpg.configure_item('world-no-valid-dir', default_value='No valid worlds found in this directory.', show=True)
         dpg.configure_item('detail-invalid', show=True)
         dpg.configure_item('detail-choices', show=False)
+#endregion GUI CALLBACKS
 
+#region MISC FUNCS
 def get_image_options() -> dict[str, Any]:
     """Gets the value of every option input relating to creating an image, and returns them in a dictionary."""
     opt_dict = {e:dpg.get_value(e) for e in ElemGroup.get('image-settings') if not isinstance(e, int)}
@@ -365,3 +370,4 @@ def open_window_at_path(target: Path):
         subprocess.Popen(['xdg-open', '--', target])
     elif sys.platform == 'win32':
         subprocess.Popen(['explorer', target])
+#endregion MISC FUNCS

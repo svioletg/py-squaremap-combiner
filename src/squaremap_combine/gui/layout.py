@@ -2,15 +2,19 @@
 Handles building the main GUI layout.
 """
 
+import webbrowser
+from dataclasses import asdict
 from math import floor
 from pprint import pprint
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import dearpygui.dearpygui as dpg
 
+from squaremap_combine.combine_core import CombinerStyle, logger
 from squaremap_combine.gui import actions
 from squaremap_combine.gui.models import UserData
-from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION, USER_DATA_DIR
+from squaremap_combine.helper import Color
+from squaremap_combine.project import LOGS_DIR, PROJECT_DOCS_URL, PROJECT_VERSION, USER_DATA_DIR
 
 PRIMARY_WINDOW_INIT_SIZE = 1000, 800
 MODAL_DIALOG_MAX_SIZE = floor(PRIMARY_WINDOW_INIT_SIZE[0] / 1.5), floor(PRIMARY_WINDOW_INIT_SIZE[1] / 1.5)
@@ -67,6 +71,32 @@ class ElemGroup:
         """Sets the `show` keyword of every item in the named group to the given `bool`."""
         cls.action(group_name, dpg.configure_item, show=value)
 
+def build_combiner_style_editor():
+    """Auto-generates a visual editor for the `CombinerStyle` class
+    based on the types of its attributes.
+    """
+    input_mapping: dict[type, dict[str, Callable | dict[str, Any]]] = {
+        str   : {'call': dpg.add_input_text},
+        bool  : {'call': dpg.add_checkbox},
+        int   : {'call': dpg.add_input_int},
+        Color : {'call': dpg.add_input_intx, 'kwargs': {'size': 4, 'min_value': 0, 'max_value': 255}}
+    }
+    style_base = CombinerStyle()
+    with dpg.group(horizontal=True):
+        dpg.add_text(default_value='For descriptions of each value, see the online docs:')
+        dpg.add_button(label='Open docs in browser',
+            callback=lambda: webbrowser.open(PROJECT_DOCS_URL + 'squaremap_combine/combine_core.html#CombinerStyle'))
+    for attr, val in asdict(style_base).items():
+        cls = type(val)
+        dpg.add_text(default_value=attr.title().replace('_', ' '))
+        if cls not in input_mapping:
+            dpg.add_input_text(tag=f'{attr}-input')
+            logger.warning(f'Type {cls!r} does not have an associated dearpygui input.')
+        else:
+            call = cast(Callable, input_mapping[cls]['call'])
+            call_kwargs = cast(dict[str, Any], input_mapping[cls].get('kwargs', {}))
+            call(tag=f'{attr}-input', **call_kwargs)
+
 def build_layout(debugging: bool=False):
     """Builds the basic GUI app layout.
 
@@ -87,6 +117,11 @@ def build_layout(debugging: bool=False):
         with dpg.group(horizontal=True):
             dpg.add_button(tag='yes-button', label='Yes', width=75, callback=actions.close_confirm_dialog_callback)
             dpg.add_button(tag='no-button', label='No', width=75, callback=actions.close_confirm_dialog_callback)
+
+    # Combiner style editor window
+    with dpg.window(tag='combiner-style-editor', label='Edit combiner styling', width=800, height=600):
+        build_combiner_style_editor()
+        dpg.add_button(label='Save')
 
     def primary_tab_content():
         dpg.add_spacer(height=SPACER_HEIGHT)

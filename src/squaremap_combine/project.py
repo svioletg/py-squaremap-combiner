@@ -10,6 +10,7 @@ import platformdirs
 
 PROJECT_NAME = 'squaremap_combine'
 PROJECT_VERSION = importlib.metadata.version('squaremap_combine')
+PROJECT_DOCS_URL = 'https://squaremap-combine.readthedocs.io/en/latest/'
 
 USER_DATA_DIR = Path(platformdirs.user_data_dir(PROJECT_NAME))
 APP_SETTINGS_PATH = USER_DATA_DIR / 'preferences.json'

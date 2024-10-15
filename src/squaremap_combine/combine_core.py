@@ -197,9 +197,9 @@ class CombinerStyle:
     """Draw grid lines at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
     grid_line_color: Optional[Color] = None
 
-    show_grid_text: bool  = True
+    show_grid_text: bool = True
     """Draw grid coordinates at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
-    grid_text_font: str   = 'arial'
+    grid_text_font: str = 'arial'
     """Name of a font to use for drawing coordinate text onto the image.
     Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g. "documents/my_font.otf".
     """
