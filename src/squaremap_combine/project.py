@@ -11,10 +11,9 @@ import platformdirs
 PROJECT_NAME = 'squaremap_combine'
 PROJECT_VERSION = importlib.metadata.version('squaremap_combine')
 
+USER_DATA_DIR = Path(platformdirs.user_data_dir(PROJECT_NAME))
+APP_SETTINGS_PATH = USER_DATA_DIR / 'preferences.json'
+OPT_AUTOSAVE_PATH = USER_DATA_DIR / 'options-autosave.json'
 MODULE_DIR = Path(os.path.realpath(__file__)).parent
 LOGS_DIR = MODULE_DIR / 'logs'
-GUI_ASSETS = MODULE_DIR / 'gui/asset'
-
-def user_data_dir() -> Path:
-    """Retrieves the user data directory for the current OS using `platformdirs`."""
-    return Path(platformdirs.user_data_dir(PROJECT_NAME))
+GUI_ASSET_DIR = MODULE_DIR / 'gui/asset'

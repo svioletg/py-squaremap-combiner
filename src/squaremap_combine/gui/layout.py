@@ -10,7 +10,7 @@ import dearpygui.dearpygui as dpg
 
 from squaremap_combine.gui import actions
 from squaremap_combine.gui.models import UserData
-from squaremap_combine.project import PROJECT_VERSION
+from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION, USER_DATA_DIR
 
 PRIMARY_WINDOW_INIT_SIZE = 1000, 800
 MODAL_DIALOG_MAX_SIZE = floor(PRIMARY_WINDOW_INIT_SIZE[0] / 1.5), floor(PRIMARY_WINDOW_INIT_SIZE[1] / 1.5)
@@ -53,7 +53,7 @@ class ElemGroup:
     def action(cls, group_name: str, func: Callable, *args: Any, **kwargs: Any):
         """Calls the given `func` for every item in the named group, using each item's identifier as the first argument.
         Additional arguments can be supplied after `func` and will be passed to it.
-        
+
         :param group_name: Group to iterate through and call `func` on each member of.
         :param func: A `Callable` that will use the current item of the loop as its first argument.
         :param args: Additional positional arguments that will be passed to `func` after its initial item argument.
@@ -69,7 +69,7 @@ class ElemGroup:
 
 def build_layout(debugging: bool=False):
     """Builds the basic GUI app layout.
-    
+
     :param debugging: If `True`, this will enable the "Debug" tab, and set the `sys.stdout` log handler's level to "DEBUG".
     """
     #region LAYOUT
@@ -89,6 +89,8 @@ def build_layout(debugging: bool=False):
             dpg.add_button(tag='no-button', label='No', width=75, callback=actions.close_confirm_dialog_callback)
 
     def primary_tab_content():
+        dpg.add_spacer(height=SPACER_HEIGHT)
+
         # Tiles directory
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Tiles directory:')
@@ -120,6 +122,8 @@ def build_layout(debugging: bool=False):
             user_data=UserData(cb_display_with='out-dir-input'))
 
     def secondary_tab_content():
+        dpg.add_spacer(height=SPACER_HEIGHT)
+
         # Output extension
         with dpg.group(horizontal=True):
             dpg.add_text(default_value='Output format:')
@@ -177,7 +181,24 @@ def build_layout(debugging: bool=False):
             ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-coords-checkbox'))
             ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid coordinates'))
 
+    def app_settings_tab_content():
+        dpg.add_spacer(height=SPACER_HEIGHT)
+
+        with dpg.group(horizontal=True):
+            ElemGroup.add('app-settings', dpg.add_checkbox(tag='autosave-opts-checkbox', default_value=False))
+            dpg.add_text(default_value='Store settings on exit, and load them on startup')
+        dpg.add_spacer(height=SPACER_HEIGHT)
+        dpg.add_button(label='Save Preferences', callback=actions.save_app_options)
+        dpg.add_spacer(height=SPACER_HEIGHT)
+        dpg.add_separator()
+        dpg.add_spacer(height=SPACER_HEIGHT)
+        with dpg.group(horizontal=True):
+            dpg.add_button(label='Open logs folder', callback=lambda: actions.open_window_at_path(LOGS_DIR))
+            dpg.add_button(label='Open user data folder', callback=lambda: actions.open_window_at_path(USER_DATA_DIR))
+
     def debug_tab_content():
+        dpg.add_spacer(height=SPACER_HEIGHT)
+
         dpg.add_button(label='Open style editor', callback=dpg.show_style_editor)
         dpg.add_button(label='Modal dialog, notice', callback=actions.open_notice_dialog_callback,
             user_data=UserData(other='Notice message body.'))
@@ -194,7 +215,7 @@ def build_layout(debugging: bool=False):
         dpg.add_button(label='Print image settings group',
             callback=lambda: pprint(ElemGroup._groups['image-settings'])) # pylint: disable=protected-access
         dpg.add_button(label='Print gathered image options',
-            callback=lambda: pprint(actions.gather_image_options()))
+            callback=lambda: pprint(actions.get_image_options()))
 
     # Primary window
     with dpg.window(tag='main-window'):
@@ -204,10 +225,12 @@ def build_layout(debugging: bool=False):
         # Tabs
         with dpg.group(tag='tabs-group'):
             with dpg.tab_bar(tag='tabs'):
-                with dpg.tab(tag='tab-primary', label='Basic Settings'):
+                with dpg.tab(tag='tab-primary', label='Basics'):
                     primary_tab_content()
-                with dpg.tab(tag='tab-secondary', label='Additional Settings'):
+                with dpg.tab(tag='tab-secondary', label='Additional Options'):
                     secondary_tab_content()
+                with dpg.tab(tag='tab-app-settings', label='App Preferences & Misc.'):
+                    app_settings_tab_content()
                 if debugging:
                     with dpg.tab(tag='tab-debug', label='Debug'):
                         debug_tab_content()

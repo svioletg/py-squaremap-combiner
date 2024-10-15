@@ -2,8 +2,12 @@
 Callables primarily for use in GUI callbacks.
 """
 
+import json
 import re
+import subprocess
+import sys
 import threading
+import traceback
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -17,11 +21,31 @@ from squaremap_combine.combine_core import DEFAULT_OUTFILE_FORMAT, Combiner, log
 from squaremap_combine.gui.layout import CONSOLE_TEXT_WRAP, ElemGroup
 from squaremap_combine.gui.models import CallbackArgs, UserData
 from squaremap_combine.gui.styling import Themes
+from squaremap_combine.project import APP_SETTINGS_PATH
 
 TILES_DIR_REGEX = r"^[\w-]+\\\w+\\[0-3]\\[-|]\d_[-|]\d"
 
 EVENT = threading.Event()
 """General-purpose event re-used across multiple functions for waiting on certain responses."""
+
+def notice_on_exception(func, exceptions: Optional[tuple[type[Exception], ...]]=None):
+    """Spawns a modal dialog if an exception is raised in the wrapped function. It also logs the error.
+    
+    :param exceptions: A tuple of exceptions this wrapper will intercept and display.
+    """
+    exceptions = exceptions or (Exception,)
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except exceptions as e:
+            logger.error(''.join(traceback.format_exception(e)))
+            open_notice_dialog('An error has occurred:\n' +
+                ''.join(traceback.format_exception_only(e)).replace('\n', ' ') +
+                '\nYour most recent log file will have more detailed information.'
+            )
+            return None
+    return wrapper
 
 def dpg_callback(func):
     """Registers the wrapped function as a callback for `dearpygui` elements, consolidating its arguments
@@ -123,18 +147,13 @@ def close_confirm_dialog_callback(args: CallbackArgs):
     dpg.set_item_user_data('modal-confirm', args.sender)
     dpg.set_value('debug-conf-response-text', args.sender)
 
-def gather_image_options() -> dict[str, Any]:
-    """Gets the value of every option input relating to creating an image, and returns them in a dictionary."""
-    opt_dict = {e:dpg.get_value(e) for e in ElemGroup.get('image-settings') if not isinstance(e, int)}
-    return opt_dict
-
 @dpg_callback
 def create_image_callback(_args: CallbackArgs):
     """Callback form of `create_image`."""
     th = threading.Thread(target=create_image)
     th.start()
 
-@logger.catch
+@notice_on_exception
 def create_image() -> Image.Image | None:
     """Prepares a `Combiner` instance with the selected options and creates the map image.
 
@@ -149,7 +168,7 @@ def create_image() -> Image.Image | None:
             '- Output directory')
         return None
 
-    opts = gather_image_options()
+    opts = get_image_options()
 
     if not Path(opts['out-dir-input']).is_dir():
         open_notice_dialog('Could not find a directory at the specified path:\n' +
@@ -282,3 +301,49 @@ def validate_tiles_dir(source_dir: Path):
         dpg.configure_item('world-no-valid-dir', default_value='No valid worlds found in this directory.', show=True)
         dpg.configure_item('detail-invalid', show=True)
         dpg.configure_item('detail-choices', show=False)
+
+def get_image_options() -> dict[str, Any]:
+    """Gets the value of every option input relating to creating an image, and returns them in a dictionary."""
+    opt_dict = {e:dpg.get_value(e) for e in ElemGroup.get('image-settings') if not isinstance(e, int)}
+    return opt_dict
+
+def set_image_options(opt_dict: dict[str, Any]):
+    """Sets the value of every option input relating to creating an image from a dictionary consisting of item tag
+    keys, and values appropriate for that input type."""
+    for item, value in opt_dict.items():
+        dpg.set_value(item, value)
+
+def save_image_options(filename: Path):
+    """Saves the currently set image settings to a JSON file."""
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(get_image_options(), f)
+
+def load_image_options(filename: Path):
+    """Loads the image settings stored in a given JSON file into the relevant `dearpygui` items."""
+    with open(filename, 'r', encoding='utf-8') as f:
+        set_image_options(json.load(f))
+
+def get_app_options() -> dict[str, Any]:
+    """Gets the value of every option input relating to the GUI app, and returns them in a dictionary."""
+    opt_dict = {e:dpg.get_value(e) for e in ElemGroup.get('app-settings') if not isinstance(e, int)}
+    return opt_dict
+
+def set_app_options(opt_dict: dict[str, Any]):
+    """Sets the value of every option input relating to the GUI app from a dictionary consisting of item tag
+    keys, and values appropriate for that input type."""
+    for item, value in opt_dict.items():
+        dpg.set_value(item, value)
+
+def save_app_options():
+    """Saves the currently set app preferences to a JSON file in the user's data directory, as determined by `platformdirs`."""
+    with open(APP_SETTINGS_PATH, 'w', encoding='utf-8') as f:
+        json.dump(get_app_options(), f)
+
+def open_window_at_path(target: Path):
+    """Opens the file explorer window for the current OS at the given path."""
+    if sys.platform == 'darwin':
+        subprocess.Popen(['open', '--', target])
+    elif sys.platform == 'linux':
+        subprocess.Popen(['xdg-open', '--', target])
+    elif sys.platform == 'win32':
+        subprocess.Popen(['explorer', target])
