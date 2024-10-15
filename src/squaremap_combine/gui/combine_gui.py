@@ -52,8 +52,7 @@ def main(): # pylint: disable=missing-function-docstring
     allow_autosave: bool = dpg.get_value('autosave-opts-checkbox')
     if allow_autosave and OPT_AUTOSAVE_PATH.is_file():
         logger.info('Loading autosaved image settings...')
-        with open(OPT_AUTOSAVE_PATH, 'r', encoding='utf-8') as f:
-            actions.set_image_options(json.load(f))
+        actions.load_image_options(OPT_AUTOSAVE_PATH)
 
     logger.info('Applying themes...')
     styling.apply_themes()
@@ -66,19 +65,16 @@ def main(): # pylint: disable=missing-function-docstring
     dpg.set_viewport_large_icon(str(GUI_ASSET_DIR / 'icon.ico'))
 
     logger.info('Starting dearpygui...')
+    logger.add(actions.update_console, format='<level>{level}: {message}</level>', level='GUI_COMMAND')
     dpg.show_viewport()
     dpg.set_primary_window('main-window', True)
-
-    logger.add(actions.update_console, format='<level>{level}: {message}</level>', level='GUI_COMMAND')
     dpg.start_dearpygui()
 
     logger.info('Window closed.')
 
     if allow_autosave:
-        logger.info(f'Saving currently set options to: {OPT_AUTOSAVE_PATH}')
-        opt_dict = actions.get_image_options()
-        with open(OPT_AUTOSAVE_PATH, 'w', encoding='utf-8') as f:
-            json.dump(opt_dict, f)
+        logger.info(f'Saving currently set image options to: {OPT_AUTOSAVE_PATH}')
+        actions.save_image_options(OPT_AUTOSAVE_PATH)
 
     logger.info('Exiting...')
     dpg.destroy_context()

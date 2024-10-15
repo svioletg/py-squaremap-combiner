@@ -63,7 +63,7 @@ class ElemGroup:
             func(item, *args, **kwargs)
 
     @classmethod
-    def visbility(cls, group_name: str, value: bool):
+    def visibility(cls, group_name: str, value: bool):
         """Sets the `show` keyword of every item in the named group to the given `bool`."""
         cls.action(group_name, dpg.configure_item, show=value)
 
@@ -131,18 +131,17 @@ def build_layout(debugging: bool=False):
 
         # Timestamp format
         with dpg.group(horizontal=True):
-            ElemGroup.add('image-settings', dpg.add_checkbox(tag='timestamp-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('timestamp-opts', a)))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='timestamp-checkbox'))
             dpg.add_text(default_value='Add timestamp to filename')
 
         with dpg.group(tag='timestamp-format-input-group', horizontal=True):
-            ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp format:', show=False))
+            ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp format:'))
             ElemGroup.add(['image-settings', 'timestamp-opts'],
-                dpg.add_input_text(tag='timestamp-format-input', width=300, show=False))
+                dpg.add_input_text(tag='timestamp-format-input', width=300))
 
         with dpg.group(tag='timestamp-format-preview-group', horizontal=True):
-            ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp Preview:', show=False))
-            ElemGroup.add('timestamp-opts', dpg.add_text(tag='timestamp-format-preview', default_value='', show=False))
+            ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp Preview:'))
+            ElemGroup.add('timestamp-opts', dpg.add_text(tag='timestamp-format-preview', default_value=''))
 
         # Autotrim
         with dpg.group(horizontal=True):
@@ -151,28 +150,25 @@ def build_layout(debugging: bool=False):
 
         # Area to render
         with dpg.group(horizontal=True):
-            ElemGroup.add('image-settings', dpg.add_checkbox(tag='area-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('area-opts', a)))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='area-checkbox'))
             dpg.add_text(default_value='Export a specific area of the world')
         ElemGroup.add('area-opts', dpg.add_text(default_value='Enter the top-left and bottom-right coordinates of the area you want:',
             show=False))
-        ElemGroup.add(['image-settings', 'area-opts'], dpg.add_input_intx(tag='area-coord-input', size=4, width=300, show=False))
+        ElemGroup.add(['image-settings', 'area-opts'], dpg.add_input_intx(tag='area-coord-input', size=4, width=300))
 
         # Force output size
         with dpg.group(horizontal=True):
-            ElemGroup.add('image-settings', dpg.add_checkbox(tag='force-size-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('force-size-opts', a)))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='force-size-checkbox'))
             dpg.add_text(default_value='Crop final image size')
-        ElemGroup.add('force-size-opts', dpg.add_text(default_value='Enter the desired width and height:', show=False))
-        ElemGroup.add(['image-settings', 'force-size-opts'], dpg.add_input_intx(tag='force-size-input', size=2, width=150, show=False))
+        ElemGroup.add('force-size-opts', dpg.add_text(default_value='Enter the desired width and height:'))
+        ElemGroup.add(['image-settings', 'force-size-opts'], dpg.add_input_intx(tag='force-size-input', size=2, width=150))
 
         # Grid overlay
         with dpg.group(horizontal=True):
-            ElemGroup.add('image-settings', dpg.add_checkbox(tag='grid-overlay-checkbox',
-                callback=lambda s,a,d: ElemGroup.visbility('grid-opts', a)))
+            ElemGroup.add('image-settings', dpg.add_checkbox(tag='grid-overlay-checkbox'))
             dpg.add_text(default_value='Add a grid overlay to the image')
-        ElemGroup.add('grid-opts', dpg.add_text(default_value='Enter the X and Y coordinate intervals for the grid:', show=False))
-        ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_input_intx(tag='grid-interval-input', size=2, width=150, show=False))
+        ElemGroup.add('grid-opts', dpg.add_text(default_value='Enter the X and Y coordinate intervals for the grid:'))
+        ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_input_intx(tag='grid-interval-input', size=2, width=150))
 
         with dpg.group(horizontal=True):
             ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-lines-checkbox'))
@@ -180,6 +176,10 @@ def build_layout(debugging: bool=False):
         with dpg.group(horizontal=True):
             ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-coords-checkbox'))
             ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid coordinates'))
+        with dpg.group(horizontal=True):
+            ElemGroup.add(['grid-opts', 'grid-coord-opts'], dpg.add_text(default_value='Coordinates format:'))
+            ElemGroup.add(['image-settings', 'grid-opts', 'grid-coord-opts'], dpg.add_input_text(
+                tag='grid-coords-format-input', default_value='({x}, {y})'))
 
     def app_settings_tab_content():
         dpg.add_spacer(height=SPACER_HEIGHT)

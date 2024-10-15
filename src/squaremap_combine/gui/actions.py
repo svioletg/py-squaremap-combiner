@@ -17,7 +17,7 @@ from typing import Any, Optional, cast
 import dearpygui.dearpygui as dpg
 from PIL import Image
 
-from squaremap_combine.combine_core import DEFAULT_OUTFILE_FORMAT, Combiner, logger
+from squaremap_combine.combine_core import DEFAULT_OUTFILE_FORMAT, Combiner, CombinerStyle, logger
 from squaremap_combine.gui.layout import CONSOLE_TEXT_WRAP, ElemGroup
 from squaremap_combine.gui.models import CallbackArgs, UserData
 from squaremap_combine.gui.styling import Themes
@@ -177,8 +177,26 @@ def create_image() -> Image.Image | None:
 
     dpg.set_item_user_data('console-output-window', {'allow-output': True})
 
-    combiner = Combiner(opts['tiles-dir-input'], use_tqdm=True, confirmation_callback=open_confirm_dialog)
-    result = combiner.combine(opts['world-choices'], int(opts['detail-choices']), autotrim=opts['autotrim-checkbox'])
+    style = CombinerStyle(
+        show_grid_lines=opts['grid-show-lines-checkbox'],
+        show_grid_text=opts['grid-show-coords-checkbox']
+    )
+    combiner = Combiner(
+        opts['tiles-dir-input'],
+        use_tqdm=True,
+        confirmation_callback=open_confirm_dialog,
+        style=style,
+        grid_interval=tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0),
+        grid_coords_format=opts['grid-coords-format-input'].strip()
+    )
+    print(tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0))
+    result = combiner.combine(
+        opts['world-choices'],
+        int(opts['detail-choices']),
+        autotrim=opts['autotrim-checkbox'],
+        area=tuple(opts['area-coord-input']) if opts['area-checkbox'] else None,
+        force_size=tuple(opts['force-size-input'][0:2]) if opts['force-size-checkbox'] else None
+    )
 
     if not result:
         logger.info('No image was created; process either failed or was cancelled.')
