@@ -101,6 +101,9 @@ the script with the `--find-logs` option.
 python3 -m squaremap_combine --find-logs
 ```
 
+> If you're using the GUI app, you'll find a button labelled "Open logs folder" under the "App Preferences & Misc." tab,
+> which will open your system's file explorer at your logs directory.
+
 By default, the five most recent log outputs are kept and named by the
 date and time at which they were created. If there are already five log
 files present, the oldest file is deleted before writing a new one. An example file structure may look like below:
