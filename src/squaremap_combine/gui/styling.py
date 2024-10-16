@@ -16,10 +16,9 @@ class Themes:
         with dpg.theme() as self.base:
             with dpg.theme_component(dpg.mvAll):
                 dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 32, 32)
-                dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (16, 16, 64, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (32, 16, 72, 255))
 
                 dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
-                dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (255, 0, 0, 255))
 
                 dpg.add_theme_style(dpg.mvStyleVar_TabRounding, 0, 0)
                 dpg.add_theme_color(dpg.mvThemeCol_Tab, (64, 64, 96, 255))
@@ -32,14 +31,14 @@ class Themes:
 
                 dpg.add_theme_color(dpg.mvThemeCol_Separator, (127, 127, 255, 255))
 
-            for comp in [dpg.mvInputText, dpg.mvInputIntMulti]:
+            for comp in [dpg.mvInputText, dpg.mvInputInt, dpg.mvInputIntMulti, dpg.mvInputFloat, dpg.mvInputFloatMulti]:
                 with dpg.theme_component(comp):
                     dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)
                     dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 4)
                     dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 0)
                     dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (0, 0, 0, 255))
 
-            for comp in [dpg.mvInputText, dpg.mvInputIntMulti]:
+            for comp in [dpg.mvInputText, dpg.mvInputInt, dpg.mvInputIntMulti, dpg.mvInputFloat, dpg.mvInputFloatMulti]:
                 with dpg.theme_component(comp, enabled_state=False):
                     dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)
                     dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 8, 4)
@@ -56,7 +55,13 @@ class Themes:
                 dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (0, 0, 0, 255))
                 dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (64, 64, 96, 255))
                 dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (96, 96, 127, 255))
-                dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (96, 96, 127, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (255, 255, 255, 255))
+
+            with dpg.theme_component(dpg.mvRadioButton):
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (0, 0, 0, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (64, 64, 96, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (96, 96, 127, 255))
+                dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (127, 127, 255, 255))
 
             with dpg.theme_component(dpg.mvProgressBar):
                 dpg.add_theme_color(dpg.mvThemeCol_PlotHistogram, (0, 196, 0, 255))

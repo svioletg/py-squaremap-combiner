@@ -20,7 +20,7 @@ P = ParamSpec('P')
 """@private"""
 
 class ConfirmationCallback(Protocol):
-    """Typing protocol for `Combiner.combine()`'s `confirmation_callback` argument."""
+    """Typing protocol for `combine_core.Combiner.combine()`'s `confirmation_callback` argument."""
     def __call__(self, message: str, *args: Any, **kwargs: Any) -> bool:
         ...
 

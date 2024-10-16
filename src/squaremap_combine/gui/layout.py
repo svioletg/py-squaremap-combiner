@@ -2,6 +2,7 @@
 Handles building the main GUI layout.
 """
 
+import json
 import webbrowser
 from dataclasses import asdict
 from math import floor
@@ -20,6 +21,7 @@ PRIMARY_WINDOW_INIT_SIZE = 1000, 800
 MODAL_DIALOG_MAX_SIZE = floor(PRIMARY_WINDOW_INIT_SIZE[0] / 1.5), floor(PRIMARY_WINDOW_INIT_SIZE[1] / 1.5)
 CONSOLE_TEXT_WRAP = 780
 SPACER_HEIGHT = 10
+INDENT_WIDTH = 50
 
 MESSAGE_NO_DIR = 'None to display; choose a valid tiles directory above.'
 
@@ -79,23 +81,34 @@ def build_combiner_style_editor():
         str   : {'call': dpg.add_input_text},
         bool  : {'call': dpg.add_checkbox},
         int   : {'call': dpg.add_input_int},
-        Color : {'call': dpg.add_input_intx, 'kwargs': {'size': 4, 'min_value': 0, 'max_value': 255}}
+        Color : {'call': dpg.add_color_picker,
+            'kwargs': {
+                'width': 150, 'height': 150,
+                'input_mode': dpg.mvColorEdit_input_rgb,
+                'alpha_bar': True,
+                'no_side_preview': True
+            }
+        }
     }
-    style_base = CombinerStyle()
+
     with dpg.group(horizontal=True):
         dpg.add_text(default_value='For descriptions of each value, see the online docs:')
         dpg.add_button(label='Open docs in browser',
             callback=lambda: webbrowser.open(PROJECT_DOCS_URL + 'squaremap_combine/combine_core.html#CombinerStyle'))
+
+    style_base = CombinerStyle()
     for attr, val in asdict(style_base).items():
         cls = type(val)
         dpg.add_text(default_value=attr.title().replace('_', ' '))
         if cls not in input_mapping:
-            dpg.add_input_text(tag=f'{attr}-input')
+            item = dpg.add_input_text
             logger.warning(f'Type {cls!r} does not have an associated dearpygui input.')
         else:
-            call = cast(Callable, input_mapping[cls]['call'])
-            call_kwargs = cast(dict[str, Any], input_mapping[cls].get('kwargs', {}))
-            call(tag=f'{attr}-input', **call_kwargs)
+            item = cast(Callable, input_mapping[cls]['call'])
+        item_kwargs = cast(dict[str, Any], input_mapping[cls].get('kwargs', {}))
+        ElemGroup.add('combiner-style-settings', item(tag=f'{attr}-styleattr-input', **item_kwargs))
+
+    dpg.add_button(label='Reset to default', callback=lambda: actions.set_style_options(json.loads(style_base.to_json())))
 
 def build_layout(debugging: bool=False):
     """Builds the basic GUI app layout.
@@ -119,9 +132,8 @@ def build_layout(debugging: bool=False):
             dpg.add_button(tag='no-button', label='No', width=75, callback=actions.close_confirm_dialog_callback)
 
     # Combiner style editor window
-    with dpg.window(tag='combiner-style-editor', label='Edit combiner styling', width=800, height=600):
+    with dpg.window(tag='combiner-style-editor', label='Edit combiner styling', width=800, height=600, show=False):
         build_combiner_style_editor()
-        dpg.add_button(label='Save')
 
     def primary_tab_content():
         dpg.add_spacer(height=SPACER_HEIGHT)
@@ -145,6 +157,11 @@ def build_layout(debugging: bool=False):
 
         # Detail selection
         dpg.add_text('Map detail level:')
+        with dpg.tooltip(parent=dpg.last_item()):
+            dpg.add_text(default_value='Higher number indicates higher detail, and thus a larger final image.\n' +
+                '3 represents one block per pixel, so an exact block-by-block view of the world.\n' +
+                '2 stores a 2x2 block square area per pixel. 1 is 4x4 blocks per pixel, and 0 is 8x8 blocks per pixel.'
+            )
         dpg.add_text(tag='detail-invalid', default_value=MESSAGE_NO_DIR)
         ElemGroup.add(['img-required', 'image-settings'],
             dpg.add_radio_button(tag='detail-choices', items=[], show=False, horizontal=True))
@@ -169,12 +186,12 @@ def build_layout(debugging: bool=False):
             ElemGroup.add('image-settings', dpg.add_checkbox(tag='timestamp-checkbox'))
             dpg.add_text(default_value='Add timestamp to filename')
 
-        with dpg.group(tag='timestamp-format-input-group', horizontal=True):
+        with dpg.group(tag='timestamp-format-input-group', horizontal=True, indent=1 * INDENT_WIDTH):
             ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp format:'))
             ElemGroup.add(['image-settings', 'timestamp-opts'],
                 dpg.add_input_text(tag='timestamp-format-input', width=300))
 
-        with dpg.group(tag='timestamp-format-preview-group', horizontal=True):
+        with dpg.group(tag='timestamp-format-preview-group', horizontal=True, indent=1 * INDENT_WIDTH):
             ElemGroup.add('timestamp-opts', dpg.add_text(default_value='Timestamp Preview:'))
             ElemGroup.add('timestamp-opts', dpg.add_text(tag='timestamp-format-preview', default_value=''))
 
@@ -188,33 +205,43 @@ def build_layout(debugging: bool=False):
             ElemGroup.add('image-settings', dpg.add_checkbox(tag='area-checkbox'))
             dpg.add_text(default_value='Export a specific area of the world')
         ElemGroup.add('area-opts', dpg.add_text(default_value='Enter the top-left and bottom-right coordinates of the area you want:',
-            show=False))
-        ElemGroup.add(['image-settings', 'area-opts'], dpg.add_input_intx(tag='area-coord-input', size=4, width=300))
+            show=False, indent=1 * INDENT_WIDTH))
+        with dpg.tooltip(parent=dpg.last_item()):
+            dpg.add_text(default_value='Area coordinates should be the coordinates of an area as they would be in Minecraft,' +
+                ' regardless of the selected detail level.\n'
+            )
+        ElemGroup.add(['image-settings', 'area-opts'],
+            dpg.add_input_intx(tag='area-coord-input', size=4, width=300, indent=1 * INDENT_WIDTH))
 
         # Force output size
         with dpg.group(horizontal=True):
             ElemGroup.add('image-settings', dpg.add_checkbox(tag='force-size-checkbox'))
             dpg.add_text(default_value='Crop final image size')
-        ElemGroup.add('force-size-opts', dpg.add_text(default_value='Enter the desired width and height:'))
-        ElemGroup.add(['image-settings', 'force-size-opts'], dpg.add_input_intx(tag='force-size-input', size=2, width=150))
+        ElemGroup.add('force-size-opts', dpg.add_text(default_value='Enter the desired width and height:', indent=1 * INDENT_WIDTH))
+        ElemGroup.add(['image-settings', 'force-size-opts'],
+            dpg.add_input_intx(tag='force-size-input', size=2, width=150, indent=1 * INDENT_WIDTH))
 
         # Grid overlay
         with dpg.group(horizontal=True):
             ElemGroup.add('image-settings', dpg.add_checkbox(tag='grid-overlay-checkbox'))
             dpg.add_text(default_value='Add a grid overlay to the image')
-        ElemGroup.add('grid-opts', dpg.add_text(default_value='Enter the X and Y coordinate intervals for the grid:'))
-        ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_input_intx(tag='grid-interval-input', size=2, width=150))
+        ElemGroup.add('grid-opts', dpg.add_text(default_value='Enter the X and Y coordinate intervals for the grid:', indent=1 * INDENT_WIDTH))
+        ElemGroup.add(['image-settings', 'grid-opts'],
+            dpg.add_input_intx(tag='grid-interval-input', size=2, width=150, indent=1 * INDENT_WIDTH))
 
-        with dpg.group(horizontal=True):
+        with dpg.group(horizontal=True, indent=1 * INDENT_WIDTH):
             ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-lines-checkbox'))
             ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid lines'))
-        with dpg.group(horizontal=True):
+        with dpg.group(horizontal=True, indent=1 * INDENT_WIDTH):
             ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-coords-checkbox'))
             ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid coordinates'))
-        with dpg.group(horizontal=True):
+        with dpg.group(horizontal=True, indent=2 * INDENT_WIDTH):
             ElemGroup.add(['grid-opts', 'grid-coord-opts'], dpg.add_text(default_value='Coordinates format:'))
             ElemGroup.add(['image-settings', 'grid-opts', 'grid-coord-opts'], dpg.add_input_text(
-                tag='grid-coords-format-input', default_value='({x}, {y})'))
+                tag='grid-coords-format-input', default_value='({x}, {y})', width=500))
+
+        dpg.add_button(label='Edit colors & other styling rules',
+            callback=lambda: dpg.configure_item('combiner-style-editor', show=True))
 
     def app_settings_tab_content():
         dpg.add_spacer(height=SPACER_HEIGHT)
@@ -234,7 +261,7 @@ def build_layout(debugging: bool=False):
     def debug_tab_content():
         dpg.add_spacer(height=SPACER_HEIGHT)
 
-        dpg.add_button(label='Open style editor', callback=dpg.show_style_editor)
+        dpg.add_button(label='Open dearpygui style editor', callback=dpg.show_style_editor)
         dpg.add_button(label='Modal dialog, notice', callback=actions.open_notice_dialog_callback,
             user_data=UserData(other='Notice message body.'))
         dpg.add_button(label='Modal dialog, confirmation', callback=actions.open_confirm_dialog_callback,
@@ -251,6 +278,10 @@ def build_layout(debugging: bool=False):
             callback=lambda: pprint(ElemGroup._groups['image-settings'])) # pylint: disable=protected-access
         dpg.add_button(label='Print gathered image options',
             callback=lambda: pprint(actions.get_image_options()))
+        dpg.add_button(label='Print style settings group',
+            callback=lambda: pprint(ElemGroup._groups['combiner-style-settings'])) # pylint: disable=protected-access
+        dpg.add_button(label='Print gathered style options',
+            callback=lambda: pprint(actions.get_style_options()))
 
     # Primary window
     with dpg.window(tag='main-window'):

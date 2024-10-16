@@ -192,7 +192,6 @@ def create_image() -> Image.Image | None:
         grid_interval=tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0),
         grid_coords_format=opts['grid-coords-format-input'].strip()
     )
-    print(tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0))
     result = combiner.combine(
         opts['world-choices'],
         int(opts['detail-choices']),
@@ -361,6 +360,27 @@ def save_app_options():
     """Saves the currently set app preferences to a JSON file in the user's data directory, as determined by `platformdirs`."""
     with open(APP_SETTINGS_PATH, 'w', encoding='utf-8') as f:
         json.dump(get_app_options(), f)
+
+def get_style_options() -> dict[str, Any]:
+    """Gets the value of every option input relating to combiner styling, and returns them in a dictionary."""
+    opt_dict = {e.split('-styleattr')[0]:dpg.get_value(e) for e in ElemGroup.get('combiner-style-settings') if not isinstance(e, int)}
+    return opt_dict
+
+def set_style_options(opt_dict: dict[str, Any]):
+    """Sets the value of every option input relating to combiner styling from a dictionary consisting of item tag
+    keys, and values appropriate for that input type."""
+    for item, value in opt_dict.items():
+        dpg.set_value(item + '-styleattr-input', value)
+
+def save_style_options():
+    """Saves the currently set combiner styling rules to a JSON file in the user's data directory, as determined by `platformdirs`."""
+    with open(APP_SETTINGS_PATH, 'w', encoding='utf-8') as f:
+        json.dump(get_style_options(), f)
+
+def load_style_options(filename: Path):
+    """Loads the styling rules stored in a given JSON file into the relevant `dearpygui` items."""
+    with open(filename, 'r', encoding='utf-8') as f:
+        set_style_options(json.load(f))
 
 def open_window_at_path(target: Path):
     """Opens the file explorer window for the current OS at the given path."""
