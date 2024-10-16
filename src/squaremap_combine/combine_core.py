@@ -193,7 +193,7 @@ class CombinerStyle:
     """
     grid_color: Color = Color(0, 0, 0, 255)
     """Used as the base for any grid-related colors."""
-    show_grid_lines: bool  = True
+    show_grid_lines: bool = True
     """Draw grid lines at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
     grid_line_color: Optional[Color] = None
 
@@ -223,7 +223,7 @@ class CombinerStyle:
                     else:
                         val = Color.from_name(val)
                 elif isinstance(val, Sequence):
-                    val = cls(*val)
+                    val = cls(*map(int, val))
                 else:
                     raise TypeError(f'Invalid type given for Color construction: {val!r} is of type {type(val)}')
             else:

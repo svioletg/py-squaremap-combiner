@@ -12,7 +12,7 @@ from squaremap_combine.combine_core import logger
 from squaremap_combine.gui import actions, layout, styling
 from squaremap_combine.helper import enable_logging
 from squaremap_combine.project import (APP_SETTINGS_PATH, GUI_ASSET_DIR, OPT_AUTOSAVE_PATH, PROJECT_VERSION,
-                                       USER_DATA_DIR)
+                                       STYLE_AUTOSAVE_PATH, USER_DATA_DIR)
 
 
 def main(): # pylint: disable=missing-function-docstring
@@ -50,9 +50,13 @@ def main(): # pylint: disable=missing-function-docstring
             actions.set_app_options(json.load(f))
 
     allow_autosave: bool = dpg.get_value('autosave-opts-checkbox')
-    if allow_autosave and OPT_AUTOSAVE_PATH.is_file():
-        logger.info('Loading autosaved image settings...')
-        actions.load_image_options(OPT_AUTOSAVE_PATH)
+    if allow_autosave:
+        if OPT_AUTOSAVE_PATH.is_file():
+            logger.info('Loading autosaved image settings...')
+            actions.load_image_options(OPT_AUTOSAVE_PATH)
+        if STYLE_AUTOSAVE_PATH.is_file():
+            logger.info('Loading autosaved style settings...')
+            actions.load_style_options(STYLE_AUTOSAVE_PATH)
 
     logger.info('Applying themes...')
     styling.apply_themes()
@@ -75,6 +79,8 @@ def main(): # pylint: disable=missing-function-docstring
     if allow_autosave:
         logger.info(f'Saving currently set image options to: {OPT_AUTOSAVE_PATH}')
         actions.save_image_options(OPT_AUTOSAVE_PATH)
+        logger.info(f'Saving currently set styling options to: {STYLE_AUTOSAVE_PATH}')
+        actions.save_style_options(STYLE_AUTOSAVE_PATH)
 
     logger.info('Exiting...')
     dpg.destroy_context()

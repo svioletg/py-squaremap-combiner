@@ -77,7 +77,8 @@ def build_combiner_style_editor():
     """Auto-generates a visual editor for the `CombinerStyle` class
     based on the types of its attributes.
     """
-    input_mapping: dict[type, dict[str, Callable | dict[str, Any]]] = {
+    input_mapping: dict[type, dict[str, Callable | str | dict[str, Any]]] = {
+        # TODO: 'suffix' keys should be standardized in a dataclass or similar, and this should use that system instead (Issue #8)
         str   : {'call': dpg.add_input_text},
         bool  : {'call': dpg.add_checkbox},
         int   : {'call': dpg.add_input_int},
@@ -100,15 +101,26 @@ def build_combiner_style_editor():
     for attr, val in asdict(style_base).items():
         cls = type(val)
         dpg.add_text(default_value=attr.title().replace('_', ' '))
+        with dpg.tooltip(parent=dpg.last_item()):
+            dpg.add_text(default_value=attr)
         if cls not in input_mapping:
             item = dpg.add_input_text
             logger.warning(f'Type {cls!r} does not have an associated dearpygui input.')
         else:
             item = cast(Callable, input_mapping[cls]['call'])
         item_kwargs = cast(dict[str, Any], input_mapping[cls].get('kwargs', {}))
+        # tag_suffix = input_mapping[cls].get('suffix', 'input')
         ElemGroup.add('combiner-style-settings', item(tag=f'{attr}-styleattr-input', **item_kwargs))
 
-    dpg.add_button(label='Reset to default', callback=lambda: actions.set_style_options(json.loads(style_base.to_json())))
+    with dpg.group(horizontal=True):
+        dpg.add_button(label='Save to file...', callback=actions.file_save_dialog_callback,
+            user_data=UserData(other={'initialfile': 'style.json'}, cb_forward_to=(actions.save_style_options, lambda *args: None)))
+        dpg.add_button(label='Load from file...', callback=actions.file_open_dialog_callback,
+            user_data=UserData(cb_forward_to=(actions.load_style_options, lambda *args: None)))
+        dpg.add_button(label='Reset to default', callback=lambda: actions.set_style_options(json.loads(style_base.to_json())))
+
+    # Load default
+    actions.set_style_options(json.loads(style_base.to_json()))
 
 def build_layout(debugging: bool=False):
     """Builds the basic GUI app layout.
@@ -229,13 +241,10 @@ def build_layout(debugging: bool=False):
         ElemGroup.add(['image-settings', 'grid-opts'],
             dpg.add_input_intx(tag='grid-interval-input', size=2, width=150, indent=1 * INDENT_WIDTH))
 
+        with dpg.group(indent=1 * INDENT_WIDTH):
+            ElemGroup.add('grid-opts', dpg.add_text(
+                default_value='(See style options at the bottom to toggle grid lines and/or coordinates text)'))
         with dpg.group(horizontal=True, indent=1 * INDENT_WIDTH):
-            ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-lines-checkbox'))
-            ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid lines'))
-        with dpg.group(horizontal=True, indent=1 * INDENT_WIDTH):
-            ElemGroup.add(['image-settings', 'grid-opts'], dpg.add_checkbox(tag='grid-show-coords-checkbox'))
-            ElemGroup.add('grid-opts', dpg.add_text(default_value='Show grid coordinates'))
-        with dpg.group(horizontal=True, indent=2 * INDENT_WIDTH):
             ElemGroup.add(['grid-opts', 'grid-coord-opts'], dpg.add_text(default_value='Coordinates format:'))
             ElemGroup.add(['image-settings', 'grid-opts', 'grid-coord-opts'], dpg.add_input_text(
                 tag='grid-coords-format-input', default_value='({x}, {y})', width=500))

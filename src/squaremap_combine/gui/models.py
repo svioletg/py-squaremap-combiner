@@ -17,8 +17,10 @@ class UserData:
     """ID of an item to call `dearpygui.dearpygui.set_value` on with the callback return value."""
     cb_store_in: Optional[str | int] = None
     """ID of an item whose `user_data` will be used to store the callback return value."""
-    cb_forward_to: Optional[Callable[..., None]] = None
-    """A callable to forward the callback return value to."""
+    cb_forward_to: Optional[Callable[..., None] | tuple[Callable[..., None], Callable[..., None]]] = None
+    """A callable to forward the callback return value to. If a tuple of two callables is given, the latter will be used
+    if the result of the callback was `None`.
+    """
 
 @dataclass
 class CallbackArgs(dict):

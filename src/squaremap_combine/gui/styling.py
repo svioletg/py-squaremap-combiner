@@ -31,6 +31,9 @@ class Themes:
 
                 dpg.add_theme_color(dpg.mvThemeCol_Separator, (127, 127, 255, 255))
 
+            with dpg.theme_component(dpg.mvTooltip):
+                dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 4, 4)
+
             for comp in [dpg.mvInputText, dpg.mvInputInt, dpg.mvInputIntMulti, dpg.mvInputFloat, dpg.mvInputFloatMulti]:
                 with dpg.theme_component(comp):
                     dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 4, 4)

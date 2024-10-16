@@ -23,7 +23,7 @@ from squaremap_combine.gui.models import CallbackArgs, UserData
 from squaremap_combine.gui.styling import Themes
 from squaremap_combine.project import APP_SETTINGS_PATH
 
-TILES_DIR_REGEX = r"^[\w-]+\\\w+\\[0-3]\\[-|]\d_[-|]\d"
+TILES_DIR_REGEX = re.compile(r"^[\w-]+\\\w+\\[0-3]\\[-|]\d_[-|]\d")
 
 EVENT = threading.Event()
 """General-purpose event re-used across multiple functions for waiting on certain responses."""
@@ -37,7 +37,9 @@ def dpg_callback(func):
     it can make use of, not its actual arguments.
     """
     @wraps(func)
-    def wrapper(sender: str | int, app_data, user_data: Optional[UserData]=None) -> None:
+    def wrapper(sender: str | int, app_data, user_data: Optional[UserData | dict[str, Any]]=None) -> None:
+        if isinstance(user_data, dict):
+            user_data = UserData(other=user_data)
         user_data = user_data or UserData()
         result = func(CallbackArgs(sender=sender, app_data=app_data, user_data=user_data))
         if display_with := user_data.cb_display_with:
@@ -46,7 +48,8 @@ def dpg_callback(func):
         if store_in := user_data.cb_store_in:
             dpg.set_item_user_data(store_in, result)
         if forward_to := user_data.cb_forward_to:
-            forward_to(result)
+            if isinstance(forward_to, tuple):
+                (forward_to[0] if result is not None else forward_to[1])(result)
         return result
     return wrapper
 
@@ -71,6 +74,81 @@ def notice_on_exception(func, exceptions: Optional[tuple[type[Exception], ...]]=
 #endregion WRAPPERS
 
 #region GUI CALLBACKS
+# Image creation functions go up top as they're the most crucial
+@dpg_callback
+def create_image_callback(_args: CallbackArgs):
+    """Callback form of `create_image`."""
+    th = threading.Thread(target=create_image)
+    th.start()
+
+@notice_on_exception
+def create_image() -> Image.Image | None:
+    """Prepares a `Combiner` instance with the selected options and creates the map image.
+
+    .. warning::
+        Must be run in a `threading.Thread`, or else the call will never complete.
+    """
+    if not all(dpg.get_value(e) for e in ElemGroup.get('img-required')):
+        open_notice_dialog('One or more required options have not been set. Check that you\'ve set:\n' +
+            '- A valid tiles directory\n' +
+            '- World to render\n' +
+            '- Detail level\n' +
+            '- Output directory')
+        return None
+
+    opts = get_image_options()
+
+    if not Path(opts['out-dir-input']).is_dir():
+        open_notice_dialog('Could not find a directory at the specified path:\n' +
+            str(Path(opts['out-dir-input']).absolute()))
+        return None
+
+    dpg.set_item_user_data('console-output-window', {'allow-output': True})
+
+    style = CombinerStyle(**get_style_options())
+    combiner = Combiner(
+        opts['tiles-dir-input'],
+        use_tqdm=True,
+        confirmation_callback=open_confirm_dialog,
+        style=style,
+        grid_interval=tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0),
+        grid_coords_format=opts['grid-coords-format-input'].strip()
+    )
+    result = combiner.combine(
+        opts['world-choices'],
+        int(opts['detail-choices']),
+        autotrim=opts['autotrim-checkbox'],
+        area=tuple(opts['area-coord-input']) if opts['area-checkbox'] else None,
+        force_size=tuple(opts['force-size-input'][0:2]) if opts['force-size-checkbox'] else None
+    )
+
+    if not result:
+        logger.info('No image was created; process either failed or was cancelled.')
+        return None
+
+    out_file = Path(opts['out-dir-input'], DEFAULT_OUTFILE_FORMAT.format(
+        timestamp=(datetime.now().strftime(opts['timestamp-format-input']) + '_') if opts['timestamp-checkbox'] else '',
+        world=opts['world-choices'],
+        detail=opts['detail-choices'],
+        output_ext=opts['output-ext-input']
+    ))
+
+    if out_file.is_file():
+        copies = [*out_file.parent.glob(f'{out_file.stem}*')]
+        new_out_file = Path(out_file.stem + f'_{len(copies)}.' + 'png')
+        if not open_confirm_dialog(f'A file at the path "{out_file}" already exists.\n' +
+            f'Do you want to overwrite it? If you choose no, the file will be saved to "{new_out_file.stem}" instead.'):
+            out_file = new_out_file
+
+    result.img.save(out_file)
+    logger.info(f'Image saved to: {out_file.absolute()}')
+
+    logger.info('Image creation complete!')
+    open_notice_dialog('Image creation complete!\n' +
+        f'Saved to: {out_file.absolute()}')
+    dpg.set_item_user_data('console-output-window', {'allow-output': False})
+    return result.img
+
 @dpg_callback
 def dir_dialog_callback(_args: CallbackArgs) -> Path | None:
     """Opens a dialog for choosing a directory."""
@@ -84,9 +162,10 @@ def file_open_dialog_callback(_args: CallbackArgs) -> Path | None:
     return result if result != Path('.') else None
 
 @dpg_callback
-def file_save_dialog_callback(_args: CallbackArgs) -> Path | None:
+def file_save_dialog_callback(args: CallbackArgs) -> Path | None:
     """Opens a dialog for saving a file."""
-    result = Path(asksaveasfilename())
+    initialfile: str | None = args.user_data.other.get('initialfile')
+    result = Path(asksaveasfilename(initialfile=initialfile))
     return result if result != Path('.') else None
 
 @dpg_callback
@@ -149,83 +228,6 @@ def close_confirm_dialog_callback(args: CallbackArgs):
     dpg.configure_item('modal-confirm', show=False)
     dpg.set_item_user_data('modal-confirm', args.sender)
     dpg.set_value('debug-conf-response-text', args.sender)
-
-@dpg_callback
-def create_image_callback(_args: CallbackArgs):
-    """Callback form of `create_image`."""
-    th = threading.Thread(target=create_image)
-    th.start()
-
-@notice_on_exception
-def create_image() -> Image.Image | None:
-    """Prepares a `Combiner` instance with the selected options and creates the map image.
-
-    .. warning::
-        Must be run in a `threading.Thread`, or else the call will never complete.
-    """
-    if not all(dpg.get_value(e) for e in ElemGroup.get('img-required')):
-        open_notice_dialog('One or more required options have not been set. Check that you\'ve set:\n' +
-            '- A valid tiles directory\n' +
-            '- World to render\n' +
-            '- Detail level\n' +
-            '- Output directory')
-        return None
-
-    opts = get_image_options()
-
-    if not Path(opts['out-dir-input']).is_dir():
-        open_notice_dialog('Could not find a directory at the specified path:\n' +
-            str(Path(opts['out-dir-input']).absolute()))
-        return None
-
-    dpg.set_item_user_data('console-output-window', {'allow-output': True})
-
-    style = CombinerStyle(
-        show_grid_lines=opts['grid-show-lines-checkbox'],
-        show_grid_text=opts['grid-show-coords-checkbox']
-    )
-    combiner = Combiner(
-        opts['tiles-dir-input'],
-        use_tqdm=True,
-        confirmation_callback=open_confirm_dialog,
-        style=style,
-        grid_interval=tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0),
-        grid_coords_format=opts['grid-coords-format-input'].strip()
-    )
-    result = combiner.combine(
-        opts['world-choices'],
-        int(opts['detail-choices']),
-        autotrim=opts['autotrim-checkbox'],
-        area=tuple(opts['area-coord-input']) if opts['area-checkbox'] else None,
-        force_size=tuple(opts['force-size-input'][0:2]) if opts['force-size-checkbox'] else None
-    )
-
-    if not result:
-        logger.info('No image was created; process either failed or was cancelled.')
-        return None
-
-    out_file = Path(opts['out-dir-input'], DEFAULT_OUTFILE_FORMAT.format(
-        timestamp=(datetime.now().strftime(opts['timestamp-format-input']) + '_') if opts['timestamp-checkbox'] else '',
-        world=opts['world-choices'],
-        detail=opts['detail-choices'],
-        output_ext=opts['output-ext-input']
-    ))
-
-    if out_file.is_file():
-        copies = [*out_file.parent.glob(f'{out_file.stem}*')]
-        new_out_file = Path(out_file.stem + f'_{len(copies)}.' + 'png')
-        if not open_confirm_dialog(f'A file at the path "{out_file}" already exists.\n' +
-            f'Do you want to overwrite it? If you choose no, the file will be saved to "{new_out_file.stem}" instead.'):
-            out_file = new_out_file
-
-    result.img.save(out_file)
-    logger.info(f'Image saved to: {out_file.absolute()}')
-
-    logger.info('Image creation complete!')
-    open_notice_dialog('Image creation complete!\n' +
-        f'Saved to: {out_file.absolute()}')
-    dpg.set_item_user_data('console-output-window', {'allow-output': False})
-    return result.img
 
 @dpg_callback
 def center_in_window_callback(args: CallbackArgs):
@@ -333,12 +335,15 @@ def set_image_options(opt_dict: dict[str, Any]):
     """Sets the value of every option input relating to creating an image from a dictionary consisting of item tag
     keys, and values appropriate for that input type."""
     for item, value in opt_dict.items():
-        dpg.set_value(item, value)
+        try:
+            dpg.set_value(item, value)
+        except SystemError as e:
+            logger.warning(f'SystemError encountered trying to set value for item "{item}": {e}')
 
 def save_image_options(filename: Path):
     """Saves the currently set image settings to a JSON file."""
     with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(get_image_options(), f)
+        json.dump(get_image_options(), f, indent=4)
 
 def load_image_options(filename: Path):
     """Loads the image settings stored in a given JSON file into the relevant `dearpygui` items."""
@@ -359,7 +364,7 @@ def set_app_options(opt_dict: dict[str, Any]):
 def save_app_options():
     """Saves the currently set app preferences to a JSON file in the user's data directory, as determined by `platformdirs`."""
     with open(APP_SETTINGS_PATH, 'w', encoding='utf-8') as f:
-        json.dump(get_app_options(), f)
+        json.dump(get_app_options(), f, indent=4)
 
 def get_style_options() -> dict[str, Any]:
     """Gets the value of every option input relating to combiner styling, and returns them in a dictionary."""
@@ -372,10 +377,10 @@ def set_style_options(opt_dict: dict[str, Any]):
     for item, value in opt_dict.items():
         dpg.set_value(item + '-styleattr-input', value)
 
-def save_style_options():
-    """Saves the currently set combiner styling rules to a JSON file in the user's data directory, as determined by `platformdirs`."""
-    with open(APP_SETTINGS_PATH, 'w', encoding='utf-8') as f:
-        json.dump(get_style_options(), f)
+def save_style_options(filename: Path):
+    """Saves the currently set combiner styling rules to a JSON file."""
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(get_style_options(), f, indent=4)
 
 def load_style_options(filename: Path):
     """Loads the styling rules stored in a given JSON file into the relevant `dearpygui` items."""

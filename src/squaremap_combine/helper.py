@@ -39,7 +39,7 @@ class Color:
     | `"{magenta:rgb}"`  | `"(255, 0, 255)"`      |
     | `"{magenta:rgba}"` | `"(255, 0, 255, 255)"` |
     """
-    HEXCODE_REGEX = r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$"
+    HEXCODE_REGEX = re.compile(r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$")
     COMMON: dict[str, tuple[int, ...]] = {
         'transparent': (  0,   0,   0,   0),
         'white'      : (255, 255, 255),
