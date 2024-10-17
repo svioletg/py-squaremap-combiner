@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "squaremap_combine"
-version = "0.23.0"
+version = "0.24.0"
 authors = [
   { name="Seth 'Violet' Gibbs" },
 ]
@@ -23,7 +23,7 @@ dependencies=[
 
 [project.optional-dependencies]
 gui = [
-  "dearpygui==1.11.1",
+  "dearpygui==2.0.0",
   "pydantic==2.9.2"
 ]
 
