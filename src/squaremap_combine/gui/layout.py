@@ -5,7 +5,6 @@ Handles building the main GUI layout.
 import json
 import webbrowser
 from dataclasses import asdict
-from math import floor
 from pprint import pprint
 from typing import Any, Callable, cast
 
@@ -82,7 +81,6 @@ def build_combiner_style_editor():
     based on the types of its attributes.
     """
     input_mapping: dict[type, dict[str, Callable | str | dict[str, Any]]] = {
-        # TODO: 'suffix' keys should be standardized in a dataclass or similar, and this should use that system instead (Issue #8)
         str   : {'call': dpg.add_input_text},
         bool  : {'call': dpg.add_checkbox},
         int   : {'call': dpg.add_input_int},

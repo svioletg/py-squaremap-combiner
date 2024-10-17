@@ -59,28 +59,18 @@ map_image = combiner.combine('minecraft_overworld', 2)
 map_image.save('output.jpg')
 ```
 
-...run via the `-m` switch...
+...or run via the `-m` switch as a command.
 
 ```bash
 python3 -m squaremap_combine my-tiles overworld 2 --output-ext jpg
 ```
 
-...or run as its own command.
-
-```bash
-squaremap_combine my-tiles overworld 2 --output-ext jpg
-```
-
 A GUI version of the script is also available. Install the GUI dependencies by adding `[gui]` to the end
-of the package's name during installation, and then run the GUI by either adding a `gui` argument to the CLI command...
+of the package's name during installation, and then run the GUI by either adding a `gui` argument to the CLI command.
 
 ```bash
-squaremap_combine gui
+python3 -m squaremap_combine gui
 ```
-
-...or using the `squaremap_combine-gui` command. The main difference between these two methods is that
-the former will keep a command prompt or terminal window open while the GUI app runs, and the latter
-does not open any sort of terminal.
 
 Use `squaremap_combine gui debug` to enable debug logs & the debug tab for the GUI app.
 

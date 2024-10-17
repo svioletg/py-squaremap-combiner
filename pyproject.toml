@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "squaremap_combine"
@@ -27,12 +27,9 @@ gui = [
   "pydantic==2.9.2"
 ]
 
-[project.scripts]
-squaremap-combine = "squaremap_combine.combine_cli:main"
-
-[project.gui-scripts]
-squaremap-combine-gui = "squaremap_combine.gui.combine_gui:main"
-
 [project.urls]
 Homepage = "https://github.com/svioletg/py-squaremap-combiner"
 Issues = "https://github.com/svioletg/py-squaremap-combiner/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
