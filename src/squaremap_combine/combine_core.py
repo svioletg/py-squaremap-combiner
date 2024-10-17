@@ -507,8 +507,6 @@ class Combiner:
             image = image.resize_canvas(*force_size)
             autotrim = False
 
-        image.img.show()
-
         # Trim transparent excess space
         if autotrim:
             logger.info(f'Trimming out blank space... ({image.width}x{image.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
