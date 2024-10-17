@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "squaremap_combine"
-version = "0.25.1"
+version = "0.25.2"
 authors = [
   { name="Seth 'Violet' Gibbs" },
 ]
@@ -24,8 +24,7 @@ dependencies=[
 
 [project.optional-dependencies]
 gui = [
-  "dearpygui==2.0.0",
-  "pydantic==2.9.2"
+  "dearpygui==2.0.0"
 ]
 
 [project.urls]

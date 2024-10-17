@@ -65,8 +65,13 @@ map_image.save('output.jpg')
 python3 -m squaremap_combine my-tiles overworld 2 --output-ext jpg
 ```
 
-A GUI version of the script is also available. Install the GUI dependencies by adding `[gui]` to the end
-of the package's name during installation, and then run the GUI by either adding a `gui` argument to the CLI command.
+A GUI version of the script is also available. Install the GUI dependencies using this command...
+
+```bash
+pip install "squaremap_combine[gui] @ git+https://github.com/svioletg/py-squaremap-combiner.git"
+```
+
+...and then run the GUI by either adding a `gui` argument to the CLI command.
 
 ```bash
 python3 -m squaremap_combine gui
