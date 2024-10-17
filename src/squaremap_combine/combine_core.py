@@ -437,8 +437,7 @@ class Combiner:
         row_range = range(min(rows), max(rows) + 1)
 
         if area:
-            area = Rectangle([n // detail_mul for n in area])
-            area_regions = Rectangle([n // self.TILE_SIZE for n in snap_box(area, self.TILE_SIZE)])
+            area_regions = Rectangle([n // self.TILE_SIZE for n in snap_box(Rectangle([n // detail_mul for n in area]), self.TILE_SIZE)])
             column_range = range(area_regions[0], area_regions[2] + 1)
             row_range = range(area_regions[1], area_regions[3] + 1)
 
