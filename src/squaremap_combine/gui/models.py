@@ -13,8 +13,11 @@ class UserData:
     """
     other: Any = None
     """Miscellaneous info to be passed on for any purpose. Should only be used if no other properties fit."""
-    cb_display_with: Optional[str | int] = None
-    """ID of an item to call `dearpygui.dearpygui.set_value` on with the callback return value."""
+    cb_display_with: Optional[str | int | tuple[str | int | None, str | int | None]] = None
+    """ID of an item to call `dearpygui.dearpygui.set_value` on with the callback return value. If a tuple is given,
+    the second provided ID is used if the callback returned `None`, and setting this value to `None`
+    will ignore the result entirely.
+    """
     cb_store_in: Optional[str | int] = None
     """ID of an item whose `user_data` will be used to store the callback return value."""
     cb_forward_to: Optional[Callable[..., None] | tuple[Callable[..., None], Callable[..., None]]] = None

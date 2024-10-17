@@ -11,14 +11,14 @@ from typing import Any, Callable, cast
 
 import dearpygui.dearpygui as dpg
 
-from squaremap_combine.combine_core import CombinerStyle, logger
+from squaremap_combine.combine_core import CombinerStyle, Coord2i, logger
 from squaremap_combine.gui import actions
 from squaremap_combine.gui.models import UserData
 from squaremap_combine.helper import Color
 from squaremap_combine.project import LOGS_DIR, PROJECT_DOCS_URL, PROJECT_VERSION, USER_DATA_DIR
 
 PRIMARY_WINDOW_INIT_SIZE = 1000, 800
-MODAL_DIALOG_MAX_SIZE = floor(PRIMARY_WINDOW_INIT_SIZE[0] / 1.5), floor(PRIMARY_WINDOW_INIT_SIZE[1] / 1.5)
+MODAL_DIALOG_MAX_SIZE = 8000, 400
 CONSOLE_TEXT_WRAP = 780
 SPACER_HEIGHT = 10
 INDENT_WIDTH = 50
@@ -72,6 +72,10 @@ class ElemGroup:
     def visibility(cls, group_name: str, value: bool):
         """Sets the `show` keyword of every item in the named group to the given `bool`."""
         cls.action(group_name, dpg.configure_item, show=value)
+
+def main_window_center() -> Coord2i:
+    """Returns the center coordinate of the main window."""
+    return Coord2i(dpg.get_item_width('main-window') or 0, dpg.get_item_height('main-window') or 0) // 2
 
 def build_combiner_style_editor():
     """Auto-generates a visual editor for the `CombinerStyle` class
@@ -129,6 +133,9 @@ def build_layout(debugging: bool=False):
     """
     #region LAYOUT
     # Modal notice box
+    with dpg.window(tag='blocking-modal', modal=True, show=False, no_resize=True, no_move=True, no_close=True):
+        dpg.add_text(default_value='Waiting for external response...')
+
     with dpg.window(tag='modal-notice', label='Notice', modal=True, show=False, no_resize=True, max_size=MODAL_DIALOG_MAX_SIZE):
         dpg.add_text(tag='modal-notice-message', wrap=MODAL_DIALOG_MAX_SIZE[0] - 50)
         dpg.add_spacer(height=SPACER_HEIGHT)
@@ -157,8 +164,8 @@ def build_layout(debugging: bool=False):
                 callback=actions.validate_tiles_dir_callback, on_enter=True))
         dpg.add_button(tag='tiles-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
             user_data=UserData(
-                cb_display_with='tiles-dir-input',
-                cb_forward_to=actions.validate_tiles_dir
+                cb_display_with=('tiles-dir-input', None),
+                cb_forward_to=(actions.validate_tiles_dir, lambda *args: None)
             ))
 
         # World selection
@@ -183,7 +190,7 @@ def build_layout(debugging: bool=False):
             dpg.add_text(default_value='Output directory:')
             ElemGroup.add(['img-required', 'image-settings'], dpg.add_input_text(tag='out-dir-input', default_value='', width=700))
         dpg.add_button(tag='out-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
-            user_data=UserData(cb_display_with='out-dir-input'))
+            user_data=UserData(cb_display_with=('out-dir-input', None)))
 
     def secondary_tab_content():
         dpg.add_spacer(height=SPACER_HEIGHT)

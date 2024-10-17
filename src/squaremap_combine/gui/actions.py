@@ -43,8 +43,11 @@ def dpg_callback(func):
         user_data = user_data or UserData()
         result = func(CallbackArgs(sender=sender, app_data=app_data, user_data=user_data))
         if display_with := user_data.cb_display_with:
-            # Setting something like a text field to 'None' would then count as a non-None input if it were to be checked later
-            dpg.set_value(display_with, str(result if result is not None else ''))
+            if isinstance(display_with, tuple):
+                display_with = display_with[0] if result is not None else display_with[1]
+            if display_with:
+                # Setting something like a text field to 'None' would then count as a non-None input if it were to be checked later
+                dpg.set_value(display_with, str(result if result is not None else ''))
         if store_in := user_data.cb_store_in:
             dpg.set_item_user_data(store_in, result)
         if forward_to := user_data.cb_forward_to:
@@ -70,6 +73,18 @@ def notice_on_exception(func, exceptions: Optional[tuple[type[Exception], ...]]=
                 '\nYour most recent log file will have more detailed information.'
             )
             return None
+    return wrapper
+
+def block_gui(func):
+    """Opens a modal dialog that can't be closed when the wrapped function is called, and closes it automatically
+    when that function returns. Can be used to prevent callbacks from queueing up for things like file dialogs.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        dpg.configure_item('blocking-modal', show=True)
+        result = func(*args, **kwargs)
+        dpg.configure_item('blocking-modal', show=False)
+        return result
     return wrapper
 #endregion WRAPPERS
 
@@ -150,18 +165,21 @@ def create_image() -> Image.Image | None:
     return result.img
 
 @dpg_callback
+@block_gui
 def dir_dialog_callback(_args: CallbackArgs) -> Path | None:
     """Opens a dialog for choosing a directory."""
     result = Path(askdirectory())
     return result if result != Path('.') else None
 
 @dpg_callback
+@block_gui
 def file_open_dialog_callback(_args: CallbackArgs) -> Path | None:
     """Opens a dialog for choosing a file."""
     result = Path(askopenfilename())
     return result if result != Path('.') else None
 
 @dpg_callback
+@block_gui
 def file_save_dialog_callback(args: CallbackArgs) -> Path | None:
     """Opens a dialog for saving a file."""
     initialfile: str | None = args.user_data.other.get('initialfile')
