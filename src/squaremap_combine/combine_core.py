@@ -165,13 +165,9 @@ class MapImage:
         """Returns a cropped portion of the original image, along with an accordingly updated `game_zero` property."""
         return MapImage(self.img.crop(box), MapImageCoord(*self.game_zero - box[0:2]), self.detail_mul)
 
-    def resize_canvas(self, width: int, height: int, center_on: GameCoord=GameCoord(0, 0)) -> 'MapImage':
-        """Returns this image centered within a new canvas of the given size,
-        centered by a specified coordinate of the original image.
-
-        :param center_on: What coordinate of the Minecraft world to center the image on. Defaults to 0,0.
-        """
-        origin_in_image = center_on.to_image_coord(self)
+    def resize_canvas(self, width: int, height: int) -> 'MapImage':
+        """Returns this image centered within a new canvas of the given size."""
+        origin_in_image = MapImageCoord(*self.size) // 2
         center_distance = origin_in_image, MapImageCoord(*self.size) - origin_in_image
         paste_area: Rectangle = (
             (width // 2) - center_distance[0].x,
@@ -491,14 +487,8 @@ class Combiner:
             image = image.crop(crop_area)
             autotrim = False
 
-        # Crop and resize if given an explicit size
-        if force_size and all(n > 0 for n in force_size):
-            logger.info(f'Resizing to {force_size[0]}x{force_size[1]}...')
-            image = image.resize_canvas(*force_size)
-            autotrim = False
-
         # Things like grid lines and coordinate text are likely to end up drawn outside of the image's original bounding box,
-        # alterting what getbbox() would return. Get this bounding box *first*, and then use it to autotrim later.
+        # altering what getbbox() would return. Get this bounding box *first*, and then use it to autotrim later.
         bbox = image.getbbox()
         assert bbox, AssertionMessage.BBOX_IS_NONE
 
@@ -510,6 +500,14 @@ class Combiner:
             if self.style.show_grid_lines:
                 logger.info('Drawing grid lines...')
                 self.draw_grid_lines(image)
+
+        # Crop and resize if given an explicit size
+        if force_size and all(n > 0 for n in force_size):
+            logger.info(f'Resizing to {force_size[0]}x{force_size[1]}...')
+            image = image.resize_canvas(*force_size)
+            autotrim = False
+
+        image.img.show()
 
         # Trim transparent excess space
         if autotrim:
