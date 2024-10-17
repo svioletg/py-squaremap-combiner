@@ -10,10 +10,11 @@ from typing import Any, Callable, cast
 
 import dearpygui.dearpygui as dpg
 
-from squaremap_combine.combine_core import CombinerStyle, Coord2i, logger
+from squaremap_combine.combine_core import CombinerStyle, Coord2i
 from squaremap_combine.gui import actions
 from squaremap_combine.gui.models import UserData
 from squaremap_combine.helper import Color
+from squaremap_combine.logging import logger
 from squaremap_combine.project import LOGS_DIR, PROJECT_DOCS_URL, PROJECT_VERSION, USER_DATA_DIR
 
 PRIMARY_WINDOW_INIT_SIZE = 1000, 800

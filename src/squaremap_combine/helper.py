@@ -3,16 +3,12 @@ Miscellaneous helper utility functions and classes.
 """
 
 import re
-import sys
 from functools import wraps
 from itertools import batched
 from json import JSONEncoder
 from math import floor
 from typing import Any, Callable, Concatenate, ParamSpec, Protocol, Self, TypeVar
 
-import loguru
-
-from squaremap_combine.project import LOGS_DIR
 from squaremap_combine.type_alias import Rectangle
 
 T = TypeVar('T')
@@ -133,27 +129,6 @@ class StyleJSONEncoder(JSONEncoder):
         if isinstance(o, Color):
             return tuple(o)
         return o.__dict__
-
-def enable_logging(logger: 'loguru.Logger', stdout_level: str='INFO') -> tuple[int, int]:
-    """Adds handlers (after clearing previous ones) to the given `loguru` logger and returns their `int` identifiers.
-
-    :param logger: `loguru.Logger` to add handles to.
-    :param stdout_level: What level to set the `stdout` stream's handler to. Defaults to "INFO".
-
-    :returns: stdout handler ID, file handler ID
-    :rtype: int
-    """
-    logger.remove()
-
-    logger.level('WARNING', color='<yellow>')
-    logger.level('ERROR', color='<red>')
-
-    stdout_handler = logger.add(sys.stdout, colorize=True,
-        format="<level>[{time:HH:mm:ss}] {level}: {message}</level>", level=stdout_level, diagnose=False)
-    file_handler = logger.add(LOGS_DIR / '{time:YYYY-MM-DD_HH-mm-ss}.log',
-        format="[{time:HH:mm:ss}] {level}: {message}", level='DEBUG', mode='w', retention=5, diagnose=False)
-
-    return stdout_handler, file_handler
 
 def confirm_yn(message: str, override: bool=False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""

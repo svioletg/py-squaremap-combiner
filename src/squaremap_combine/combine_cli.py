@@ -11,7 +11,8 @@ from pathlib import Path
 
 from squaremap_combine.combine_core import (DEFAULT_COORDS_FORMAT, DEFAULT_OUTFILE_FORMAT,
                                             DEFAULT_TIME_FORMAT, Combiner, CombinerStyle, logger)
-from squaremap_combine.helper import confirm_yn, enable_logging, filled_tuple
+from squaremap_combine.helper import confirm_yn, filled_tuple
+from squaremap_combine.logging import enable_logging
 from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION
 from squaremap_combine.type_alias import Rectangle
 

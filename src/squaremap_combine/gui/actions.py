@@ -17,10 +17,11 @@ from typing import Any, Optional, cast
 import dearpygui.dearpygui as dpg
 from PIL import Image
 
-from squaremap_combine.combine_core import DEFAULT_OUTFILE_FORMAT, Combiner, CombinerStyle, logger
+from squaremap_combine.combine_core import DEFAULT_OUTFILE_FORMAT, Combiner, CombinerStyle
 from squaremap_combine.gui.layout import CONSOLE_TEXT_WRAP, ElemGroup
 from squaremap_combine.gui.models import CallbackArgs, UserData
 from squaremap_combine.gui.styling import Themes
+from squaremap_combine.logging import logger
 from squaremap_combine.project import APP_SETTINGS_PATH
 
 TILES_DIR_REGEX = re.compile(r"^[\w-]+\\\w+\\[0-3]\\[-|]\d_[-|]\d")

@@ -8,9 +8,8 @@ from pathlib import Path
 
 import dearpygui.dearpygui as dpg
 
-from squaremap_combine.combine_core import logger
 from squaremap_combine.gui import actions, layout, styling
-from squaremap_combine.helper import enable_logging
+from squaremap_combine.logging import enable_logging, logger
 from squaremap_combine.project import (APP_SETTINGS_PATH, GUI_ASSET_DIR, OPT_AUTOSAVE_PATH, PROJECT_VERSION,
                                        STYLE_AUTOSAVE_PATH, USER_DATA_DIR)
 

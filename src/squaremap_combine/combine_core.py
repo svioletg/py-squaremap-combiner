@@ -10,18 +10,14 @@ from itertools import product
 from pathlib import Path
 from typing import Callable, Iterator, Literal, Optional, Self, Sequence, TypeVar, cast, get_args
 
-from loguru import logger
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
 from squaremap_combine.errors import AssertionMessage
 from squaremap_combine.helper import (Color, ConfirmationCallback, StyleJSONEncoder, confirm_yn,
                                       copy_method_signature, snap_box)
+from squaremap_combine.logging import logger
 from squaremap_combine.type_alias import Rectangle
-
-logger.level('GUI_COMMAND', no=0)
-
-logger.remove() # Don't output anything if this is just being imported
 
 T = TypeVar('T')
 
