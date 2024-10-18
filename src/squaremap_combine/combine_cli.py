@@ -206,8 +206,8 @@ def main(): # pylint: disable=missing-function-docstring
     )
 
     image = combiner.combine(
-        world,
-        detail,
+        world=world,
+        detail=detail,
         autotrim=autotrim,
         area=area,
         force_size=force_size
