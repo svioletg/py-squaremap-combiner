@@ -131,8 +131,8 @@ def create_image() -> Image.Image | None:
         grid_coords_format=opts['grid-coords-format-input'].strip()
     )
     result = combiner.combine(
-        opts['world-choices'],
-        int(opts['detail-choices']),
+        world=opts['world-choices'],
+        detail=int(opts['detail-choices']),
         autotrim=opts['autotrim-checkbox'],
         area=tuple(opts['area-coord-input']) if opts['area-checkbox'] else None,
         force_size=tuple(opts['force-size-input'][0:2]) if opts['force-size-checkbox'] else None

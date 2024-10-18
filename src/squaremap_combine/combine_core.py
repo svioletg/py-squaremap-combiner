@@ -14,8 +14,8 @@ from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
 from squaremap_combine.errors import AssertionMessage
-from squaremap_combine.helper import (Color, ConfirmationCallback, StyleJSONEncoder, confirm_yn,
-                                      copy_method_signature, snap_box)
+from squaremap_combine.helper import (Color, ConfirmationCallback, StyleJSONEncoder, copy_method_signature,
+                                      snap_box)
 from squaremap_combine.logging import logger
 from squaremap_combine.type_alias import Rectangle
 
@@ -380,7 +380,7 @@ class Combiner:
             idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba(), font=font)
         logger.log('GUI_COMMAND', '/pbar hide')
 
-    def combine(self,
+    def combine(self, *,
             world: str | Path,
             detail: int,
             autotrim: bool=False,
