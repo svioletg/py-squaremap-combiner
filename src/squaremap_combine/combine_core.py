@@ -255,7 +255,7 @@ class Combiner:
             tiles_dir: str | Path,
             use_tqdm=False,
             skip_confirmation: bool=False,
-            confirmation_callback: ConfirmationCallback=confirm_yn,
+            confirmation_callback: ConfirmationCallback=lambda message: True,
             grid_interval: tuple[int, int]=(0, 0),
             grid_coords_format: str=DEFAULT_COORDS_FORMAT,
             style: CombinerStyle=DEFAULT_COMBINER_STYLE
