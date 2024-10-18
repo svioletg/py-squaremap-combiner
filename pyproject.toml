@@ -33,3 +33,6 @@ Issues = "https://github.com/svioletg/py-squaremap-combiner/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+squaremap_combine = ["*.ttf", "*.txt", "*.ico"]
