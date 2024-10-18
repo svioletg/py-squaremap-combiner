@@ -31,4 +31,4 @@ jobs:
         pip install .[gui]
     - name: Test with pytest
       run: |
-        pytest
+        pytest -v --capture=no
