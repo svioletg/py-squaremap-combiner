@@ -35,12 +35,6 @@ TEST_PARAMS_OUTLINE: dict[str, CombinerTestParams] = {
     'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)})
 }
 
-def check_missing_control():
-    """Raises an error if no corresponding images are found for a test parameter set."""
-    for name in TEST_PARAMS_OUTLINE:
-        if len([*TEST_CONTROL.glob(f'{name}*.png')]) == 0:
-            raise FileNotFoundError(f'No reference images are available for parameter set: {name}')
-
 def generate_test_params() -> dict:
     """Use the defined `TEST_PARAMS_OUTLINE` to generate additional parameter sets based off a few known
     finite options, like detail level or world choice.
@@ -114,6 +108,14 @@ def load_control_group() -> dict[str, str]:
         return json.load(f)
 
 control_group_hash: dict[str, str] = load_control_group()
+
+def check_missing_control():
+    """Raises an error if no corresponding images are found for a test parameter set."""
+    test_keys = set(TEST_PARAMS_FULL.keys())
+    json_keys = set(control_group_hash.keys())
+    diff = test_keys - json_keys
+    if diff:
+        raise KeyError(f'Control hashes are missing for these tests: {', '.join(diff)}')
 
 @pytest.mark.parametrize('param_set', TEST_PARAMS_FULL)
 def test_map_creation(param_set):
