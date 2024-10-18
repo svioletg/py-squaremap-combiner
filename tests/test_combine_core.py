@@ -1,5 +1,6 @@
 """
-Tests for `squaremap_combine.combine_core`.
+Tests for `squaremap_combine.combine_core`. If this file is run directly, it can be used to create new "control group" images
+for the tests to compare against. This should generally not be done unless there is good reason to - see `generate_control_group`.
 """
 
 import json
@@ -117,6 +118,7 @@ def check_missing_control():
     if diff:
         raise KeyError(f'Control hashes are missing for these tests: {', '.join(diff)}')
 
+#region TESTS
 @pytest.mark.parametrize('param_set', TEST_PARAMS_FULL)
 def test_map_creation(param_set):
     """Tests map image creation using a given `CombinerTestParams` instance."""
@@ -125,6 +127,7 @@ def test_map_creation(param_set):
     test_barr = BytesIO()
     combiner.combine(**params.func_kwargs).save(test_barr, format='png')
     assert control_group_hash[name] == sha256(test_barr.getvalue()).hexdigest()
+#endregion TESTS
 
 def main(): # pylint: disable=missing-function-docstring
     if input('Generate new control group? (y/n) ').strip().lower() != 'y':
