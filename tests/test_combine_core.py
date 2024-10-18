@@ -30,7 +30,8 @@ TEST_PARAMS_OUTLINE: dict[str, CombinerTestParams] = {
     'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)})
 }
 
-if __name__ != '__main__':
+def check_missing_control():
+    """Raises an error if no corresponding images are found for a test parameter set."""
     for name in TEST_PARAMS_OUTLINE:
         if len([*TEST_CONTROL.glob(f'{name}*.png')]) == 0:
             raise FileNotFoundError(f'No reference images are available for parameter set: {name}')
@@ -96,3 +97,5 @@ def main(): # pylint: disable=missing-function-docstring
 
 if __name__ == '__main__':
     main()
+else:
+    check_missing_control()
