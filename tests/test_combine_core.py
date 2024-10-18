@@ -20,14 +20,20 @@ class CombinerTestParams:
     """Defines a set of parameters for the `Combiner` class and `Combiner.combine` function each to test with."""
     tiles_dir: Path = TEST_TILES / '2000x2000'
     cls_kwargs: dict[str, Any] = field(default_factory=dict)
-    func_kwargs: dict[str, Any] = field(default_factory=dict)
+    func_kwargs: dict[str, Any] = field(default_factory=lambda: {'world': 'minecraft_overworld', 'detail': 3})
 
 WORLDS = ['minecraft_overworld', 'minecraft_the_nether', 'minecraft_the_end']
 DETAIL_LEVELS = [0, 1, 2, 3]
 
 TEST_PARAMS_OUTLINE: dict[str, CombinerTestParams] = {
-    'basic': CombinerTestParams(func_kwargs={'world': 'minecraft_overworld'}),
+    'basic': CombinerTestParams(),
+    'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)})
 }
+
+if __name__ != '__main__':
+    for name in TEST_PARAMS_OUTLINE:
+        if len([*TEST_CONTROL.glob(f'{name}*.png')]) == 0:
+            raise FileNotFoundError(f'No reference images are available for parameter set: {name}')
 
 def generate_test_params():
     """Use the defined `TEST_PARAMS_OUTLINE` to generate additional parameter sets based off a few known
