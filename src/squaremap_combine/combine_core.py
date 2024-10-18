@@ -17,6 +17,7 @@ from squaremap_combine.errors import AssertionMessage
 from squaremap_combine.helper import (Color, ConfirmationCallback, StyleJSONEncoder, copy_method_signature,
                                       snap_box)
 from squaremap_combine.logging import logger
+from squaremap_combine.project import ASSET_DIR
 from squaremap_combine.type_alias import Rectangle
 
 T = TypeVar('T')
@@ -191,7 +192,7 @@ class CombinerStyle:
 
     show_grid_text: bool = True
     """Draw grid coordinates at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
-    grid_text_font: str = 'arial'
+    grid_text_font: str = str(Path(ASSET_DIR, 'OpenSans-Regular.ttf').absolute())
     """Name of a font to use for drawing coordinate text onto the image.
     Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g. "documents/my_font.otf".
     """

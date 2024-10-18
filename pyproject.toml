@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "squaremap_combine"
-version = "0.26.0"
+version = "0.27.0"
 authors = [
   { name="Seth 'Violet' Gibbs" },
 ]
@@ -33,3 +33,6 @@ Issues = "https://github.com/svioletg/py-squaremap-combiner/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+squaremap_combine = ["*.ttf", "*.txt", "*.ico"]

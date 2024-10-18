@@ -6,7 +6,7 @@ from functools import cache
 
 import dearpygui.dearpygui as dpg
 
-from squaremap_combine.project import GUI_ASSET_DIR
+from squaremap_combine.project import ASSET_DIR
 
 
 class Themes:
@@ -108,10 +108,10 @@ def apply_themes():
 def configure_fonts():
     """Registers fonts and binds them to their respective items."""
     with dpg.font_registry():
-        font_sans_regular = dpg.add_font(str(GUI_ASSET_DIR / 'selawk.ttf'), 20)
-        font_sans_regular_h1 = dpg.add_font(str(GUI_ASSET_DIR / 'selawkb.ttf'), 30)
-        font_sans_regular_h2 = dpg.add_font(str(GUI_ASSET_DIR / 'selawkb.ttf'), 40)
-        font_mono = dpg.add_font(str(GUI_ASSET_DIR / 'SourceCodePro-SemiBold.ttf'), 20)
+        font_sans_regular = dpg.add_font(str(ASSET_DIR / 'selawk.ttf'), 20)
+        font_sans_regular_h1 = dpg.add_font(str(ASSET_DIR / 'selawkb.ttf'), 30)
+        font_sans_regular_h2 = dpg.add_font(str(ASSET_DIR / 'selawkb.ttf'), 40)
+        font_mono = dpg.add_font(str(ASSET_DIR / 'SourceCodePro-SemiBold.ttf'), 20)
 
     dpg.bind_font(font_sans_regular)
     dpg.bind_item_font('title-text', font_sans_regular_h1)
