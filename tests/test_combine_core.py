@@ -33,7 +33,27 @@ DETAIL_LEVELS = [0, 1, 2, 3]
 
 TEST_PARAMS_OUTLINE: dict[str, CombinerTestParams] = {
     'basic': CombinerTestParams(),
-    'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)})
+    'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)}),
+    'area-upper-left': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (-800, -600, -300, -100)}
+    ),
+    'area-upper-right': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (300, -600, 800, -100)}
+    ),
+    'area-lower-left': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (-800, 100, -300, 600)}
+    ),
+    'area-lower-right': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (300, 100, 800, 600)}
+    ),
+    'area-center': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (-600, -600, 300, 300)}
+    ),
 }
 
 def generate_test_params() -> dict:
