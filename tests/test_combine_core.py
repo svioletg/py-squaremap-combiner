@@ -105,6 +105,10 @@ def generate_control_group():
     if len(stored) != 0:
         verify_and_encode_stored()
 
+    if input('Write? ').lower().strip() != 'y':
+        print('Cancelled.')
+        return
+
     with open(TEST_CONTROL / 'control_group_hash.json', 'w', encoding='utf-8') as f:
         json.dump(hash_dict, f, indent=4)
 

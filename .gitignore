@@ -3,6 +3,7 @@
 testimg/
 pdoc/
 docs/build/
+build/
 gui-wrapping/
 .pytest_cache/
 __pycache__/
