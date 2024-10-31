@@ -25,6 +25,14 @@ INDENT_WIDTH = 50
 
 MESSAGE_NO_DIR = 'None to display; choose a valid tiles directory above.'
 
+TOOLTIP_TEXT: dict[str, str] = {
+    'timestamp-format':
+        'A string template used to prefix the filename if using a timestamp is enabled.\n' +
+        'See strftime.org for a list of valid formatting codes.',
+    'reset-default-bttn':
+        'Reset this setting to its default value.'
+}
+
 class ElemGroup:
     """Class that allows putting individual items into named groups, primarily for batch operations on multiple items.
     The class is not meant to be instanced; it holds one private `_groups` attribute can be accessed and modified with
@@ -226,8 +234,7 @@ def build_layout(debugging: bool=False):
             show=False, indent=1 * INDENT_WIDTH))
         with dpg.tooltip(parent=dpg.last_item()):
             dpg.add_text(default_value='Area coordinates should be the coordinates of an area as they would be in Minecraft,' +
-                ' regardless of the selected detail level.\n'
-            )
+                ' regardless of the selected detail level.\n')
         ElemGroup.add(['image-settings', 'area-opts'],
             dpg.add_input_intx(tag='area-coord-input', size=4, width=300, indent=1 * INDENT_WIDTH))
 

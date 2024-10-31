@@ -105,7 +105,7 @@ def apply_themes():
     dpg.bind_item_theme('console-output-window', themes.console)
     dpg.bind_item_theme('tabs-group', themes.tabs)
 
-def configure_fonts():
+def register_fonts():
     """Registers fonts and binds them to their respective items."""
     with dpg.font_registry():
         font_sans_regular = dpg.add_font(str(ASSET_DIR / 'selawk.ttf'), 20)

@@ -61,7 +61,7 @@ def main(): # pylint: disable=missing-function-docstring
     styling.apply_themes()
 
     logger.info('Configuring fonts...')
-    styling.configure_fonts()
+    styling.register_fonts()
 
     logger.info('Setting icon...')
     dpg.set_viewport_small_icon(str(GUI_ASSET_DIR / 'icon.ico'))
