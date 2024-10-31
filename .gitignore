@@ -9,4 +9,4 @@ gui-wrapping/
 __pycache__/
 *.log
 *.egg-info
-tests/data/out/*
+tests/data/*.png
