@@ -1,5 +1,6 @@
 """
-Tests for `squaremap_combine.combine_core`.
+Tests for `squaremap_combine.combine_core`. If this file is run directly, it can be used to create new "control group" images
+for the tests to compare against. This should generally not be done unless there is good reason to - see `generate_control_group`.
 """
 
 import json
@@ -32,14 +33,28 @@ DETAIL_LEVELS = [0, 1, 2, 3]
 
 TEST_PARAMS_OUTLINE: dict[str, CombinerTestParams] = {
     'basic': CombinerTestParams(),
-    'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)})
+    'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)}),
+    'area-upper-left': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (-800, -600, -300, -100)}
+    ),
+    'area-upper-right': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (300, -600, 800, -100)}
+    ),
+    'area-lower-left': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (-800, 100, -300, 600)}
+    ),
+    'area-lower-right': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (300, 100, 800, 600)}
+    ),
+    'area-center': CombinerTestParams(
+        cls_kwargs={'grid_interval': (200, 200)},
+        func_kwargs={'area': (-600, -600, 300, 300)}
+    ),
 }
-
-def check_missing_control():
-    """Raises an error if no corresponding images are found for a test parameter set."""
-    for name in TEST_PARAMS_OUTLINE:
-        if len([*TEST_CONTROL.glob(f'{name}*.png')]) == 0:
-            raise FileNotFoundError(f'No reference images are available for parameter set: {name}')
 
 def generate_test_params() -> dict:
     """Use the defined `TEST_PARAMS_OUTLINE` to generate additional parameter sets based off a few known
@@ -119,6 +134,15 @@ def load_control_group() -> dict[str, str]:
 
 control_group_hash: dict[str, str] = load_control_group()
 
+def check_missing_control():
+    """Raises an error if no corresponding images are found for a test parameter set."""
+    test_keys = set(TEST_PARAMS_FULL.keys())
+    json_keys = set(control_group_hash.keys())
+    diff = test_keys - json_keys
+    if diff:
+        raise KeyError(f'Control hashes are missing for these tests: {', '.join(diff)}')
+
+#region TESTS
 @pytest.mark.parametrize('param_set', TEST_PARAMS_FULL)
 def test_map_creation(param_set):
     """Tests map image creation using a given `CombinerTestParams` instance."""
@@ -127,6 +151,7 @@ def test_map_creation(param_set):
     test_barr = BytesIO()
     combiner.combine(**params.func_kwargs).save(test_barr, format='png')
     assert control_group_hash[name] == sha256(test_barr.getvalue()).hexdigest()
+#endregion TESTS
 
 def main(): # pylint: disable=missing-function-docstring
     if input('Generate new control group? (y/n) ').strip().lower() != 'y':
