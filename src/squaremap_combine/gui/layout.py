@@ -98,9 +98,9 @@ def build_combiner_style_editor():
                 'width': 150, 'height': 150,
                 'input_mode': dpg.mvColorEdit_input_rgb,
                 'alpha_bar': True,
-                'no_side_preview': True
-            }
-        }
+                'no_side_preview': True,
+            },
+        },
     }
 
     with dpg.group(horizontal=True):
@@ -172,7 +172,7 @@ def build_layout(debugging: bool=False):
         dpg.add_button(tag='tiles-dir-button', label='Choose folder...', callback=actions.dir_dialog_callback,
             user_data=UserData(
                 cb_display_with=('tiles-dir-input', None),
-                cb_forward_to=(actions.validate_tiles_dir, lambda *args: None)
+                cb_forward_to=(actions.validate_tiles_dir, lambda *args: None),
             ))
 
         # World selection
@@ -186,7 +186,7 @@ def build_layout(debugging: bool=False):
         with dpg.tooltip(parent=dpg.last_item()):
             dpg.add_text(default_value='Higher number indicates higher detail, and thus a larger final image.\n' +
                 '3 represents one block per pixel, so an exact block-by-block view of the world.\n' +
-                '2 stores a 2x2 block square area per pixel. 1 is 4x4 blocks per pixel, and 0 is 8x8 blocks per pixel.'
+                '2 stores a 2x2 block square area per pixel. 1 is 4x4 blocks per pixel, and 0 is 8x8 blocks per pixel.',
             )
         dpg.add_text(tag='detail-invalid', default_value=MESSAGE_NO_DIR)
         ElemGroup.add(['img-required', 'image-settings'],
@@ -234,7 +234,8 @@ def build_layout(debugging: bool=False):
             show=False, indent=1 * INDENT_WIDTH))
         with dpg.tooltip(parent=dpg.last_item()):
             dpg.add_text(default_value='Area coordinates should be the coordinates of an area as they would be in Minecraft,' +
-                ' regardless of the selected detail level.\n')
+                ' regardless of the selected detail level.\n',
+            )
         ElemGroup.add(['image-settings', 'area-opts'],
             dpg.add_input_intx(tag='area-coord-input', size=4, width=300, indent=1 * INDENT_WIDTH))
 
@@ -295,13 +296,13 @@ def build_layout(debugging: bool=False):
         dpg.add_button(label='Hide progress bar', callback=lambda: dpg.configure_item('progress-bar', show=False))
         dpg.add_text(default_value='Progress bar value:')
         dpg.add_input_text(on_enter=True, callback=lambda s,a,d: dpg.configure_item('progress-bar', default_value=float(a)))
-        dpg.add_button(label='Print element groups', callback=lambda: pprint(ElemGroup._groups)) # pylint: disable=protected-access
+        dpg.add_button(label='Print element groups', callback=lambda: pprint(ElemGroup._groups))
         dpg.add_button(label='Print image settings group',
-            callback=lambda: pprint(ElemGroup._groups['image-settings'])) # pylint: disable=protected-access
+            callback=lambda: pprint(ElemGroup._groups['image-settings']))
         dpg.add_button(label='Print gathered image options',
             callback=lambda: pprint(actions.get_image_options()))
         dpg.add_button(label='Print style settings group',
-            callback=lambda: pprint(ElemGroup._groups['combiner-style-settings'])) # pylint: disable=protected-access
+            callback=lambda: pprint(ElemGroup._groups['combiner-style-settings']))
         dpg.add_button(label='Print gathered style options',
             callback=lambda: pprint(actions.get_style_options()))
 

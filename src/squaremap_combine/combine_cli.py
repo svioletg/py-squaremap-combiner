@@ -9,8 +9,14 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
-from squaremap_combine.combine_core import (DEFAULT_COORDS_FORMAT, DEFAULT_OUTFILE_FORMAT,
-                                            DEFAULT_TIME_FORMAT, Combiner, CombinerStyle, logger)
+from squaremap_combine.combine_core import (
+    DEFAULT_COORDS_FORMAT,
+    DEFAULT_OUTFILE_FORMAT,
+    DEFAULT_TIME_FORMAT,
+    Combiner,
+    CombinerStyle,
+    logger,
+)
 from squaremap_combine.helper import confirm_yn, filled_tuple
 from squaremap_combine.logging import enable_logging
 from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION
@@ -21,8 +27,8 @@ def opt(*names: str) -> list[str]:
     """Short for "option". Returns the given argument names with underscore versions appended."""
     return [*names] + [('--' + n.lstrip('-').replace('-', '_')) for n in names if '-' in n.lstrip('-')]
 
-def main(): # pylint: disable=missing-function-docstring
-    stdout_handler, file_handler = enable_logging(logger) # pylint: disable=unused-variable
+def main():
+    stdout_handler, file_handler = enable_logging(logger)
 
     if '--find-logs' in sys.argv:
         print(LOGS_DIR)
@@ -180,7 +186,7 @@ def main(): # pylint: disable=missing-function-docstring
         timestamp=timestamp,
         world=world,
         detail=detail,
-        output_ext=output_ext
+        output_ext=output_ext,
     )
 
     if out_file.exists() and (not overwrite):
@@ -202,7 +208,7 @@ def main(): # pylint: disable=missing-function-docstring
         skip_confirmation=yes_to_all,
         grid_interval=grid_interval,
         grid_coords_format=coords_format,
-        style=CombinerStyle(**user_style_rules)
+        style=CombinerStyle(**user_style_rules),
     )
 
     image = combiner.combine(
@@ -210,7 +216,7 @@ def main(): # pylint: disable=missing-function-docstring
         detail=detail,
         autotrim=autotrim,
         area=area,
-        force_size=force_size
+        force_size=force_size,
     )
 
     if not image:

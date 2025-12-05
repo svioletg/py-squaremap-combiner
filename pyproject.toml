@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "squaremap_combine"
-version = "0.27.0"
+version = "0.28.0"
 authors = [
   { name="Seth 'Violet' Gibbs" },
 ]
@@ -16,20 +16,28 @@ classifiers = [
   "Programming Language :: Python :: 3",
 ]
 dependencies=[
-  "loguru==0.7.2",
-  "pillow==10.4.0",
-  "platformdirs==4.3.6",
-  "tqdm==4.66.5"
+  "loguru>=0.7.2",
+  "pillow>=10.4.0",
+  "platformdirs>=4.3.6",
+  "tqdm>=4.66.5"
 ]
 
 [project.optional-dependencies]
 gui = [
-  "dearpygui==2.0.0"
+  "dearpygui>=2.0.0"
+]
+dev = [
+    "ipython>=9.8.0",
+    "pytest>=9.0.1",
+    "ruff>=0.14.8",
 ]
 
 [project.urls]
 Homepage = "https://github.com/svioletg/py-squaremap-combiner"
 Issues = "https://github.com/svioletg/py-squaremap-combiner/issues"
+
+[project.scripts]
+squaremap-combine = "squaremap_combine.combine_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

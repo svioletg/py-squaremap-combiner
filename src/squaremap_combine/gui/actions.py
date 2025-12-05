@@ -71,7 +71,7 @@ def notice_on_exception(func, exceptions: Optional[tuple[type[Exception], ...]]=
             logger.error(''.join(traceback.format_exception(e)))
             open_notice_dialog('An error has occurred:\n' +
                 ''.join(traceback.format_exception_only(e)).replace('\n', ' ') +
-                '\nYour most recent log file will have more detailed information.'
+                '\nYour most recent log file will have more detailed information.',
             )
             return None
     return wrapper
@@ -128,14 +128,14 @@ def create_image() -> Image.Image | None:
         confirmation_callback=open_confirm_dialog,
         style=style,
         grid_interval=tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0),
-        grid_coords_format=opts['grid-coords-format-input'].strip()
+        grid_coords_format=opts['grid-coords-format-input'].strip(),
     )
     result = combiner.combine(
         world=opts['world-choices'],
         detail=int(opts['detail-choices']),
         autotrim=opts['autotrim-checkbox'],
         area=tuple(opts['area-coord-input']) if opts['area-checkbox'] else None,
-        force_size=tuple(opts['force-size-input'][0:2]) if opts['force-size-checkbox'] else None
+        force_size=tuple(opts['force-size-input'][0:2]) if opts['force-size-checkbox'] else None,
     )
 
     if not result:
@@ -146,7 +146,7 @@ def create_image() -> Image.Image | None:
         timestamp=(datetime.now().strftime(opts['timestamp-format-input']) + '_') if opts['timestamp-checkbox'] else '',
         world=opts['world-choices'],
         detail=opts['detail-choices'],
-        output_ext=opts['output-ext-input']
+        output_ext=opts['output-ext-input'],
     ))
 
     if out_file.is_file():

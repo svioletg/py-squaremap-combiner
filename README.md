@@ -10,46 +10,37 @@ affiliated with squaremap or its authors.
 The seed used for the world the sample images were created from is
 `-2590089827693666277`.
 
-Until I release version 1.0.0, I do not consider this project stable ---
-there are bound to be a number of bugs or quirks that I haven't
-discovered and/or fixed yet, and the code will likely be seeing
-frequently large changes until that point. Right now version bumps are
-made subjectively and each bump just increases the minor version, but
-after 1.0.0 I plan to stick to semantic versioning.
-
 ## Contents <!-- omit in toc -->
+
 - [Features](#features)
-- [Usage: Setup](#usage-setup)
-- [Usage: Logs](#usage-logs)
-- [Usage: Using the CLI](#usage-using-the-cli)
+- [Installing](#installing)
+- [Logging](#logging)
+- [Basic CLI Usage](#basic-cli-usage)
 - [CLI Options](#cli-options)
-    - [`-h, --help`](#-h---help)
-    - [`-o, --output-dir PATH`](#-o---output-dir-path)
-    - [`-ext, --output-ext EXTENSION`](#-ext---output-ext-extension)
-    - [`-t, --timestamp FORMAT_STRING`](#-t---timestamp-format_string)
-    - [`-ow, --overwrite`](#-ow---overwrite)
-    - [`-a, --area <X1 Y1 X2 Y2>`](#-a---area-x1-y1-x2-y2)
-    - [`-fs, --force-size <WIDTH [HEIGHT]>`](#-fs---force-size-width-height)
-    - [`-g, --grid-interval <X_INTERVAL [Y_INTERVAL]>`](#-g---grid-interval-x_interval-y_interval)
-    - [`-gcf, --coords-format`](#-gcf---coords-format)
-    - [`-sf, --style-file`](#-sf---style-file)
-    - [`-so, --style-override`](#-so---style-override)
-    - [`-y, --yes-to-all`](#-y---yes-to-all)
 
 ## Features
 
-- Stitch all images for a given world into a single large map
-- Export an image of only a certain region of the Minecraft world, by
-    their in-game coordinates
+- Stitch all squaremap-generated images for a given world into a single large map
+- Export an image of only a specified area of the Minecraft world, by its in-game coordinates
 - Grid overlay for maps, representing in-game coordinates
-  - Grid lines and coordinate text can be toggled individually, and
-    styled to a given color, font, and font size
+  - Grid lines and coordinate text can be toggled individually, and styled to a given color, font,
+    and font size
 
-## Usage: Setup
+## Installing
 
-Install the package with pip
-(`pip install git+https://github.com/svioletg/py-squaremap-combiner.git`).
-It can then be used either as a module in another project\...
+Install the package with pip:
+
+```bash
+pip install git+https://github.com/svioletg/py-squaremap-combiner.git`
+```
+
+Then, either use it as a command via `squaremap-combine`...
+
+```bash
+squaremap-combine my-tiles overworld 2 --output-ext jpg
+```
+
+...or import it and use as an API.
 
 ```python
 from squaremap_combine.combine_core import Combiner
@@ -59,11 +50,11 @@ map_image = combiner.combine('minecraft_overworld', 2)
 map_image.save('output.jpg')
 ```
 
-...or run via the `-m` switch as a command.
+> [!WARNING]
+> As of version **0.28.0**, the GUI wrapper is currently not supported. It is planned to be replaced with a PySide/Qt implementation at a later date. Regardless, the original instructions for using the GUI can be viewed by expanding the section below.
 
-```bash
-python3 -m squaremap_combine my-tiles overworld 2 --output-ext jpg
-```
+<details>
+<summary>Using the GUI wrappper (unsupported)</summary>
 
 A GUI version of the script is also available. Install the GUI dependencies using this command...
 
@@ -79,58 +70,26 @@ python3 -m squaremap_combine gui
 
 Use `squaremap_combine gui debug` to enable debug logs & the debug tab for the GUI app.
 
-## Usage: Logs
+</details>
 
-This project uses [loguru](https://github.com/Delgan/loguru) for its
-logging. Logging is disabled by default, but enabled at the
-`INFO` level when running the package as a command. If
-you're importing any modules from this package and want to make use of
-its logs, import `logger` from the `combine_core` module and use `helper.enable_logging()` to
-enable log output.
+## Logging
 
-Logs are recorded to disk in a `logs` directory where the
-package was installed, the location of which can be revealed by running
-the script with the `--find-logs` option.
+This project uses [loguru](https://github.com/Delgan/loguru) for its logging. Logging is disabled
+by default for API usage, but enabled at the `INFO` level when run as a command.
 
-```bash
-python3 -m squaremap_combine --find-logs
-```
+Log files are saved to your user data directory (e.g. `C:\Users\<user>\AppData` or `~/.local/share`)
+in its `logs` directory. Run `squaremap-combine logs` to print its path.
 
-> If you're using the GUI app, you'll find a button labelled "Open logs folder" under the "App Preferences & Misc." tab,
-> which will open your system's file explorer at your logs directory.
+## Basic CLI Usage
 
-By default, the five most recent log outputs are kept and named by the
-date and time at which they were created. If there are already five log
-files present, the oldest file is deleted before writing a new one. An example file structure may look like below:
+The `squaremap-combine run` command will stitch together images from a given world/dimension
+directory into a single map. This directory will be located in your server's `plugins` directory,
+under `squaremap/web/tiles/<world>`. For example, if your current working directory is where your
+server JAR is located, you may run this command:
 
 ```bash
-    (package directory)
-    ├───logs
-    |   ├───2023-06-16_09-44-06.log
-    |   ├───2023-12-22_03-21-02.log
-    |   ├───2024-01-03_15-03-10.log
-    |   ├───2024-08-09_03-58-07.log
-    |   └───2024-08-09_07-41-07.log
-    ├───combine_core.py
-    └───combine_cli.py
-    etc.
+squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
 ```
-
-## Usage: Using the CLI
-
-To find squaremap's tiles, go to the folder your server JAR is in, and
-then navigate to `plugins/squaremap/web`. Inside, there will be a
-`tiles` folder which likely contains folders like `minecraft_overworld`,
-`minecraft_the_nether`, and `minecraft_the_end`. You will supply the
-path to this `tiles` folder for the script to work, and then specify a
-"world" (dimension) to use the tiles of, which will be one of the
-three aformentioned subfolders -the `minecraft_` prefix can be omitted
-when entering them, but you should not alter the folder names
-themselves.
-
-After these two, specify what detail level to use, any number from 0
-through 3. Level 3 is the highest detail and thus will result in the
-largest image, while 0 is the lowest detail and results in the smallest.
 
 | Detail | Description |
 |---|---|
@@ -139,105 +98,30 @@ largest image, while 0 is the lowest detail and results in the smallest.
 | 1 | 4x4 block area per pixel |
 | 0 | 8x8 block area per pixel |
 
-This is all you need to create a basic full-map image. Your command
-might look something like this:
-
-```bash
-python3 -m squaremap_combine server-tiles overworld 3
-```
-
-Note that very large maps can of course easily result in very large
-images, and it may take a while for the full image to be completed.
-
-Beyond this, there are various options that can be given to the script
-to alter its behavior. If you're not familiar with using the
-command-line, these options are typed out after the main command, in any
-order, with their associated values following directly after, like
-`squaremap_combine tiles overworld 3 --option value --option-two value`.
-If any of the options below are not used, their **default** is used
-automatically.
-
 ## CLI Options
 
-> Note: You can use either hyphens (`-`) or underscores (`_`) and the
-> option will work the same, e.g. `--output-ext` or `--output_ext`
+> [!NOTE] Note: "List" option types
+> All "[xyz] list" options expect values to be given separated by comma as a single option, e.g. `--grid 32,32` or `--area -100,-100,100,100`.
 
----
+|Option|Type|Default|Description|
+|------|----|-------|-----------|
+|`-h/--help`|Flag|N/A|Displays information about every argument / option and their parameters.|
+|`-o/--out FILEPATH`|File path|`<world_name>.png`|Where to save the combined map image. Defaults to the current directory and named after the world folder name.|
+|`--overwite`|Flag|`False`|Allows the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.|
+|`-r/--rect X1,Z1,X2,Z2`|Integer list (4)|Entire rendered map area|A rectangle area of the world to export an image of, separated by commas.|
+|`-t/--trim`|Flag|`False`|Trims empty (fully transparent) space surrounding the completed image.|
+|`-y/--yes-to-all`|Flag|`False`|Automatically accepts and bypasses all confirmation prompts|
+|`-g/--grid`|Integer list (2)|`512,512`|Defines the grid interval. Does nothing on its own, but is required to use any `--grid-*` options.|
 
-#### `-h, --help`
+> [!NOTE] Note: Grid options
+> All options below prefixed with `grid-` are ignored unless `--grid` is specified.
 
-Displays information about every argument / option and their parameters.
+|Option|Type|Default|Description|
+|------|----|-------|-----------|
+|`--grid-lines`|String|`"black 1px"`|The color and pixel size to use for grid lines, separated by space. The color given can be either a hex code (must be preceded by `#`) or [one of 16 color names](https://www.w3.org/TR/REC-html40/types.html#h-6.5) defined in the HTML 4.01 spec.  |
+|`--grid-coords`|String|`"{x}, {z}"`|The string format to use for overlaying grid coordinates, replacing `{x}` and `{z}` with the respective coordinate values, e.g. `"X: {x}, Z: {z}"`. By default, coordinates are not added to the image at all.|
 
----
-#### `-o, --output-dir PATH`
-
-Directory to save the completed image to. Defaults to the directory in which this script was run.
-
----
-#### `-ext, --output-ext EXTENSION`
-
-The output file extension (format) to use for the created image. Default is `png`.
-
----
-#### `-t, --timestamp FORMAT_STRING`
-
-Adds a timestamp of the given format to the beginning of the image
-    file name. Default format `?Y-?m-?d_?H-?M-?S` will be used if no
-    format is specified after this argument. See:
-    <https://docs.python.org/3/library/datetime.html#format-codes> for
-    formatting string examples.
-
-> NOTE: Due to a quirk with the argparse library, you must use a question mark (?) instead of a percent symbol for any format strings.
-
----
-#### `-ow, --overwrite`
-
-Using this flag will allow the script to overwrite an existing file
-    with the same target name if it already exists. By default, if an
-    image with the same path already exists, a numbered suffix is added.
-
----
-#### `-a, --area <X1 Y1 X2 Y2>`
-
-A rectangle area of the world (top, left, bottom, right) to export
-    an image from. This can save time when using a very large world map,
-    as this will only combine the minimum amount of regions needed to
-    cover this area, before finally cropping it down to only the given
-    area. These values should be the coordinates of the area as they
-    would be in the actual Minecraft world.
-
---no-autotrim
-
-By default, excess empty space is trimmed off of the final image.
-    Using this argument with disable that behavior.
-
-> NOTE: Autotrimming is automatically disabled if `--force-size` or `--area` are used.
-
----
-#### `-fs, --force-size <WIDTH [HEIGHT]>`
-
-Centers the assembled map inside an image of this size. Can be used
-    to make images a consistent size if you're using them for a
-    timelapse, for example. Only specifying one integer for this
-    argument will use the same value for both width and height.
-
----
-#### `-g, --grid-interval <X_INTERVAL [Y_INTERVAL]>`
-
-Defines the coordinate intervals to be used for any grid-based
-    options. Grid is drawn relative to the coordinates of the Minecraft
-    world being mapped. If only `X_INTERVAL` is given, the same value is
-    used for `Y_INTERVAL`.
-
----
-#### `-gcf, --coords-format`
-
-A string to format how grid coordinates appear. Use \"{x}\" and
-    \"{y}\" (curly-braces included) where you want the X and Y
-    coordinates to appear, e.g. \"`X: {x} Y: {y}`\" could appear as
-    \"`X: 100 Y: 200`\".
-
----
+<!--
 #### `-sf, --style-file`
 
 A set of styling rules for the combiner, in the form of a path to a
@@ -248,22 +132,10 @@ A set of styling rules for the combiner, in the form of a path to a
     docs](https://squaremap-combine.readthedocs.io/en/latest/squaremap_combine/combine_core.html#CombinerStyle)
     for information on each styling rule.
 
----
 #### `-so, --style-override`
 
 A set of styling rules for the combiner, in the form of a
     JSON-formatted string. These values take highest priority on
     overriding the already set rules. See [the
     docs](https://squaremap-combine.readthedocs.io/en/latest/squaremap_combine/combine_core.html#CombinerStyle)
-    for information on each styling rule.
-
----
-#### `-y, --yes-to-all`
-
-Automatically accepts any requests for user confirmation.
-
-Using some of these options, your command may look something like this:
-
-``` bash
-python3 -m squaremap_combine tiles overworld 3 --area -700 -500 100 200 --timestamp --output-dir town-area --output-ext jpg -y
-```
+    for information on each styling rule. -->

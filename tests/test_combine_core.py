@@ -36,23 +36,23 @@ TEST_PARAMS_OUTLINE: dict[str, CombinerTestParams] = {
     'grid512': CombinerTestParams(cls_kwargs={'grid_interval': (512, 512)}),
     'area-upper-left': CombinerTestParams(
         cls_kwargs={'grid_interval': (200, 200)},
-        func_kwargs={'area': (-800, -600, -300, -100)}
+        func_kwargs={'area': (-800, -600, -300, -100)},
     ),
     'area-upper-right': CombinerTestParams(
         cls_kwargs={'grid_interval': (200, 200)},
-        func_kwargs={'area': (300, -600, 800, -100)}
+        func_kwargs={'area': (300, -600, 800, -100)},
     ),
     'area-lower-left': CombinerTestParams(
         cls_kwargs={'grid_interval': (200, 200)},
-        func_kwargs={'area': (-800, 100, -300, 600)}
+        func_kwargs={'area': (-800, 100, -300, 600)},
     ),
     'area-lower-right': CombinerTestParams(
         cls_kwargs={'grid_interval': (200, 200)},
-        func_kwargs={'area': (300, 100, 800, 600)}
+        func_kwargs={'area': (300, 100, 800, 600)},
     ),
     'area-center': CombinerTestParams(
         cls_kwargs={'grid_interval': (200, 200)},
-        func_kwargs={'area': (-600, -600, 300, 300)}
+        func_kwargs={'area': (-600, -600, 300, 300)},
     ),
 }
 
@@ -153,7 +153,7 @@ def test_map_creation(param_set):
     assert control_group_hash[name] == sha256(test_barr.getvalue()).hexdigest()
 #endregion TESTS
 
-def main(): # pylint: disable=missing-function-docstring
+def main():
     if input('Generate new control group? (y/n) ').strip().lower() != 'y':
         print('Cancelling.')
         return

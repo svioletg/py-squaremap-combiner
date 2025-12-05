@@ -5,22 +5,20 @@ Core functionality for squaremap_combine, providing the `Combiner` class amongst
 import json
 import operator
 import time
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Optional, Self, Sequence, TypeVar, cast, get_args
+from typing import Literal, Self, cast, get_args
 
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
 from squaremap_combine.errors import AssertionMessage
-from squaremap_combine.helper import (Color, ConfirmationCallback, StyleJSONEncoder, copy_method_signature,
-                                      snap_box)
+from squaremap_combine.helper import Color, ConfirmationCallback, StyleJSONEncoder, snap_box
 from squaremap_combine.logging import logger
 from squaremap_combine.project import ASSET_DIR
 from squaremap_combine.type_alias import Rectangle
-
-T = TypeVar('T')
 
 DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
 DEFAULT_COORDS_FORMAT = '({x}, {y})'
@@ -37,25 +35,28 @@ DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 
 class Coord2i:
     """Represents a 2D integer coordinate pair."""
-    def __init__(self, x: int, y: int):
+    def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'Coord2i(x={self.x}, y={self.y})'
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'({self.x}, {self.y})'
 
     def __iter__(self) -> Iterator[int]:
-        for i in [self.x, self.y]:
-            yield i
+        yield from (self.x, self.y)
 
     def as_tuple(self) -> tuple[int, int]:
         """Returns the coordinate as a tuple."""
         return (self.x, self.y)
 
-    def _math(self, math_op: Callable, other: 'int | tuple[int, int] | Coord2i', direction: Literal['l', 'r']='l') -> 'Coord2i':
+    def _math(self,
+            math_op: Callable,
+            other: 'int | tuple[int, int] | Coord2i',
+            direction: Literal['l', 'r']='l',
+        ) -> 'Coord2i':
         if isinstance(other, int):
             other = (other, other)
         elif isinstance(other, Coord2i):
@@ -93,11 +94,12 @@ class Coord2i:
         return self._math(operator.pow, other, 'r')
 
 class GameCoord(Coord2i):
-    """A coordinate as relative to a Minecraft world.
-    Largely identical to `Coord2i`, but used mainly for typing to more effectively signal what kind of coordinate is expected
-    for a given class or function.
     """
-    def __repr__(self):
+    A coordinate as relative to a Minecraft world.
+    Largely identical to `Coord2i`, but used mainly for typing to more effectively signal what kind of coordinate is
+    expected for a given class or function.
+    """
+    def __repr__(self) -> str:
         return f'GameCoord(x={self.x}, y={self.y})'
 
     def to_image_coord(self, image: 'MapImage') -> Coord2i:
@@ -105,11 +107,12 @@ class GameCoord(Coord2i):
         return image.game_zero + (self // image.detail_mul)
 
 class MapImageCoord(Coord2i):
-    """A coordinate as relative to a `MapImage`.
-    Largely identical to `Coord2i`, but used mainly for typing to more effectively signal what kind of coordinate is expected
-    for a given class or function.
     """
-    def __repr__(self):
+    A coordinate as relative to a `MapImage`.
+    Largely identical to `Coord2i`, but used mainly for typing to more effectively signal what kind of coordinate is
+    expected for a given class or function.
+    """
+    def __repr__(self) -> str:
         return f'MapImageCoord(x={self.x}, y={self.y})'
 
     def to_game_coord(self, image: 'MapImage') -> Coord2i:
@@ -120,7 +123,7 @@ class MapImage:
     """A delegator class to extend `Image` with Minecraft-map-specific functionality,
     like automatically recalculating the world's 0, 0 position in the image upon any crops or other changes.
     """
-    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord', detail_mul: int):
+    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord', detail_mul: int) -> None:
         """
         :param image: The `Image` to convert.
         :param game_zero: At what coordinate on this image 0, 0 would be located in the Minecraft world it represents.
@@ -131,32 +134,21 @@ class MapImage:
         self.detail_mul = detail_mul
 
     @property
-    def mode(self): # pylint: disable=missing-function-docstring
+    def mode(self) -> str:
         return self.img.mode
     @property
-    def size(self): # pylint: disable=missing-function-docstring
+    def size(self) -> tuple[int, int]:
         return self.img.size
     @property
-    def width(self): # pylint: disable=missing-function-docstring
+    def width(self) -> int:
         return self.img.width
     @property
-    def height(self): # pylint: disable=missing-function-docstring
+    def height(self) -> int:
         return self.img.height
 
     def with_image(self, new_image: Image.Image) -> 'MapImage':
         """Returns a copy of this `MapImage` with only the internal `Image` object changed."""
         return MapImage(new_image, self.game_zero, self.detail_mul)
-
-    # Copy signatures for intellisense
-    @copy_method_signature(Image.Image.getbbox)
-    def getbbox(self): # pylint: disable=missing-function-docstring
-        return self.img.getbbox()
-    @copy_method_signature(Image.Image.paste)
-    def paste(self, *args, **kwargs): # pylint: disable=missing-function-docstring
-        self.img.paste(*args, **kwargs)
-    @copy_method_signature(Image.Image.save)
-    def save(self, *args, **kwargs): # pylint: disable=missing-function-docstring
-        self.img.save(*args, **kwargs)
 
     def crop(self, box: Rectangle) -> 'MapImage':
         """Returns a cropped portion of the original image, along with an accordingly updated `game_zero` property."""
@@ -188,7 +180,7 @@ class CombinerStyle:
     """Used as the base for any grid-related colors."""
     show_grid_lines: bool = True
     """Draw grid lines at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
-    grid_line_color: Optional[Color] = None
+    grid_line_color: Color | None = None
 
     show_grid_text: bool = True
     """Draw grid coordinates at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
@@ -196,12 +188,12 @@ class CombinerStyle:
     """Name of a font to use for drawing coordinate text onto the image.
     Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g. "documents/my_font.otf".
     """
-    grid_text_color: Optional[Color] = None
+    grid_text_color: Color | None = None
     grid_text_size: int = 12
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Force type conversion and validation
-        for attr, cls in cast(dict[str, type], self.__annotations__).items(): # pylint: disable=no-member; false positive, __annotations__ is valid
+        for attr, cls in cast(dict[str, type], self.__annotations__).items():
             val = getattr(self, attr)
             if str(cls).startswith('typing.Optional'):
                 if val is None:
@@ -211,10 +203,8 @@ class CombinerStyle:
                 continue
             if cls is Color:
                 if isinstance(val, str):
-                    if hexcode := Color.ensure_hex_format(val):
-                        val = Color.from_hex(hexcode)
-                    else:
-                        val = Color.from_name(val)
+                    val = Color.from_name(val) if not (hexcode := Color.ensure_hex_format(val)) \
+                        else Color.from_hex(hexcode)
                 elif isinstance(val, Sequence):
                     val = cls(*map(int, val))
                 else:
@@ -251,16 +241,17 @@ class Combiner:
     """The size of each tile image in pixels.
     Only made a constant in case squaremap happens to change its image sizes in the future.
     """
-    STANDARD_WORLDS: list[str] = ['overworld', 'the_nether', 'the_end']
+    STANDARD_WORLDS: tuple[str, ...] = ('overworld', 'the_nether', 'the_end')
     def __init__(self,
             tiles_dir: str | Path,
-            use_tqdm=False,
-            skip_confirmation: bool=False,
-            confirmation_callback: ConfirmationCallback=lambda message: True,
-            grid_interval: tuple[int, int]=(0, 0),
-            grid_coords_format: str=DEFAULT_COORDS_FORMAT,
-            style: CombinerStyle=DEFAULT_COMBINER_STYLE
-        ):
+            *,
+            confirm: ConfirmationCallback = lambda message: True,
+            grid_interval: tuple[int, int] = (0, 0),
+            grid_coords_format: str = DEFAULT_COORDS_FORMAT,
+            style: CombinerStyle = DEFAULT_COMBINER_STYLE,
+            use_tqdm: bool = False,
+            skip_confirmation: bool = False,
+        ) -> None:
         """
         :param tiles_dir: A path to a directory in the same format as what squaremap automatically generates.
             Example:
@@ -303,7 +294,7 @@ class Combiner:
         self.tiles_dir             = tiles_dir
         self.use_tqdm              = use_tqdm
         self.skip_confirmation     = skip_confirmation
-        self.confirmation_callback = confirmation_callback if not skip_confirmation else lambda message: True
+        self.confirmation_callback = confirm if not skip_confirmation else lambda message: True
         self.grid_interval         = grid_interval or (self.TILE_SIZE, self.TILE_SIZE)
         self.grid_coords_format    = grid_coords_format
         self.style                 = style
@@ -321,11 +312,11 @@ class Combiner:
         coord_axes: dict[str, set[int]] = {
             'h': set(
                 [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
-                [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)]
+                [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)],
                 ),
             'v': set(
                 [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
-                [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)]
+                [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)],
                 ),
         }
 
@@ -339,7 +330,7 @@ class Combiner:
 
         :param image: The `MapImage` to draw coordinates onto. Its `game_zero` attribute is used as the origin point.
         """
-        bbox_before_grid = image.getbbox()
+        bbox_before_grid = image.img.getbbox()
         assert bbox_before_grid
 
         grid_origin = image.game_zero
@@ -347,11 +338,11 @@ class Combiner:
         coord_axes: dict[str, set[int]] = {
             'h': set(
                 [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
-                [*range(grid_origin.x, -1, -self.grid_interval[0] // image.detail_mul)]
+                [*range(grid_origin.x, -1, -self.grid_interval[0] // image.detail_mul)],
                 ),
             'v': set(
                 [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
-                [*range(grid_origin.y, -1, -self.grid_interval[1] // image.detail_mul)]
+                [*range(grid_origin.y, -1, -self.grid_interval[1] // image.detail_mul)],
                 ),
         }
 
@@ -381,12 +372,13 @@ class Combiner:
             idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba(), font=font)
         logger.log('GUI_COMMAND', '/pbar hide')
 
-    def combine(self, *,
+    def combine(self,
+            *,
             world: str | Path,
             detail: int,
-            autotrim: bool=False,
-            area: Optional[Rectangle]=None,
-            force_size: Optional[tuple[int, int]]=None
+            autotrim: bool = False,
+            area: Rectangle | None = None,
+            force_size: tuple[int, int] | None = None,
         ) -> MapImage | None:
         """Combine the given world (dimension) tile images into one large map.
 
@@ -442,7 +434,7 @@ class Combiner:
         # Start stitching
         image = Image.new(
             mode='RGBA',
-            size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range))
+            size=(self.TILE_SIZE * len(column_range), self.TILE_SIZE * len(row_range)),
         )
         logger.info('Constructing image...')
 
@@ -479,14 +471,14 @@ class Combiner:
         if area:
             crop_area = (
                 *GameCoord(area[0], area[1]).to_image_coord(image).as_tuple(),
-                *GameCoord(area[2], area[3]).to_image_coord(image).as_tuple()
+                *GameCoord(area[2], area[3]).to_image_coord(image).as_tuple(),
             )
             image = image.crop(crop_area)
             autotrim = False
 
         # Things like grid lines and coordinate text are likely to end up drawn outside of the image's original bounding box,
         # altering what getbbox() would return. Get this bounding box *first*, and then use it to autotrim later.
-        bbox = image.getbbox()
+        bbox = image.img.getbbox()
         assert bbox, AssertionMessage.BBOX_IS_NONE
 
         # Add grid and/or coordinates

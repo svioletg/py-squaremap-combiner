@@ -11,7 +11,7 @@ from squaremap_combine.project import ASSET_DIR
 
 class Themes:
     """Builds `dearpygui` themes for GUI modules."""
-    @cache # pylint: disable=method-cache-max-size-none; we deliberately want this class to only ever have one instance defined
+    @cache
     def __init__(self):
         with dpg.theme() as self.base:
             with dpg.theme_component(dpg.mvAll):

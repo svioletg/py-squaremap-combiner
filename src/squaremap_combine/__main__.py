@@ -1,4 +1,4 @@
-# pylint: disable=missing-module-docstring
+
 import sys
 
 from . import combine_cli

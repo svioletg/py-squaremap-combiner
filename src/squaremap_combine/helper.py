@@ -147,7 +147,7 @@ def copy_method_signature(source: Callable[Concatenate[Any, P], T]) -> Callable[
     """
     def wrapper(target: Callable[..., T]) -> Callable[Concatenate[Any, P], T]:
         @wraps(source)
-        def wrapped(self: Any, /, *args: P.args, **kwargs: P.kwargs) -> T: # pylint: disable=no-member
+        def wrapped(self: Any, /, *args: P.args, **kwargs: P.kwargs) -> T:
             return target(self, *args, **kwargs)
         return wrapped
     return wrapper

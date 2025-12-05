@@ -33,5 +33,5 @@ class CallbackArgs(dict):
     user_data: UserData
 
     def __iter__(self):
-        for i in self.__annotations__: # pylint: disable=no-member; it does exist
+        for i in self.__annotations__:
             yield getattr(self, i[0])

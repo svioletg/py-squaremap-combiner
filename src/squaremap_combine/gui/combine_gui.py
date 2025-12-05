@@ -10,14 +10,20 @@ import dearpygui.dearpygui as dpg
 
 from squaremap_combine.gui import actions, layout, styling
 from squaremap_combine.logging import enable_logging, logger
-from squaremap_combine.project import (APP_SETTINGS_PATH, GUI_ASSET_DIR, OPT_AUTOSAVE_PATH, PROJECT_VERSION,
-                                       STYLE_AUTOSAVE_PATH, USER_DATA_DIR)
+from squaremap_combine.project import (
+    APP_SETTINGS_PATH,
+    GUI_ASSET_DIR,
+    OPT_AUTOSAVE_PATH,
+    PROJECT_VERSION,
+    STYLE_AUTOSAVE_PATH,
+    USER_DATA_DIR,
+)
 
 
-def main(): # pylint: disable=missing-function-docstring
-    DEBUG_MODE = 'debug' in sys.argv # pylint: disable=invalid-name
+def main():
+    DEBUG_MODE = 'debug' in sys.argv
 
-    stdout_handler, file_handler = enable_logging(logger, 'DEBUG' if DEBUG_MODE else 'INFO') # pylint: disable=unused-variable
+    stdout_handler, file_handler = enable_logging(logger, 'DEBUG' if DEBUG_MODE else 'INFO')
 
     if DEBUG_MODE:
         logger.info('DEBUG_MODE is enabled.')
@@ -36,7 +42,7 @@ def main(): # pylint: disable=missing-function-docstring
         width=window_size[0],
         height=window_size[1],
         x_pos=300,
-        y_pos=100
+        y_pos=100,
     )
     dpg.setup_dearpygui()
 
