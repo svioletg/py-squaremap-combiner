@@ -59,7 +59,7 @@ def dpg_callback(func):
 
 def notice_on_exception(func, exceptions: Optional[tuple[type[Exception], ...]]=None):
     """Spawns a modal dialog if an exception is raised in the wrapped function. It also logs the error.
-    
+
     :param exceptions: A tuple of exceptions this wrapper will intercept and display.
     """
     exceptions = exceptions or (Exception,)
@@ -125,7 +125,7 @@ def create_image() -> Image.Image | None:
     combiner = Combiner(
         opts['tiles-dir-input'],
         use_tqdm=True,
-        confirmation_callback=open_confirm_dialog,
+        confirm=open_confirm_dialog,
         style=style,
         grid_interval=tuple(opts['grid-interval-input'][0:2]) if opts['grid-overlay-checkbox'] else (0, 0),
         grid_coords_format=opts['grid-coords-format-input'].strip(),

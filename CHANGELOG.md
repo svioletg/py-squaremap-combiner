@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- In `combine_core`:
+  - `MapImage` methods `getbbox()`, `paste()`, and `save()` removed — the object's `img` attribute should be accessed directly instead
 - CLI options:
   - All options now either only use a single character for their short name, or have no short name at all
   - `--output-dir` renamed to `--out`, now takes a file path instead of a directory path
