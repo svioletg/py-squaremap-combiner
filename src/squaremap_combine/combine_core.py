@@ -6,7 +6,7 @@ import json
 import operator
 import time
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from typing import Literal, Self, cast, get_args
@@ -14,8 +14,9 @@ from typing import Literal, Self, cast, get_args
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
+from squaremap_combine.const import SQMAP_DETAIL_LEVELS
 from squaremap_combine.errors import AssertionMessage
-from squaremap_combine.helper import Color, ConfirmationCallback, StyleJSONEncoder, snap_box
+from squaremap_combine.util import Color, ConfirmationCallback, StyleJSONEncoder, snap_box
 from squaremap_combine.logging import logger
 from squaremap_combine.project import ASSET_DIR
 from squaremap_combine.type_alias import Rectangle
@@ -172,11 +173,11 @@ class MapImage:
 class CombinerStyle:
     """Defines styling rules for `Combiner`-generated map images."""
 
-    background_color: Color = Color(0, 0, 0, 0)
+    background_color: Color = field(default_factory=lambda: Color(0, 0, 0, 0))
     """By default, empty areas of the image will be rendered as fully transparent.
     Any transparent areas will be replaced with this color, if one is set.
     """
-    grid_color: Color = Color(0, 0, 0, 255)
+    grid_color: Color = field(default_factory=lambda: Color(0, 0, 0, 255))
     """Used as the base for any grid-related colors."""
     show_grid_lines: bool = True
     """Draw grid lines at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
@@ -186,19 +187,21 @@ class CombinerStyle:
     """Draw grid coordinates at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
     grid_text_font: str = str(Path(ASSET_DIR, 'OpenSans-Regular.ttf').absolute())
     """Name of a font to use for drawing coordinate text onto the image.
-    Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g. "documents/my_font.otf".
+    Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g.
+    "documents/my_font.otf".
     """
     grid_text_color: Color | None = None
     grid_text_size: int = 12
 
     def __post_init__(self) -> None:
         # Force type conversion and validation
-        for attr, cls in cast(dict[str, type], self.__annotations__).items():
+        for attr, typ in cast(dict[str, type], self.__annotations__).items():
             val = getattr(self, attr)
+            cls: type = typ
             if str(cls).startswith('typing.Optional'):
                 if val is None:
                     continue
-                cls: type = get_args(cls)[0]
+                cls = get_args(cls)[0]
             if isinstance(val, cls):
                 continue
             if cls is Color:
@@ -275,17 +278,17 @@ class Combiner:
                 └───3
 
         :param use_tqdm: Whether to show a `tqdm` progress bar for any functions that support it.
-        :param skip_confirmation: If `True`, sets `confirmation_callback` to a lambda which will always return `True`,\
+        :param skip_confirmation: If `True`, sets `confirmation_callback` to a lambda which will always return `True`,
             thus bypassing any prompts.
-        :param confirmation_callback: A `Callable` to use in cases where any `Combiner` functions wish to\
-            ask for confirmation before continuing. The callable's first argument must be a `str` named `message`, and\
+        :param confirmation_callback: A `Callable` to use in cases where any `Combiner` functions wish to
+            ask for confirmation before continuing. The callable's first argument must be a `str` named `message`, and
             must return a `bool`.
 
             Confirmation prompts can be skipped altogether by setting this to something like `lambda message: True`,
             or by using the `skip_confirmation` argument, which will set `confirmation_callback ` to the lambda above.
-        :param grid_interval: An X and Y interval that should be used for things like drawing grid lines or coordinates onto \
-            the finished image.
-        :param grid_coords_format: A format string to be used when drawing grid coordinates. \
+        :param grid_interval: An X and Y interval that should be used for things like drawing grid lines or coordinates
+            ontothe finished image.
+        :param grid_coords_format: A format string to be used when drawing grid coordinates.
             Valid formatting options are `{x}` and {y}`.
         :param style: `CombinerStyle` instance to define styling rules with.
         """
@@ -302,28 +305,30 @@ class Combiner:
         self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
         """What valid world folders the given `tiles_dir` contains."""
 
+    # TODO: Replace grid functions with grid property and methods on it
+
     def draw_grid_lines(self, image: MapImage) -> None:
         """Draws grid lines onto a `MapImage` at the intervals defined for this `Combiner` instance.
 
         :param image: The `MapImage` to draw coordinates onto. Its `game_zero` attribute is used as the origin point.
         """
-        idraw = ImageDraw.Draw(image.img)
+        draw = ImageDraw.Draw(image.img)
         grid_origin = image.game_zero
         coord_axes: dict[str, set[int]] = {
             'h': set(
-                [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
-                [*range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul)],
-                ),
+                *range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul),
+                *range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul),
+            ),
             'v': set(
-                [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
-                [*range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul)],
-                ),
+                *range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul),
+                *range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul),
+            ),
         }
 
         for x in coord_axes['h']:
-            idraw.line((x, 0, x, image.height), fill=self.style.grid_line_color.to_rgba())
+            draw.line((x, 0, x, image.height), fill=self.style.grid_line_color.to_rgba())
         for y in coord_axes['v']:
-            idraw.line((0, y, image.width, y), fill=self.style.grid_line_color.to_rgba())
+            draw.line((0, y, image.width, y), fill=self.style.grid_line_color.to_rgba())
 
     def draw_grid_coords_text(self, image: MapImage) -> None:
         """Draws coordinate text onto a `MapImage` at every interval as defined for this `Combiner` instance.
@@ -337,16 +342,18 @@ class Combiner:
 
         coord_axes: dict[str, set[int]] = {
             'h': set(
-                [*range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul)] +
-                [*range(grid_origin.x, -1, -self.grid_interval[0] // image.detail_mul)],
+                *range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul),
+                *range(grid_origin.x, -1, -self.grid_interval[0] // image.detail_mul),
                 ),
             'v': set(
-                [*range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul)] +
-                [*range(grid_origin.y, -1, -self.grid_interval[1] // image.detail_mul)],
+                *range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul),
+                *range(grid_origin.y, -1, -self.grid_interval[1] // image.detail_mul),
                 ),
         }
 
-        interval_coords: list[MapImageCoord] = [MapImageCoord(x, y) for x in coord_axes['h'] for y in coord_axes['v']]
+        interval_coords: list[MapImageCoord] = [
+            MapImageCoord(x, y) for x, y in product(coord_axes['h'], coord_axes['v'])
+        ]
         total_intervals = len(interval_coords)
 
         if total_intervals > 50000:
@@ -391,13 +398,15 @@ class Combiner:
         :param force_size: Centers the final image in a new image of this size.\
             Using this will disable `autotrim` implicitly.
 
-        :returns: Returns the created `MapImage` if successful, or `None` if the process failed or was cancelled at any point.
-        :rtype: MapImage, None
+        :returns: Returns the created `MapImage` if successful, or `None` if the process failed or was cancelled at any
+            point.
+        :rtype: MapImage | None
         """
         if world not in self.mapped_worlds:
-            raise ValueError(f'No world directory of name "{world}" exists in "{self.tiles_dir}"')
-        if not (0 <= detail <= 3):
-            raise ValueError(f'Detail level must be between 0 and 3; given {detail}')
+            raise ValueError(f'No world directory with name "{world}" exists at {self.tiles_dir}')
+        if detail not in SQMAP_DETAIL_LEVELS:
+            raise ValueError(f'Invalid detail level {detail}, expected one of:'
+                + f' {', '.join(map(str, SQMAP_DETAIL_LEVELS.keys()))}')
         source_dir: Path = self.tiles_dir / world / str(detail)
 
         detail_mul = DETAIL_SBPP[detail]

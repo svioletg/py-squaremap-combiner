@@ -7,7 +7,8 @@ from functools import wraps
 from itertools import batched
 from json import JSONEncoder
 from math import floor
-from typing import Any, Callable, Concatenate, ParamSpec, Protocol, Self, TypeVar
+from typing import Any, Concatenate, ParamSpec, Protocol, Self, TypeVar
+from collections.abc import Callable, Generator
 
 from squaremap_combine.type_alias import Rectangle
 
@@ -48,7 +49,7 @@ class Color:
         'cyan'       : (  0, 255, 255),
     }
 
-    def __init__(self, red: int, green: int, blue: int, alpha: int=255):
+    def __init__(self, red: int, green: int, blue: int, alpha: int = 255):
         if 0 >= red > 255:
             raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a red value of {red}')
         self.red   = red
@@ -62,9 +63,8 @@ class Color:
             raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given an alpha value of {alpha}')
         self.alpha = alpha
 
-    def __iter__(self):
-        for i in [self.red, self.green, self.blue, self.alpha]:
-            yield i
+    def __iter__(self) -> Generator[int]:
+        yield from (self.red, self.green, self.blue, self.alpha)
 
     def __repr__(self) -> str:
         return f'Color(red={self.red}, green={self.green}, blue={self.blue}, alpha={self.alpha})'
@@ -83,7 +83,8 @@ class Color:
 
     @staticmethod
     def ensure_hex_format(hexcode: str) -> str | None:
-        """Checks whether the given string is a valid 6 or 8 character hexcode, and returns the string if so, returning `None` if invalid.
+        """
+        Checks whether the given string is a valid 6 or 8 character hexcode, and returns the string if so, returning `None` if invalid.
         A 3 or 6 character hexcode will be converte to 8 by this function.
         """
         if not re.match(Color.HEXCODE_REGEX, hexcode):
@@ -101,8 +102,8 @@ class Color:
 
     @classmethod
     def from_hex(cls, hex_string: str) -> Self:
-        """Creates a `Color` instance from the a hexcode string.
-        String must be either 3, 6, or 8 characters long.
+        """
+        Creates a `Color` instance from the a hexcode string. String must be either 3, 6, or 8 characters long.
         If 3 characters are used, they are doubled to create a 6-character hexcode to be used instead.
         The last 2 characters of an 8-character hexcode are used for the alpha value.
         Any 6-character hexcode will have the resulting color's alpha assumed to be 255.

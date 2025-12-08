@@ -13,7 +13,7 @@ import dearpygui.dearpygui as dpg
 from squaremap_combine.combine_core import CombinerStyle, Coord2i
 from squaremap_combine.gui import actions
 from squaremap_combine.gui.models import UserData
-from squaremap_combine.helper import Color
+from squaremap_combine.util import Color
 from squaremap_combine.logging import logger
 from squaremap_combine.project import LOGS_DIR, PROJECT_DOCS_URL, PROJECT_VERSION, USER_DATA_DIR
 

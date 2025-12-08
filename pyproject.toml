@@ -17,9 +17,10 @@ classifiers = [
 ]
 dependencies=[
   "loguru>=0.7.2",
+  "maybetype@git+https://github.com/svioletg/py-maybetype",
   "pillow>=10.4.0",
   "platformdirs>=4.3.6",
-  "tqdm>=4.66.5"
+  "tqdm>=4.66.5",
 ]
 
 [project.optional-dependencies]
@@ -44,3 +45,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 squaremap_combine = ["*.ttf", "*.txt", "*.ico"]
+
+[tool.uv.sources]
+maybetype = { git = "https://github.com/svioletg/py-maybetype" }

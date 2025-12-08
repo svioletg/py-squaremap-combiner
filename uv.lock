@@ -137,6 +137,11 @@ wheels = [
 ]
 
 [[package]]
+name = "maybetype"
+version = "0.1.0"
+source = { git = "https://github.com/svioletg/py-maybetype#c903cbab26ac6032ad827a4890be5f14878eea14" }
+
+[[package]]
 name = "packaging"
 version = "25.0"
 source = { registry = "https://pypi.org/simple" }
@@ -336,10 +341,11 @@ wheels = [
 
 [[package]]
 name = "squaremap-combine"
-version = "0.27.0"
+version = "0.28.0"
 source = { editable = "." }
 dependencies = [
     { name = "loguru" },
+    { name = "maybetype" },
     { name = "pillow" },
     { name = "platformdirs" },
     { name = "tqdm" },
@@ -360,6 +366,7 @@ requires-dist = [
     { name = "dearpygui", marker = "extra == 'gui'", specifier = ">=2.0.0" },
     { name = "ipython", marker = "extra == 'dev'", specifier = ">=9.8.0" },
     { name = "loguru", specifier = ">=0.7.2" },
+    { name = "maybetype", git = "https://github.com/svioletg/py-maybetype" },
     { name = "pillow", specifier = ">=10.4.0" },
     { name = "platformdirs", specifier = ">=4.3.6" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.1" },
