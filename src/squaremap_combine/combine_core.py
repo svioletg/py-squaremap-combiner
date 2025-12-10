@@ -14,25 +14,12 @@ from maybetype import Maybe
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
-from squaremap_combine.const import SQMAP_DETAIL_LEVELS, NamedColorHex
+from squaremap_combine.const import ASSET_DIR, DEFAULT_COORDS_FORMAT, SQMAP_DETAIL, SQMAP_DETAIL_LEVELS, NamedColorHex
 from squaremap_combine.errors import CombineError, ErrMsg
 from squaremap_combine.logging import logger
-from squaremap_combine.project import ASSET_DIR
 from squaremap_combine.type_alias import Rectangle
 from squaremap_combine.util import Color, ConfirmationCallback, Coord2i, StyleJSONEncoder, snap_box
 
-DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
-DEFAULT_COORDS_FORMAT = '({x}, {y})'
-DEFAULT_OUTFILE_FORMAT = '{timestamp}{world}-{detail}.{output_ext}'
-"""
-:param timestamp: A timestamp format string that will be passed to `strftime()`.
-:param world:
-:param detail:
-:param output_ext:
-"""
-
-SQMAP_DETAIL: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
-"""Square-blocks-per-pixel for each detail level."""
 
 class GameCoord(Coord2i):
     """
@@ -315,7 +302,7 @@ class Combiner:
                 ' the progress bar\'s description text will not update per iteration in order to save speed.')
 
         logger.info('Drawing coordinates...')
-        idraw = ImageDraw.Draw(image.img)
+        draw = ImageDraw.Draw(image.img)
         font = ImageFont.truetype(self.style.grid_text_font, size=self.style.grid_text_size)
 
         for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
@@ -324,7 +311,8 @@ class Combiner:
             coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
             if self.use_tqdm and (total_intervals <= 5000):
                 pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
-            idraw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba(), font=font)
+            draw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba(),
+                font=font)
         logger.log('GUI_COMMAND', '/pbar hide')
 
     def combine(self,

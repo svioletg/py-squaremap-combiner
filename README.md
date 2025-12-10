@@ -50,28 +50,6 @@ map_image = combiner.combine('minecraft_overworld', 2)
 map_image.save('output.jpg')
 ```
 
-> [!WARNING]
-> As of version **0.28.0**, the GUI wrapper is currently not supported. It is planned to be replaced with a PySide/Qt implementation at a later date. Regardless, the original instructions for using the GUI can be viewed by expanding the section below.
-
-<details>
-<summary>Using the GUI wrappper (unsupported)</summary>
-
-A GUI version of the script is also available. Install the GUI dependencies using this command...
-
-```bash
-pip install "squaremap_combine[gui] @ git+https://github.com/svioletg/py-squaremap-combiner.git"
-```
-
-...and then run the GUI by either adding a `gui` argument to the CLI command.
-
-```bash
-python3 -m squaremap_combine gui
-```
-
-Use `squaremap_combine gui debug` to enable debug logs & the debug tab for the GUI app.
-
-</details>
-
 ## Logging
 
 This project uses [loguru](https://github.com/Delgan/loguru) for its logging. Logging is disabled
@@ -120,22 +98,3 @@ squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overwor
 |------|----|-------|-----------|
 |`--grid-lines`|String|`"black 1px"`|The color and pixel size to use for grid lines, separated by space. The color given can be either a hex code (must be preceded by `#`) or [one of 16 color names](https://www.w3.org/TR/REC-html40/types.html#h-6.5) defined in the HTML 4.01 spec.  |
 |`--grid-coords`|String|`"{x}, {z}"`|The string format to use for overlaying grid coordinates, replacing `{x}` and `{z}` with the respective coordinate values, e.g. `"X: {x}, Z: {z}"`. By default, coordinates are not added to the image at all.|
-
-<!--
-#### `-sf, --style-file`
-
-A set of styling rules for the combiner, in the form of a path to a
-    JSON file. The values set in this JSON file will override that of
-    the default styling settings, and can then be overridden themselves
-    by any values present in the JSON given for the --style-override
-    argument, if it is present. See [the
-    docs](https://squaremap-combine.readthedocs.io/en/latest/squaremap_combine/combine_core.html#CombinerStyle)
-    for information on each styling rule.
-
-#### `-so, --style-override`
-
-A set of styling rules for the combiner, in the form of a
-    JSON-formatted string. These values take highest priority on
-    overriding the already set rules. See [the
-    docs](https://squaremap-combine.readthedocs.io/en/latest/squaremap_combine/combine_core.html#CombinerStyle)
-    for information on each styling rule. -->

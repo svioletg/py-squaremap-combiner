@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release is meant to be a major overhaul to the entire squaremap-combine project, and includes **many breaking changes**. In general, lots of cleanup and linting has been done (in part thanks to moving from pylint to ruff), and many features have been either removed or reworked for the sake of narrowing project scope and strengthening core functionality. Notably...
 
-- The current `dearpygui` implementation of the GUI wrapper has been deprecated — the plan is to eventually replace it with a new Qt/PySide-based GUI, but the focus right now is on improving the CLI.
+- The previous `dearpygui` implementation of the GUI wrapper has been removed — the plan is to eventually replace it with a new Qt/PySide-based GUI, but the focus right now is on improving the CLI.
 - Options for styling image output (mainly grid-related) have been reduced or simplified — again, to put more focus on core functionality.
 
 ### Added
@@ -43,6 +43,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Removed `-fs/--force-size`
   - Removed `-sf/--style-file`
   - Removed `-so/--style-override`
+- Removed `gui` module
+- Removed `project` module; contents moved to `const`
 - In `combine_core`:
   - `MapImage` methods `getbbox()`, `paste()`, and `save()` removed — the object's `img` attribute should be accessed directly instead
 - Removed function `util.copy_method_signature`
