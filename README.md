@@ -17,6 +17,8 @@ The seed used for the world the sample images were created from is
 - [Logging](#logging)
 - [Basic CLI Usage](#basic-cli-usage)
 - [CLI Options](#cli-options)
+  - [Zoom/Detail Levels](#zoomdetail-levels)
+  - [CLI Grid Options](#cli-grid-options)
 
 ## Features
 
@@ -37,7 +39,7 @@ pip install git+https://github.com/svioletg/py-squaremap-combiner.git`
 Then, either use it as a command via `squaremap-combine`...
 
 ```bash
-squaremap-combine my-tiles overworld 2 --output-ext jpg
+squaremap-combine run my-tiles overworld --zoom=2 -o worldmap_z2.png
 ```
 
 ...or import it and use as an API.
@@ -69,13 +71,6 @@ server JAR is located, you may run this command:
 squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
 ```
 
-| Detail | Description |
-|---|---|
-| 3 | 1 block per pixel |
-| 2 | 2x2 block area per pixel |
-| 1 | 4x4 block area per pixel |
-| 0 | 8x8 block area per pixel |
-
 ## CLI Options
 
 > [!NOTE] Note: "List" option types
@@ -84,6 +79,7 @@ squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overwor
 |Option|Type|Default|Description|
 |------|----|-------|-----------|
 |`-h/--help`|Flag|N/A|Displays information about every argument / option and their parameters.|
+|`-z/--zoom`|Integer|3|The zoom/detail level of tiles to use. Defaults to the highest level of 3, which is 1 block per pixel.|
 |`-o/--out FILEPATH`|File path|`<world_name>.png`|Where to save the combined map image. Defaults to the current directory and named after the world folder name.|
 |`--overwite`|Flag|`False`|Allows the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.|
 |`-r/--rect X1,Z1,X2,Z2`|Integer list (4)|Entire rendered map area|A rectangle area of the world to export an image of, separated by commas.|
@@ -91,8 +87,19 @@ squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overwor
 |`-y/--yes-to-all`|Flag|`False`|Automatically accepts and bypasses all confirmation prompts|
 |`-g/--grid`|Integer list (2)|`512,512`|Defines the grid interval. Does nothing on its own, but is required to use any `--grid-*` options.|
 
-> [!NOTE] Note: Grid options
-> All options below prefixed with `grid-` are ignored unless `--grid` is specified.
+### Zoom/Detail Levels
+
+| Detail | Description |
+|---|---|
+| 3 | 1 block per pixel |
+| 2 | 2x2 block area per pixel |
+| 1 | 4x4 block area per pixel |
+| 0 | 8x8 block area per pixel |
+
+### CLI Grid Options
+
+> [!NOTE]
+> All options below prefixed with `grid-` are only used if `--grid` is specified; otherwise, they do nothing.
 
 |Option|Type|Default|Description|
 |------|----|-------|-----------|

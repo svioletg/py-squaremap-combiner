@@ -15,6 +15,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 ### Added
 
 - CLI options:
+  - Added `-z/--zoom`
   - Added `--grid-lines`
 - Added module `const`
 - Added enum class `const.NamedColorHex`
