@@ -7,19 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is meant to be a major overhaul to the entire squaremap-combine project, and includes **many breaking changes**. In general, lots of cleanup and linting has been done (in part thanks to moving from pylint to ruff), and many features have been either removed or reworked for the sake of narrowing project scope and strengthening core functionality. Notably...
+
+- The current `dearpygui` implementation of the GUI wrapper has been deprecated — the plan is to eventually replace it with a new Qt/PySide-based GUI, but the focus right now is on improving the CLI.
+- Options for styling image output (mainly grid-related) have been reduced or simplified — again, to put more focus on core functionality.
+
 ### Added
 
+- CLI options:
+  - Added `--grid-lines`
 - Added module `const`
+- Added enum class `const.NamedColorHex`
 
 ### Changed
 
-- In `combine_core`:
-  - `MapImage` methods `getbbox()`, `paste()`, and `save()` removed — the object's `img` attribute should be accessed directly instead
 - CLI options:
   - All options now either only use a single character for their short name, or have no short name at all
-  - `--output-dir` renamed to `--out`, now takes a file path instead of a directory path
-  - `-a/--area` renamed to `-r/--rect`
+  - Renamed `--output-dir` to `--out`, now takes a file path instead of a directory path
+  - Renamed `-a/--area` to `-r/--rect`
+  - Renamed `-g/--grid-interval` to `-g/--grid`
+  - Renamed `-gcf/--grid-coords-format` to `--grid-coords` (no short name)
 - Renamed module `helper` to `util`
+- Renamed class `AssertionMessage` in module `errors` to `ErrMsg`
+- Moved class `Coord2i` from `combine_core` to `util`
 
 ### Deprecated
 
@@ -28,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - CLI options:
-  - Removed the `-ext/--output-ext` option; now inferred from the suffix of `-o/--out`
-  - Removed the `-t/--timestamp` option
-  - Removed the `-fs/--force-size` option
+  - Removed `-ext/--output-ext`; image format now inferred from the suffix of `-o/--out`
+  - Removed `-t/--timestamp`
+  - Removed `-fs/--force-size`
+  - Removed `-sf/--style-file`
+  - Removed `-so/--style-override`
+- In `combine_core`:
+  - `MapImage` methods `getbbox()`, `paste()`, and `save()` removed — the object's `img` attribute should be accessed directly instead
+- Removed function `util.copy_method_signature`
+- Removed class attribute `COMMON` from `util.Color`
+- Removed class method `from_name` frm `util.Color`

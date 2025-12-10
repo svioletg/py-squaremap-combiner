@@ -2,19 +2,17 @@
 Miscellaneous helper utility functions and classes.
 """
 
+import operator
 import re
-from functools import wraps
+from collections.abc import Callable, Generator, Iterator
 from itertools import batched
 from json import JSONEncoder
 from math import floor
-from typing import Any, Concatenate, ParamSpec, Protocol, Self, TypeVar
-from collections.abc import Callable, Generator
+from typing import Any, Literal, Protocol, Self, cast
 
+from squaremap_combine.const import RGB_CHANNEL_MAX
 from squaremap_combine.type_alias import Rectangle
 
-T = TypeVar('T')
-P = ParamSpec('P')
-"""@private"""
 
 class ConfirmationCallback(Protocol):
     """Typing protocol for `combine_core.Combiner.combine()`'s `confirmation_callback` argument."""
@@ -22,11 +20,13 @@ class ConfirmationCallback(Protocol):
         ...
 
 class Color:
-    """Represents a 24-bit color.
+    """
+    Represents a 24-bit color.
     Can be constructed from supplied `red`, `green`, `blue`, and `alpha` values between 0 and 255,
     or `from_hex()` can be used to create a `Color` instance from a hexcode string.
 
-    It can then be converted back out to hex code, three-integer tuple representing RGB, or four-integer tuple representing RGBA.
+    It can then be converted back out to hex code, three-integer tuple representing RGB, or four-integer tuple
+    representing RGBA.
 
     Format strings are also available:
 
@@ -37,44 +37,29 @@ class Color:
     | `"{magenta:rgba}"` | `"(255, 0, 255, 255)"` |
     """
     HEXCODE_REGEX = re.compile(r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$")
-    COMMON: dict[str, tuple[int, ...]] = {
-        'transparent': (  0,   0,   0,   0),
-        'white'      : (255, 255, 255),
-        'black'      : (  0,   0,   0),
-        'red'        : (255,   0,   0),
-        'green'      : (  0, 255, 0  ),
-        'blue'       : (  0,   0, 255),
-        'yellow'     : (255, 255,   0),
-        'magenta'    : (255,   0, 255),
-        'cyan'       : (  0, 255, 255),
-    }
 
-    def __init__(self, red: int, green: int, blue: int, alpha: int = 255):
-        if 0 >= red > 255:
-            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a red value of {red}')
+    def __init__(self, red: int, green: int, blue: int, alpha: int = RGB_CHANNEL_MAX) -> None:
+        if any(channel > RGB_CHANNEL_MAX for channel in (red, green, blue, alpha)):
+            raise ValueError(
+                f'Channel values must be between 0 and {RGB_CHANNEL_MAX}: ({red}, {green}, {blue}, {alpha})',
+            )
         self.red   = red
-        if 0 >= green > 255:
-            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a green value of {green}')
         self.green = green
-        if 0 >= blue > 255:
-            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given a blue value of {blue}')
         self.blue  = blue
-        if 0 >= alpha > 255:
-            raise ValueError(f'Channel value cannot be less than 0 or more than 255; was given an alpha value of {alpha}')
         self.alpha = alpha
 
     def __iter__(self) -> Generator[int]:
         yield from (self.red, self.green, self.blue, self.alpha)
 
     def __repr__(self) -> str:
-        return f'Color(red={self.red}, green={self.green}, blue={self.blue}, alpha={self.alpha})'
+        return f'Color<#{self:x}>(red={self.red}, green={self.green}, blue={self.blue}, alpha={self.alpha})'
 
     def __str__(self) -> str:
         return self.__repr__()
 
     def __format__(self, fmt: str) -> str:
-        if fmt.startswith('hex'):
-            return self.to_hex()[:int(fmt.split('hex')[1] or len(self.to_hex()) + 1)]
+        if fmt == 'x':
+            return self.to_hex()
         if fmt == 'rgb':
             return str(self.to_rgb())
         if fmt == 'rgba':
@@ -84,21 +69,17 @@ class Color:
     @staticmethod
     def ensure_hex_format(hexcode: str) -> str | None:
         """
-        Checks whether the given string is a valid 6 or 8 character hexcode, and returns the string if so, returning `None` if invalid.
-        A 3 or 6 character hexcode will be converte to 8 by this function.
+        Checks whether the given string is a valid 6 or 8 character hexcode, and returns the string if so, returning
+        `None` if invalid. A 3 or 6-character hexcode will be converted to 8 by this function.
         """
+        hexcode = hexcode.lstrip('#')
         if not re.match(Color.HEXCODE_REGEX, hexcode):
             return None
-        if len(hexcode) == 3:
-            hexcode *= 2
-        if len(hexcode) == 6:
+        if len(hexcode) == 3:  # noqa: PLR2004
+            hexcode = ''.join(f'{ch * 2}' for ch in hexcode)
+        if len(hexcode) == 6:  # noqa: PLR2004
             hexcode += 'ff'
         return hexcode
-
-    @classmethod
-    def from_name(cls, color_name: str) -> Self:
-        """Creates a `Color` from a common name. The name must be present in the `Color.COMMON` dictionary."""
-        return cls(*cls.COMMON[color_name])
 
     @classmethod
     def from_hex(cls, hex_string: str) -> Self:
@@ -122,43 +103,94 @@ class Color:
 
     def to_hex(self) -> str:
         """Converts this color to a hexcode string."""
-        return ''.join([hex(channel)[2:].zfill(2) for channel in self])
+        return ''.join(f'{channel:0{2}x}' for channel in self)
+
+class Coord2i:
+    """Represents a 2D integer coordinate pair."""
+    def __init__(self, x: int, y: int) -> None:
+        self.x = x
+        self.y = y
+
+    def __repr__(self) -> str:
+        return f'Coord2i(x={self.x}, y={self.y})'
+
+    def __str__(self) -> str:
+        return f'({self.x}, {self.y})'
+
+    def __iter__(self) -> Iterator[int]:
+        yield from (self.x, self.y)
+
+    def as_tuple(self) -> tuple[int, int]:
+        """Returns the coordinate as a tuple."""
+        return (self.x, self.y)
+
+    def _math(self,
+            math_op: Callable,
+            other: 'int | tuple[int, int] | Coord2i',
+            direction: Literal['l', 'r']='l',
+        ) -> 'Coord2i':
+        if isinstance(other, int):
+            other = (other, other)
+        elif isinstance(other, Coord2i):
+            other = (other.x, other.y)
+
+        if direction == 'l':
+            return Coord2i(math_op(self.x, other[0]), math_op(self.y, other[1]))
+        if direction == 'r':
+            return Coord2i(math_op(other[0], self.x), math_op(other[1], self.y))
+        raise ValueError(f'_math direction must be "l" or "r"; got {direction!r}')
+
+    def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.add, other)
+    def __radd__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.add, other, 'r')
+
+    def __sub__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.sub, other)
+    def __rsub__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.sub, other, 'r')
+
+    def __mul__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.mul, other)
+    def __rmul__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.mul, other, 'r')
+
+    def __floordiv__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.floordiv, other)
+    def __rfloordiv__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.floordiv, other, 'r')
+
+    def __pow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.pow, other)
+    def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
+        return self._math(operator.pow, other, 'r')
 
 class StyleJSONEncoder(JSONEncoder):
     """Extended JSON encoder to aid in serializing `CombinerStyle` objects."""
-    def default(self, o: Any) -> tuple | dict:
+    def default(self, o: Any) -> tuple | dict:  # noqa: ANN401
         if isinstance(o, Color):
             return tuple(o)
         return o.__dict__
 
-def confirm_yn(message: str, override: bool=False) -> bool:
+def confirm_yn(message: str, *, override: bool = False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
     return override or (input(f'{message} (y/n) ').strip().lower() == 'y')
 
-def filled_tuple(source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
-    """Takes a tuple of no more than two values, and returns the original tuple if two values are present,
-    or a new tuple consisting of the first value having been doubled if only one value is present.
+def filled_tuple[T](source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
     """
-    return source_tuple if len(source_tuple) == 2 else (source_tuple[0], source_tuple[0])
-
-def copy_method_signature(source: Callable[Concatenate[Any, P], T]) -> Callable[[Callable[..., T]], Callable[Concatenate[Any, P], T]]:
-    """Copies a method signature onto the decorated method.
-
-    Taken from: https://github.com/python/typing/issues/270#issuecomment-1346124813
+    Takes a tuple of no more than two values, and returns the original tuple if two values are present, or a new tuple
+    consisting of the first value having been doubled if only one value is present.
     """
-    def wrapper(target: Callable[..., T]) -> Callable[Concatenate[Any, P], T]:
-        @wraps(source)
-        def wrapped(self: Any, /, *args: P.args, **kwargs: P.kwargs) -> T:
-            return target(self, *args, **kwargs)
-        return wrapped
-    return wrapper
+    return source_tuple if len(source_tuple) == 2 else (source_tuple[0], source_tuple[0])  # noqa: PLR2004
 
-def snap_num(num: int | float, multiple: int, snap_method: Callable) -> int:
-    """Snaps the given `num` to the smallest or largest (depending on the given `snap_method`) `multiple` it can reside in."""
-    return multiple * (snap_method(num / multiple))
+def snap_num(num: int | float, mult: int, snap_func: Callable[[int | float], int]) -> int:
+    """Snaps the given `num` to the smallest or largest (depending on the given `snap_method`) multiple. of `mult`."""
+    return mult * (snap_func(num / mult))
 
 def snap_box(box: Rectangle, multiple: int) -> Rectangle:
-    """Snaps the given four box coordinates to their lowest `multiple` they can reside in. See `snap_num`.
-    Since regions are named based off of their "coordinate" as their top-left point, the lowest multiples are all that matter.
     """
-    return tuple(map(lambda n: snap_num(n, multiple, floor), box)) # type: ignore
+    Snaps the given four box coordinates to their lowest `multiple` they can reside in. See `snap_num`.
+    Since regions are named based off of their "coordinate" as their top-left point, the lowest multiples are all that
+    matter.
+    """
+    return cast(Rectangle, tuple(snap_num(n, multiple, floor) for n in box))

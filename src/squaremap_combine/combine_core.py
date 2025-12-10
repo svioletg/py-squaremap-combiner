@@ -3,23 +3,23 @@ Core functionality for squaremap_combine, providing the `Combiner` class amongst
 """
 
 import json
-import operator
 import time
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from typing import Literal, Self, cast, get_args
+from typing import Self, cast, get_args
 
+from maybetype import Maybe
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
-from squaremap_combine.const import SQMAP_DETAIL_LEVELS
-from squaremap_combine.errors import AssertionMessage
-from squaremap_combine.util import Color, ConfirmationCallback, StyleJSONEncoder, snap_box
+from squaremap_combine.const import SQMAP_DETAIL_LEVELS, NamedColorHex
+from squaremap_combine.errors import CombineError, ErrMsg
 from squaremap_combine.logging import logger
 from squaremap_combine.project import ASSET_DIR
 from squaremap_combine.type_alias import Rectangle
+from squaremap_combine.util import Color, ConfirmationCallback, Coord2i, StyleJSONEncoder, snap_box
 
 DEFAULT_TIME_FORMAT = '?Y-?m-?d_?H-?M-?S'
 DEFAULT_COORDS_FORMAT = '({x}, {y})'
@@ -31,68 +31,8 @@ DEFAULT_OUTFILE_FORMAT = '{timestamp}{world}-{detail}.{output_ext}'
 :param output_ext:
 """
 
-DETAIL_SBPP: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
+SQMAP_DETAIL: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 """Square-blocks-per-pixel for each detail level."""
-
-class Coord2i:
-    """Represents a 2D integer coordinate pair."""
-    def __init__(self, x: int, y: int) -> None:
-        self.x = x
-        self.y = y
-
-    def __repr__(self) -> str:
-        return f'Coord2i(x={self.x}, y={self.y})'
-
-    def __str__(self) -> str:
-        return f'({self.x}, {self.y})'
-
-    def __iter__(self) -> Iterator[int]:
-        yield from (self.x, self.y)
-
-    def as_tuple(self) -> tuple[int, int]:
-        """Returns the coordinate as a tuple."""
-        return (self.x, self.y)
-
-    def _math(self,
-            math_op: Callable,
-            other: 'int | tuple[int, int] | Coord2i',
-            direction: Literal['l', 'r']='l',
-        ) -> 'Coord2i':
-        if isinstance(other, int):
-            other = (other, other)
-        elif isinstance(other, Coord2i):
-            other = (other.x, other.y)
-
-        if direction == 'l':
-            return Coord2i(math_op(self.x, other[0]), math_op(self.y, other[1]))
-        if direction == 'r':
-            return Coord2i(math_op(other[0], self.x), math_op(other[1], self.y))
-        raise ValueError(f'_math direction must be "l" or "r"; got {direction!r}')
-
-    def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.add, other)
-    def __radd__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.add, other, 'r')
-
-    def __sub__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.sub, other)
-    def __rsub__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.sub, other, 'r')
-
-    def __mul__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.mul, other)
-    def __rmul__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.mul, other, 'r')
-
-    def __floordiv__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.floordiv, other)
-    def __rfloordiv__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.floordiv, other, 'r')
-
-    def __pow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.pow, other)
-    def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
-        return self._math(operator.pow, other, 'r')
 
 class GameCoord(Coord2i):
     """
@@ -117,17 +57,18 @@ class MapImageCoord(Coord2i):
         return f'MapImageCoord(x={self.x}, y={self.y})'
 
     def to_game_coord(self, image: 'MapImage') -> Coord2i:
-        """Converts this image coordinate to its position on the Minecraft world it represents."""
+        """Converts this image coordinate to its position in the Minecraft world it represents."""
         return (self - image.game_zero) * image.detail_mul
 
 class MapImage:
-    """A delegator class to extend `Image` with Minecraft-map-specific functionality,
-    like automatically recalculating the world's 0, 0 position in the image upon any crops or other changes.
+    """
+    A delegator class to extend `Image` with Minecraft-map-specific functionality, like automatically recalculating the
+    world's `0, 0` position in the image upon any crops or other changes.
     """
     def __init__(self, image: Image.Image, game_zero: 'MapImageCoord', detail_mul: int) -> None:
         """
         :param image: The `Image` to convert.
-        :param game_zero: At what coordinate on this image 0, 0 would be located in the Minecraft world it represents.
+        :param game_zero: At what coordinate in this image `0, 0` would be located in the Minecraft world it represents.
         :param detail_mul: The detail multiplier for this map.
         """
         self.img = image
@@ -137,12 +78,15 @@ class MapImage:
     @property
     def mode(self) -> str:
         return self.img.mode
+
     @property
     def size(self) -> tuple[int, int]:
         return self.img.size
+
     @property
     def width(self) -> int:
         return self.img.width
+
     @property
     def height(self) -> int:
         return self.img.height
@@ -152,7 +96,7 @@ class MapImage:
         return MapImage(new_image, self.game_zero, self.detail_mul)
 
     def crop(self, box: Rectangle) -> 'MapImage':
-        """Returns a cropped portion of the original image, along with an accordingly updated `game_zero` property."""
+        """Returns a cropped portion of the original image with an accordingly updated `game_zero` attribute."""
         return MapImage(self.img.crop(box), MapImageCoord(*self.game_zero - box[0:2]), self.detail_mul)
 
     def resize_canvas(self, width: int, height: int) -> 'MapImage':
@@ -174,7 +118,8 @@ class CombinerStyle:
     """Defines styling rules for `Combiner`-generated map images."""
 
     background_color: Color = field(default_factory=lambda: Color(0, 0, 0, 0))
-    """By default, empty areas of the image will be rendered as fully transparent.
+    """
+    By default, empty areas of the image will be rendered as fully transparent.
     Any transparent areas will be replaced with this color, if one is set.
     """
     grid_color: Color = field(default_factory=lambda: Color(0, 0, 0, 255))
@@ -186,9 +131,10 @@ class CombinerStyle:
     show_grid_text: bool = True
     """Draw grid coordinates at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
     grid_text_font: str = str(Path(ASSET_DIR, 'OpenSans-Regular.ttf').absolute())
-    """Name of a font to use for drawing coordinate text onto the image.
-    Can either be the name of a system-installed font - e.g. "arial" - or a path to a font file - e.g.
-    "documents/my_font.otf".
+    """
+    Name of the font to use for drawing coordinate text onto the image.
+    Can either be the name of a system-installed font (e.g. "arial"), or a path to a font file (e.g.
+    `/home/user/Documents/my_font.ttf`).
     """
     grid_text_color: Color | None = None
     grid_text_size: int = 12
@@ -206,8 +152,7 @@ class CombinerStyle:
                 continue
             if cls is Color:
                 if isinstance(val, str):
-                    val = Color.from_name(val) if not (hexcode := Color.ensure_hex_format(val)) \
-                        else Color.from_hex(hexcode)
+                    val = Color.from_hex(NamedColorHex(val) if val in NamedColorHex else val)
                 elif isinstance(val, Sequence):
                     val = cls(*map(int, val))
                 else:
@@ -237,11 +182,13 @@ class CombinerStyle:
 DEFAULT_COMBINER_STYLE = CombinerStyle()
 
 class Combiner:
-    """Takes a squaremap `tiles` directory path, handles calculating rows/columns,
+    """
+    Takes a squaremap `tiles` directory path, handles calculating rows/columns,
     and is able to export full map images.
     """
     TILE_SIZE: int = 512
-    """The size of each tile image in pixels.
+    """
+    The size of each tile image in pixels.
     Only made a constant in case squaremap happens to change its image sizes in the future.
     """
     STANDARD_WORLDS: tuple[str, ...] = ('overworld', 'the_nether', 'the_end')
@@ -331,14 +278,15 @@ class Combiner:
             draw.line((0, y, image.width, y), fill=self.style.grid_line_color.to_rgba())
 
     def draw_grid_coords_text(self, image: MapImage) -> None:
-        """Draws coordinate text onto a `MapImage` at every interval as defined for this `Combiner` instance.
+        """
+        Draws coordinate text onto a `MapImage` at every interval as defined for this `Combiner` instance.
 
         :param image: The `MapImage` to draw coordinates onto. Its `game_zero` attribute is used as the origin point.
         """
-        bbox_before_grid = image.img.getbbox()
-        assert bbox_before_grid
+        # TODO: Not accessed. What was this used for?
+        bbox_before_grid: Rectangle = Maybe(image.img.getbbox()).unwrap(ValueError(ErrMsg.BBOX_IS_NONE))
 
-        grid_origin = image.game_zero
+        grid_origin: MapImageCoord = image.game_zero
 
         coord_axes: dict[str, set[int]] = {
             'h': set(
@@ -409,7 +357,7 @@ class Combiner:
                 + f' {', '.join(map(str, SQMAP_DETAIL_LEVELS.keys()))}')
         source_dir: Path = self.tiles_dir / world / str(detail)
 
-        detail_mul = DETAIL_SBPP[detail]
+        detail_mul = SQMAP_DETAIL[detail]
 
         # Sort out what regions we're going to stitch
         columns: set[int] = set()
@@ -431,7 +379,10 @@ class Combiner:
         row_range = range(min(rows), max(rows) + 1)
 
         if area:
-            area_regions = Rectangle([n // self.TILE_SIZE for n in snap_box(Rectangle([n // detail_mul for n in area]), self.TILE_SIZE)])
+            area_regions = Rectangle([
+                n // self.TILE_SIZE \
+                for n in snap_box(Rectangle([n // detail_mul for n in area]), self.TILE_SIZE)
+            ])
             column_range = range(area_regions[0], area_regions[2] + 1)
             row_range = range(area_regions[1], area_regions[3] + 1)
 
@@ -472,7 +423,8 @@ class Combiner:
 
         logger.log('GUI_COMMAND', '/pbar hide')
 
-        assert game_zero_in_image, AssertionMessage.GAME_ZERO_IS_NONE
+        if not game_zero_in_image:
+            raise CombineError(ErrMsg.GAME_ZERO_IS_NONE)
         image = MapImage(image, MapImageCoord(*game_zero_in_image), detail_mul)
         del game_zero_in_image
 
@@ -485,10 +437,9 @@ class Combiner:
             image = image.crop(crop_area)
             autotrim = False
 
-        # Things like grid lines and coordinate text are likely to end up drawn outside of the image's original bounding box,
-        # altering what getbbox() would return. Get this bounding box *first*, and then use it to autotrim later.
-        bbox = image.img.getbbox()
-        assert bbox, AssertionMessage.BBOX_IS_NONE
+        # Things like grid lines and coordinate text are likely to end up drawn outside of the image's original bounding
+        # box, altering what getbbox() would return. Get this bounding box *first*, and then use it to autotrim later.
+        bbox: Rectangle = Maybe(image.img.getbbox()).unwrap(CombineError(ErrMsg.BBOX_IS_NONE))
 
         # Add grid and/or coordinates
         if all(n > 0 for n in self.grid_interval):
@@ -507,7 +458,8 @@ class Combiner:
 
         # Trim transparent excess space
         if autotrim:
-            logger.info(f'Trimming out blank space... ({image.width}x{image.height} -> {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
+            logger.info(f'Trimming out blank space... ({image.width}x{image.height} ->'
+                + f' {bbox[2] - bbox[0]}x{bbox[3] - bbox[1]})')
             image = image.crop(bbox)
 
         # Apply desired background color, if any
