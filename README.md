@@ -73,8 +73,8 @@ squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overwor
 
 ## CLI Options
 
-> [!NOTE] Note: "List" option types
-> All "[xyz] list" options expect values to be given separated by comma as a single option, e.g. `--grid 32,32` or `--area -100,-100,100,100`.
+> [!NOTE] "List" option types
+> All "[xyz] list" options expect values to be given separated by comma as a single option, e.g. `--grid=32,32` or `--area=-100,-100,100,100`.
 
 |Option|Type|Default|Description|
 |------|----|-------|-----------|
@@ -83,7 +83,7 @@ squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overwor
 |`-o/--out FILEPATH`|File path|`<world_name>.png`|Where to save the combined map image. Defaults to the current directory and named after the world folder name.|
 |`--overwite`|Flag|`False`|Allows the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.|
 |`-r/--rect X1,Z1,X2,Z2`|Integer list (4)|Entire rendered map area|A rectangle area of the world to export an image of, separated by commas.|
-|`-t/--trim`|Flag|`False`|Trims empty (fully transparent) space surrounding the completed image.|
+|`-t/--trim`|Flag|`False`|Trims empty (fully transparent) space surrounding the completed image. Note that this is done before any specified background color is applied.|
 |`-y/--yes-to-all`|Flag|`False`|Automatically accepts and bypasses all confirmation prompts|
 |`-g/--grid`|Integer list (2)|`512,512`|Defines the grid interval. Does nothing on its own, but is required to use any `--grid-*` options.|
 

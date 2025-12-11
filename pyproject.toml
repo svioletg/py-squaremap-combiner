@@ -24,9 +24,6 @@ dependencies=[
 ]
 
 [project.optional-dependencies]
-gui = [
-  "dearpygui>=2.0.0"
-]
 dev = [
     "ipython>=9.8.0",
     "pytest>=9.0.1",

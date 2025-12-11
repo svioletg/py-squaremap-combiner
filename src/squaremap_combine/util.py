@@ -5,14 +5,23 @@ Miscellaneous helper utility functions and classes.
 import operator
 import re
 from collections.abc import Callable, Generator, Iterator
-from itertools import batched
+from itertools import batched, product
 from json import JSONEncoder
 from math import floor
 from typing import Any, Literal, Protocol, Self, cast
 
-from squaremap_combine.const import RGB_CHANNEL_MAX
-from squaremap_combine.type_alias import Rectangle
+from squaremap_combine.const import RGB_CHANNEL_MAX, Rectangle
 
+
+class ImplementableJSONEncoder(JSONEncoder):
+    """
+    Extended JSON encoder that attempts to call a `__json__` method on the object being serialized, falling back on
+    default JSONEncoder behavior otherwise.
+    """
+    def default(self, o: Any) -> Any:  # noqa: ANN401
+        if hasattr(o, '__json__'):
+            return o.__json__()
+        return super().default(o)
 
 class ConfirmationCallback(Protocol):
     """Typing protocol for `combine_core.Combiner.combine()`'s `confirmation_callback` argument."""
@@ -52,7 +61,7 @@ class Color:
         yield from (self.red, self.green, self.blue, self.alpha)
 
     def __repr__(self) -> str:
-        return f'Color<#{self:x}>(red={self.red}, green={self.green}, blue={self.blue}, alpha={self.alpha})'
+        return f'Color<#{self:x}>({self.red}, {self.green}, {self.blue}, {self.alpha})'
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -65,6 +74,9 @@ class Color:
         if fmt == 'rgba':
             return str(self.to_rgba())
         return self.__str__()
+
+    def __json__(self) -> str:
+        return '#' + self.to_hex()
 
     @staticmethod
     def ensure_hex_format(hexcode: str) -> str | None:
@@ -102,7 +114,7 @@ class Color:
         return self.red, self.green, self.blue, self.alpha
 
     def to_hex(self) -> str:
-        """Converts this color to a hexcode string."""
+        """Converts this color to an 8-character hexcode string."""
         return ''.join(f'{channel:0{2}x}' for channel in self)
 
 class Coord2i:
@@ -165,12 +177,51 @@ class Coord2i:
     def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.pow, other, 'r')
 
-class StyleJSONEncoder(JSONEncoder):
-    """Extended JSON encoder to aid in serializing `CombinerStyle` objects."""
-    def default(self, o: Any) -> tuple | dict:  # noqa: ANN401
-        if isinstance(o, Color):
-            return tuple(o)
-        return o.__dict__
+class Grid:
+    """Represents a 2D grid with defined corners and a step value."""
+    def __init__(self, rect: Rectangle, *, step: int = 0) -> None:
+        self.x1, self.y1, self.x2, self.y2 = rect
+        self.step = step
+
+    def __repr__(self) -> str:
+        return f'Grid(x1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, step={self.step})'
+
+    @property
+    def width(self) -> int:
+        return self.x2 - self.x1
+
+    @property
+    def height(self) -> int:
+        return self.y2 - self.y1
+
+    @property
+    def rect(self) -> Rectangle:
+        return (self.x1, self.y1, self.x2, self.y2)
+
+    @rect.setter
+    def rect(self, rect: Rectangle) -> None:
+        self.x1, self.y1, self.x2, self.y1 = rect
+
+    @property
+    def steps_x(self) -> tuple[int, ...]:
+        if self.step == 0:
+            return ()
+        return tuple(self.x1 + (self.step * n) for n in range(self.width // self.step))
+
+    @property
+    def steps_y(self) -> tuple[int, ...]:
+        if self.step == 0:
+            return ()
+        return tuple(self.y1 + (self.step * n) for n in range(self.height // self.step))
+
+    @property
+    def steps_count(self) -> int:
+        """The total number of X,Y coordinates that exist on this grid by `step`."""
+        return len(self.steps_x) * len(self.steps_y)
+
+    def iter_steps(self) -> Iterator[tuple[int, int]]:
+        """Returns a `product` iterator of the x- and y-axis steps."""
+        return product(self.steps_x, self.steps_y)
 
 def confirm_yn(message: str, *, override: bool = False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""

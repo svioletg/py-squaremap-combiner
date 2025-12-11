@@ -14,15 +14,19 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 
 ### Added
 
-- CLI options:
+- Added multiple CLI options:
   - Added `-z/--zoom`
   - Added `--grid-lines`
 - Added module `const`
+- Added test module `test_grid_class`
+- Added class `util.Grid`
 - Added enum class `const.NamedColorHex`
+- Added `JSONEncoder`-extended class `ImplementableJSONEncoder` to `util`
+  - Allows classes to implement a `__json__()` method for serialization
 
 ### Changed
 
-- CLI options:
+- Changed multiple CLI options:
   - All options now either only use a single character for their short name, or have no short name at all
   - Renamed `--output-dir` to `--out`, now takes a file path instead of a directory path
   - Renamed `-a/--area` to `-r/--rect`
@@ -38,16 +42,20 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 
 ### Removed
 
-- CLI options:
+- Removed multiple CLI options:
   - Removed `-ext/--output-ext`; image format now inferred from the suffix of `-o/--out`
   - Removed `-t/--timestamp`
   - Removed `-fs/--force-size`
   - Removed `-sf/--style-file`
   - Removed `-so/--style-override`
-- Removed `gui` module
-- Removed `project` module; contents moved to `const`
-- In `combine_core`:
-  - `MapImage` methods `getbbox()`, `paste()`, and `save()` removed — the object's `img` attribute should be accessed directly instead
-- Removed function `util.copy_method_signature`
+- Removed optional dependency group `gui`
+- Removed module `gui`
+- Removed module `project`; contents moved to `const`
+- Removed module `type_alias`; contents moved to `const` (removed type aliases `ColorRGB` and `ColorRGBA`)
+- Removed multiple class methods from `combine_core.MapImage`: `getbbox()`, `paste()`, `save()`
+  - The object's `img` attribute should be accessed directly for these methods instead
+- Removed class `StyleJSONEncoder` from `util`; replaced with `ImplementableJSONEncoder`
 - Removed class attribute `COMMON` from `util.Color`
-- Removed class method `from_name` frm `util.Color`
+- Removed class method `from_name` from `util.Color`
+- Removed method `to_json` from `combine_core.CombinerStyle`
+- Removed function `util.copy_method_signature`

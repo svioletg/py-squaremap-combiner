@@ -2,23 +2,20 @@
 Core functionality for squaremap_combine, providing the `Combiner` class amongst others.
 """
 
-import json
 import time
-from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass
 from itertools import product
 from pathlib import Path
-from typing import Self, cast, get_args
+from typing import Any
 
 from maybetype import Maybe
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
-from squaremap_combine.const import ASSET_DIR, DEFAULT_COORDS_FORMAT, SQMAP_DETAIL, SQMAP_DETAIL_LEVELS, NamedColorHex
+from squaremap_combine.const import DEFAULT_COORDS_FORMAT, SQMAP_DETAIL, SQMAP_DETAIL_LEVELS, Rectangle
 from squaremap_combine.errors import CombineError, ErrMsg
 from squaremap_combine.logging import logger
-from squaremap_combine.type_alias import Rectangle
-from squaremap_combine.util import Color, ConfirmationCallback, Coord2i, StyleJSONEncoder, snap_box
+from squaremap_combine.util import Color, ConfirmationCallback, Coord2i, snap_box
 
 
 class GameCoord(Coord2i):
@@ -104,67 +101,17 @@ class MapImage:
 class CombinerStyle:
     """Defines styling rules for `Combiner`-generated map images."""
 
-    background_color: Color = field(default_factory=lambda: Color(0, 0, 0, 0))
-    """
-    By default, empty areas of the image will be rendered as fully transparent.
-    Any transparent areas will be replaced with this color, if one is set.
-    """
-    grid_color: Color = field(default_factory=lambda: Color(0, 0, 0, 255))
-    """Used as the base for any grid-related colors."""
-    show_grid_lines: bool = True
-    """Draw grid lines at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
-    grid_line_color: Color | None = None
-
-    show_grid_text: bool = True
-    """Draw grid coordinates at the intervals set in the `Combiner` instance. If no interval is set, this is ignored."""
-    grid_text_font: str = str(Path(ASSET_DIR, 'OpenSans-Regular.ttf').absolute())
-    """
-    Name of the font to use for drawing coordinate text onto the image.
-    Can either be the name of a system-installed font (e.g. "arial"), or a path to a font file (e.g.
-    `/home/user/Documents/my_font.ttf`).
-    """
-    grid_text_color: Color | None = None
-    grid_text_size: int = 12
+    bg_color           : Color | None = None
+    grid_line_color    : Color | None = None
+    grid_line_size     : int   | None = None
+    grid_text_color    : Color | None = None
+    grid_coords_format : str          = ''
 
     def __post_init__(self) -> None:
-        # Force type conversion and validation
-        for attr, typ in cast(dict[str, type], self.__annotations__).items():
-            val = getattr(self, attr)
-            cls: type = typ
-            if str(cls).startswith('typing.Optional'):
-                if val is None:
-                    continue
-                cls = get_args(cls)[0]
-            if isinstance(val, cls):
-                continue
-            if cls is Color:
-                if isinstance(val, str):
-                    val = Color.from_hex(NamedColorHex(val) if val in NamedColorHex else val)
-                elif isinstance(val, Sequence):
-                    val = cls(*map(int, val))
-                else:
-                    raise TypeError(f'Invalid type given for Color construction: {val!r} is of type {type(val)}')
-            else:
-                val = cls(val)
-            setattr(self, attr, val)
-        self.grid_line_color = self.grid_line_color or self.grid_color
-        self.grid_text_color = self.grid_text_color or self.grid_color
+        raise NotImplementedError
 
-    @classmethod
-    def from_json(cls, json_str_or_path: str | Path) -> Self:
-        """Creates a `CombinerStyle` instance from a JSON file path, or a JSON-formatted string."""
-        if Path(json_str_or_path).is_file():
-            with open(Path(json_str_or_path), 'r', encoding='utf-8') as f:
-                d = json.load(f)
-        elif isinstance(json_str_or_path, str):
-            d = json.loads(json_str_or_path)
-        else:
-            raise ValueError(f'{json_str_or_path!r} is not a file or could not be found')
-        return cls(**d)
-
-    def to_json(self) -> str:
-        """Dumps this object as a JSON string."""
-        return json.dumps(self, cls=StyleJSONEncoder)
+    def __json__(self) -> dict[str, Any]:
+        return asdict(self)
 
 DEFAULT_COMBINER_STYLE = CombinerStyle()
 

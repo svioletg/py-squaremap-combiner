@@ -19,7 +19,7 @@ from squaremap_combine.combine_core import (
 )
 from squaremap_combine.logging import enable_logging
 from squaremap_combine.project import LOGS_DIR, PROJECT_VERSION
-from squaremap_combine.type_alias import Rectangle
+from squaremap_combine.types import Rectangle
 from squaremap_combine.util import confirm_yn, filled_tuple
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 import loguru
 from loguru import logger
 
-from squaremap_combine.project import LOGS_DIR
+from squaremap_combine.const import LOGS_DIR
 
 logger.level('GUI_COMMAND', no=0)
 
