@@ -20,6 +20,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Added module `const`
 - Added test module `test_grid_class`
 - Added class `util.Grid`
+- Added class `util.Rect`
 - Added enum class `const.NamedColorHex`
 - Added `JSONEncoder`-extended class `ImplementableJSONEncoder` to `util`
   - Allows classes to implement a `__json__()` method for serialization
@@ -35,6 +36,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Renamed module `helper` to `util`
 - Renamed class `AssertionMessage` in module `errors` to `ErrMsg`
 - Moved class `Coord2i` from `combine_core` to `util`
+- Renamed class attribute `MapImage.detail_mul` to `MapImage.zoom`
 
 ### Deprecated
 
@@ -51,7 +53,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Removed optional dependency group `gui`
 - Removed module `gui`
 - Removed module `project`; contents moved to `const`
-- Removed module `type_alias`; contents moved to `const` (removed type aliases `ColorRGB` and `ColorRGBA`)
+- Removed module `type_alias`
+  - Aliases `ColorRGB` and `ColorRGBA` were unused, `Rectangle` has been replaced with a full class in the form of `util.Rect`
 - Removed multiple class methods from `combine_core.MapImage`: `getbbox()`, `paste()`, `save()`
   - The object's `img` attribute should be accessed directly for these methods instead
 - Removed class `StyleJSONEncoder` from `util`; replaced with `ImplementableJSONEncoder`

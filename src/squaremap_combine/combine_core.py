@@ -29,7 +29,7 @@ class GameCoord(Coord2i):
 
     def to_image_coord(self, image: 'MapImage') -> Coord2i:
         """Converts this Minecraft coordinate to its position on the given `MapImage`."""
-        return image.game_zero + (self // image.detail_mul)
+        return image.game_zero + (self // image.zoom)
 
 class MapImageCoord(Coord2i):
     """
@@ -42,22 +42,22 @@ class MapImageCoord(Coord2i):
 
     def to_game_coord(self, image: 'MapImage') -> Coord2i:
         """Converts this image coordinate to its position in the Minecraft world it represents."""
-        return (self - image.game_zero) * image.detail_mul
+        return (self - image.game_zero) * image.zoom
 
 class MapImage:
     """
-    A delegator class to extend `Image` with Minecraft-map-specific functionality, like automatically recalculating the
-    world's `0, 0` position in the image upon any crops or other changes.
+    A class to wrap `Image` with Minecraft-map-specific functionality, like automatically recalculating the world's
+    `0, 0` position in the image upon any crops or other changes.
     """
-    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord', detail_mul: int) -> None:
+    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord', zoom: int) -> None:
         """
-        :param image: The `Image` to convert.
+        :param image: The `Image` to wrap.
         :param game_zero: At what coordinate in this image `0, 0` would be located in the Minecraft world it represents.
-        :param detail_mul: The detail multiplier for this map.
+        :param zoom: The squaremap zoom/detail number for this map.
         """
         self.img = image
         self.game_zero = game_zero
-        self.detail_mul = detail_mul
+        self.zoom = zoom
 
     @property
     def mode(self) -> str:
@@ -77,11 +77,11 @@ class MapImage:
 
     def with_image(self, new_image: Image.Image) -> 'MapImage':
         """Returns a copy of this `MapImage` with only the internal `Image` object changed."""
-        return MapImage(new_image, self.game_zero, self.detail_mul)
+        return MapImage(new_image, self.game_zero, self.zoom)
 
     def crop(self, box: Rectangle) -> 'MapImage':
         """Returns a cropped portion of the original image with an accordingly updated `game_zero` attribute."""
-        return MapImage(self.img.crop(box), MapImageCoord(*self.game_zero - box[0:2]), self.detail_mul)
+        return MapImage(self.img.crop(box), MapImageCoord(*self.game_zero - box[0:2]), self.zoom)
 
     def resize_canvas(self, width: int, height: int) -> 'MapImage':
         """Returns this image centered within a new canvas of the given size."""
@@ -95,7 +95,7 @@ class MapImage:
         )
         new_canvas = Image.new(mode=self.mode, size=(width, height))
         new_canvas.paste(self.img, paste_area)
-        return MapImage(new_canvas, MapImageCoord(*self.game_zero + paste_area[0:2]), self.detail_mul)
+        return MapImage(new_canvas, MapImageCoord(*self.game_zero + paste_area[0:2]), self.zoom)
 
 @dataclass
 class CombinerStyle:
@@ -197,12 +197,12 @@ class Combiner:
         grid_origin = image.game_zero
         coord_axes: dict[str, set[int]] = {
             'h': set(
-                *range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul),
-                *range(grid_origin.x, 0, -self.grid_interval[0] // image.detail_mul),
+                *range(grid_origin.x, image.width, self.grid_interval[0] // image.zoom),
+                *range(grid_origin.x, 0, -self.grid_interval[0] // image.zoom),
             ),
             'v': set(
-                *range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul),
-                *range(grid_origin.y, 0, -self.grid_interval[1] // image.detail_mul),
+                *range(grid_origin.y, image.height, self.grid_interval[1] // image.zoom),
+                *range(grid_origin.y, 0, -self.grid_interval[1] // image.zoom),
             ),
         }
 
@@ -224,12 +224,12 @@ class Combiner:
 
         coord_axes: dict[str, set[int]] = {
             'h': set(
-                *range(grid_origin.x, image.width, self.grid_interval[0] // image.detail_mul),
-                *range(grid_origin.x, -1, -self.grid_interval[0] // image.detail_mul),
+                *range(grid_origin.x, image.width, self.grid_interval[0] // image.zoom),
+                *range(grid_origin.x, -1, -self.grid_interval[0] // image.zoom),
                 ),
             'v': set(
-                *range(grid_origin.y, image.height, self.grid_interval[1] // image.detail_mul),
-                *range(grid_origin.y, -1, -self.grid_interval[1] // image.detail_mul),
+                *range(grid_origin.y, image.height, self.grid_interval[1] // image.zoom),
+                *range(grid_origin.y, -1, -self.grid_interval[1] // image.zoom),
                 ),
         }
 
@@ -314,10 +314,10 @@ class Combiner:
         row_range = range(min(rows), max(rows) + 1)
 
         if area:
-            area_regions = Rectangle([
+            area_regions: Rectangle = tuple(
                 n // self.TILE_SIZE \
-                for n in snap_box(Rectangle([n // detail_mul for n in area]), self.TILE_SIZE)
-            ])
+                for n in snap_box(tuple(n // detail_mul for n in area), self.TILE_SIZE)
+            )
             column_range = range(area_regions[0], area_regions[2] + 1)
             row_range = range(area_regions[1], area_regions[3] + 1)
 
@@ -401,7 +401,7 @@ class Combiner:
         if self.style.background_color != (0, 0, 0, 0):
             image_bg = Image.new('RGBA', size=image.size, color=self.style.background_color.to_rgba())
             image_bg.alpha_composite(image.img)
-            image = MapImage(image_bg, image.game_zero, image.detail_mul)
+            image = MapImage(image_bg, image.game_zero, image.zoom)
 
         # Done.
         tb = time.perf_counter()

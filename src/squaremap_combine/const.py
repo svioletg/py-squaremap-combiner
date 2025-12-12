@@ -5,8 +5,6 @@ from pathlib import Path
 
 import platformdirs
 
-type Rectangle = tuple[int, int, int, int]
-
 PROJECT_NAME: str = 'squaremap_combine'
 PROJECT_VERSION: str = importlib.metadata.version('squaremap_combine')
 PROJECT_DOCS_URL: str = 'https://squaremap-combine.readthedocs.io/en/latest/'

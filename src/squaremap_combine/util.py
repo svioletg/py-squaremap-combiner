@@ -8,9 +8,9 @@ from collections.abc import Callable, Generator, Iterator
 from itertools import batched, product
 from json import JSONEncoder
 from math import floor
-from typing import Any, Literal, Protocol, Self, cast
+from typing import Any, Literal, Protocol, Self, cast, overload
 
-from squaremap_combine.const import RGB_CHANNEL_MAX, Rectangle
+from squaremap_combine.const import RGB_CHANNEL_MAX
 
 
 class ImplementableJSONEncoder(JSONEncoder):
@@ -132,6 +132,12 @@ class Coord2i:
     def __iter__(self) -> Iterator[int]:
         yield from (self.x, self.y)
 
+    def __hash__(self) -> int:
+        return self.as_tuple().__hash__()
+
+    def __eq__(self, other: 'Coord2i') -> bool:
+        return self.as_tuple() == other.as_tuple()
+
     def as_tuple(self) -> tuple[int, int]:
         """Returns the coordinate as a tuple."""
         return (self.x, self.y)
@@ -177,42 +183,60 @@ class Coord2i:
     def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.pow, other, 'r')
 
-class Grid:
-    """Represents a 2D grid with defined corners and a step value."""
-    def __init__(self, rect: Rectangle, *, step: int = 0) -> None:
-        self.x1, self.y1, self.x2, self.y2 = rect
-        self.step = step
+class Rect:
+    def __init__(self, x1: int, y1: int, x2: int, y2: int) -> None:
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
 
     def __repr__(self) -> str:
-        return f'Grid(x1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, step={self.step})'
+        return f'Rect(x1={self.x1!r}, y1={self.y1!r}, x2={self.x2!r}, y2={self.y2!r})'
 
-    @property
-    def width(self) -> int:
-        return self.x2 - self.x1
+    def __iter__(self) -> Generator[int]:
+        yield from self.as_tuple()
+
+    def __getitem__(self, idx: int) -> int:
+        return self.as_tuple()[idx]
 
     @property
     def height(self) -> int:
         return self.y2 - self.y1
 
     @property
-    def rect(self) -> Rectangle:
+    def width(self) -> int:
+        return self.x2 - self.x1
+
+    def as_coords(self) -> tuple[Coord2i, Coord2i]:
+        """
+        Returns two `Coord2i` objects for the rectangle's upper-left corner (X1, Y1) and bottom-right corner (X2, Y2).
+        """
+        return (Coord2i(self.x1, self.y1), Coord2i(self.x2, self.y2))
+
+    def as_tuple(self) -> tuple[int, int, int, int]:
+        """Returns the X1, Y1, X2, and Y2 values as a `tuple`."""
         return (self.x1, self.y1, self.x2, self.y2)
 
-    @rect.setter
-    def rect(self, rect: Rectangle) -> None:
-        self.x1, self.y1, self.x2, self.y1 = rect
+class Grid:
+    """Represents a 2D grid with defined corners and a step value."""
+    def __init__(self, rect: Rect | tuple[int, int, int, int], *, step: int = 0) -> None:
+        self.rect = rect if isinstance(rect, Rect) else Rect(*rect)
+        self.step = step
+
+    def __repr__(self) -> str:
+        return f'Grid(rect={self.rect!r}, step={self.step!r})'
 
     @property
     def steps_x(self) -> tuple[int, ...]:
         if self.step == 0:
             return ()
-        return tuple(self.x1 + (self.step * n) for n in range(self.width // self.step))
+        return tuple(self.rect.x1 + (self.step * n) for n in range(self.rect.width // self.step))
 
     @property
     def steps_y(self) -> tuple[int, ...]:
         if self.step == 0:
             return ()
-        return tuple(self.y1 + (self.step * n) for n in range(self.height // self.step))
+        return tuple(self.rect.y1 + (self.step * n) for n in range(self.rect.height // self.step))
 
     @property
     def steps_count(self) -> int:
@@ -238,10 +262,21 @@ def snap_num(num: int | float, mult: int, snap_func: Callable[[int | float], int
     """Snaps the given `num` to the smallest or largest (depending on the given `snap_method`) multiple. of `mult`."""
     return mult * (snap_func(num / mult))
 
-def snap_box(box: Rectangle, multiple: int) -> Rectangle:
+@overload
+def snap_box(box: Rect, multiple: int) -> Rect: ...
+@overload
+def snap_box(box: tuple[int, int, int, int], multiple: int) -> tuple[int, int, int, int]: ...
+def snap_box(box: Rect | tuple[int, int, int, int], multiple: int) -> Rect | tuple[int, int, int, int]:
     """
     Snaps the given four box coordinates to their lowest `multiple` they can reside in. See `snap_num`.
-    Since regions are named based off of their "coordinate" as their top-left point, the lowest multiples are all that
-    matter.
+    Since region tiles are named based off of their "coordinate" as their top-left point, the lowest multiples are all
+    that matter.
+
+    :returns Rect | tuple[int, int, int, int]: A `Rect` object if `box` is a `Rect`, or a `tuple` of 4 `int`s otherwise.
     """
-    return cast(Rectangle, tuple(snap_num(n, multiple, floor) for n in box))
+    if (not isinstance(box, Rect)) and (len(box) != 4):
+        raise ValueError(f'Expected four values in iterable: {box!r}')
+    snapped: tuple[int, int, int, int] = tuple(snap_num(n, multiple, floor) for n in box) # type: ignore
+    if isinstance(box, Rect):
+        return Rect(*snapped)
+    return snapped
