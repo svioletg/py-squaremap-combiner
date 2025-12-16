@@ -1,6 +1,6 @@
 import operator
 import re
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable
 from itertools import batched, product
 from json import JSONEncoder
 from math import floor
@@ -281,6 +281,10 @@ class Rect:
         return self.x2 - self.x1
 
     @property
+    def size(self) -> tuple[int, int]:
+        return (self.width, self.height)
+
+    @property
     def center(self) -> Coord2i:
         """The center coordinate."""
         return Coord2i(self.x1 + (self.width // 2), self.y1 + (self.height // 2))
@@ -300,25 +304,57 @@ class Rect:
         )
 
     @classmethod
-    def from_radius(cls, radius: int, origin: Coord2i | tuple[int, int] | None = (0, 0)) -> Self:
+    def from_radius(cls, radius: int, center: Coord2i | tuple[int, int] | None = (0, 0)) -> Self:
         """Returns a new ``Rect`` based on a given radius and origin coordinate."""
-        origin = origin or (0, 0)
+        center = center or (0, 0)
         if radius <= 0:
             raise ValueError(f'Rect radius must be greater than zero: {radius!r}')
-        return cls(origin[0] - radius, origin[1] - radius, origin[0] + radius, origin[1] + radius)
+        return cls(center[0] - radius, center[1] - radius, center[0] + radius, center[1] + radius)
+
+    @classmethod
+    def from_size(cls, width: int, height: int) -> Self:
+        """
+        Returns a new ``Rect`` of the given size, with ``0, 0`` as its top left coordinate.
+        """
+        return cls(0, 0, width, height)
 
     def as_tuple(self) -> tuple[int, int, int, int]:
         """Returns the X1, Y1, X2, and Y2 values as a ``tuple``."""
         return (self.x1, self.y1, self.x2, self.y2)
 
+    def copy(self) -> 'Rect':
+        """Returns a new ``Rect`` with the same coordinates as this instance."""
+        return Rect(*self.as_tuple())
+
     def map(self, fn: Callable[[int], int]) -> 'Rect':
         """Returns a new ``Rect`` with ``fn`` applied to all coordinate values."""
         return Rect(fn(self.x1), fn(self.y1), fn(self.x2), fn(self.y2))
+
+    def resize(self, xy: Coord2i | tuple[int, int] | int = 0, *, from_center: bool = False) -> 'Rect':
+        """
+        Returns a new ``Rect`` resized by `xy`, based off of this instance's size. By default, the ``Rect`` is resized
+        from the top-left corner, keeping its coordinate intact and only adding to the bottom-right coordinate. If
+        ``from_center`` is ``True``, it will be resized outward in all directions from the center of the ``Rect``.
+        """
+        xy = Coord2i(xy if not isinstance(xy, int) else (xy, xy))
+        if from_center:
+            xy = xy.map(lambda n: n // 2)
+            return Rect(self.x1 - xy.x, self.y1 - xy.y, self.x2 + xy.x, self.y2 + xy.y)
+        else:
+            return Rect(self.x1, self.y1, self.x2 + xy.x, self.y2 + xy.y)
 
     def translate(self, xy: Coord2i | tuple[int, int] | int = 0) -> 'Rect':
         """Returns a new ``Rect`` with this instance's coordinates shifted by ``xy``."""
         xy = Coord2i(xy if not isinstance(xy, int) else (xy, xy))
         return Rect(self.x1 + xy.x, self.y1 + xy.y, self.x2 + xy.x, self.y2 + xy.y)
+
+    def translate_to_zero(self) -> 'Rect':
+        """
+        Returns a new ``Rect`` with this instance's coordinates shifted such that its ``x1`` and ``y1`` attributes are
+        both ``0``, while retaining its width and height.
+        """
+        return Rect.from_size(self.width, self.height)
+
 
 class Grid:
     """Represents a 2D grid with defined corners and a step value."""
@@ -334,13 +370,13 @@ class Grid:
     def steps_x(self) -> tuple[int, ...]:
         if self.step == 0:
             return ()
-        return tuple(self.rect.x1 + (self.step * n) for n in range(self.rect.width // self.step))
+        return tuple(self.rect.x1 + (self.step * n) for n in range((self.rect.width // self.step) + 1))
 
     @property
     def steps_y(self) -> tuple[int, ...]:
         if self.step == 0:
             return ()
-        return tuple(self.rect.y1 + (self.step * n) for n in range(self.rect.height // self.step))
+        return tuple(self.rect.y1 + (self.step * n) for n in range((self.rect.height // self.step) + 1))
 
     @property
     def steps_count(self) -> int:
@@ -361,9 +397,9 @@ class Grid:
             y2 = max(y2, coord[0])
         return cls(Rect(x1, y1, x2, y2), step=step)
 
-    def iter_steps(self) -> Iterator[tuple[int, int]]:
-        """Returns a ``product`` iterator of the x- and y-axis steps."""
-        return product(self.steps_x, self.steps_y)
+    def iter_steps(self) -> Generator[tuple[int, int]]:
+        """Yields from a :py:class:``~itertools.product`` iterator of the x- and y-axis steps."""
+        yield from product(self.steps_x, self.steps_y)
 
     def snap_coord(self,
             coord: Coord2i | tuple[int, int],
@@ -418,7 +454,7 @@ def snap_box(box: Rect | tuple[int, int, int, int], multiple: int) -> Rect | tup
     Since region tiles are named based off of their "coordinate" as their top-left point, the lowest multiples are all
     that matter.
 
-    :returns: A :py:class:`~squaremap_combine.util.Rect` object if ``box`` is a ``Rect``, or a ``tuple`` of 4 ``int``s
+    :returns: A :py:class:`~squaremap_combine.util.Rect` object if ``box`` is a ``Rect``, or a ``tuple`` of 4 ``int`` s
         otherwise.
     """
     if (not isinstance(box, Rect)) and (len(box) != 4):  # noqa: PLR2004

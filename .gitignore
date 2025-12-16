@@ -12,3 +12,4 @@ __pycache__/
 *.log
 *.egg-info
 tests/data/*.png
+*.ipynb

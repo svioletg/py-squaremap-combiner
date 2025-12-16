@@ -27,6 +27,8 @@ SQMAP_ZOOM_BPP: OrderedDict[int, int] = OrderedDict({
 })
 """Square-blocks-per-pixel for each squaremap detail level."""
 
+SQMAP_TILE_SIZE: int = 512
+"""The width and height of squaremap tile images, in pixels."""
 SQMAP_TILE_BLOCKS: int = 512
 """The number of blocks a single squaremap tile covers."""
 
