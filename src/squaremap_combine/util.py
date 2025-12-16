@@ -1,6 +1,6 @@
 import operator
 import re
-from collections.abc import Callable, Generator, Iterator
+from collections.abc import Callable, Generator, Iterable, Iterator
 from itertools import batched, product
 from json import JSONEncoder
 from math import floor
@@ -36,7 +36,7 @@ class Color:
     | `"{magenta:rgb}"`  | `"(255, 0, 255)"`      |
     | `"{magenta:rgba}"` | `"(255, 0, 255, 255)"` |
     """
-    HEXCODE_REGEX = re.compile(r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$")
+    HEXCODE_REGEX: re.Pattern[str] = re.compile(r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$")
 
     def __init__(self, red: int, green: int, blue: int, alpha: int = RGB_CHANNEL_MAX) -> None:
         if any(channel > RGB_CHANNEL_MAX for channel in (red, green, blue, alpha)):
@@ -166,11 +166,11 @@ class Coord2i:
     def __getitem__(self, idx: int) -> int:
         return (self.x, self.y)[idx]
 
-    def __eq__(self, other: 'Coord2i') -> bool:
-        return self.as_tuple() == other.as_tuple()
-
     def __hash__(self) -> int:
         return self.as_tuple().__hash__()
+
+    def __eq__(self, other: 'Coord2i') -> bool:
+        return self.as_tuple() == other.as_tuple()
 
     def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.add, other)
@@ -222,6 +222,15 @@ class Coord2i:
         return Coord2i(fn(self.x), fn(self.y))
 
 class Rect:
+    x1: int
+    """Top-left X coordinate."""
+    y1: int
+    """Top-left Y coordinate."""
+    x2: int
+    """Bottom-right X coordinate."""
+    y2: int
+    """Bottom-right Y coordinate."""
+
     def __init__(self, x1: int, y1: int, x2: int, y2: int) -> None:
         self.x1 = x1
         self.y1 = y1
@@ -246,6 +255,11 @@ class Rect:
         return self.x2 - self.x1
 
     @property
+    def center(self) -> Coord2i:
+        """The center coordinate of this `Rect`."""
+        return Coord2i(self.x1 + (self.width // 2), self.y1 + (self.height // 2))
+
+    @property
     def corners(self) -> tuple[Coord2i, Coord2i, Coord2i, Coord2i]:
         """
         Returns the four corner coordinates of this `Rect` as `Coord2i` objects.
@@ -266,12 +280,6 @@ class Rect:
         if radius <= 0:
             raise ValueError(f'Rect radius must be greater than zero: {radius!r}')
         return cls(origin[0] - radius, origin[1] - radius, origin[0] + radius, origin[1] + radius)
-
-    def as_coords(self) -> tuple[Coord2i, Coord2i]:
-        """
-        Returns two `Coord2i` objects for the rectangle's upper-left corner (X1, Y1) and bottom-right corner (X2, Y2).
-        """
-        return (Coord2i(self.x1, self.y1), Coord2i(self.x2, self.y2))
 
     def as_tuple(self) -> tuple[int, int, int, int]:
         """Returns the X1, Y1, X2, and Y2 values as a `tuple`."""
@@ -306,6 +314,20 @@ class Grid:
     def steps_count(self) -> int:
         """The total number of X,Y coordinates that exist on this grid by `step`."""
         return len(self.steps_x) * len(self.steps_y)
+
+    @classmethod
+    def from_steps(cls, source_steps: Iterable[Coord2i | tuple[int, int]], step: int = 0) -> Self:
+        """Returns a `Grid` with bounds defined by a given set of X,Y coordinate steps."""
+        source_steps = list(source_steps)
+        if len(source_steps) == 0:
+            raise ValueError('Cannot create a Grid from an empty sequence of steps')
+        x1, y1, x2, y2 = 0, 0, 0, 0
+        for coord in source_steps:
+            x1 = min(x1, coord[0])
+            y1 = min(y1, coord[0])
+            x2 = max(x2, coord[0])
+            y2 = max(y2, coord[0])
+        return cls(Rect(x1, y1, x2, y2), step=step)
 
     def iter_steps(self) -> Iterator[tuple[int, int]]:
         """Returns a `product` iterator of the x- and y-axis steps."""

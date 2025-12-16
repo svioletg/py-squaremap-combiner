@@ -35,6 +35,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Renamed `-a/--area` to `-r/--rect`
   - Renamed `-g/--grid-interval` to `-g/--grid`
   - Renamed `-gcf/--grid-coords-format` to `--grid-coords` (no short name)
+- Renamed module `combine_cli` to `cli`
+- Renamed module `combine_core` to `core`
 - Renamed module `helper` to `util`
 - Renamed class `AssertionMessage` in module `errors` to `ErrMsg`
 - Moved class `Coord2i` from `combine_core` to `util`
@@ -44,10 +46,6 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Renamed method `util.Color.to_rgba` to `util.Color.as_rgba`
 - `logging.enable_logging()` now only affects `logging.logger`
 - `util.Coord2i` is now subscriptable, with `Coord2i(...)[0], Coord2i(...)[1]` being equivalent to `Coord2i(...).x, Coord2i(...).y`
-
-### Deprecated
-
-- The dearpygui-powered GUI wrapper is no longer supported, and will be replaced by a PySide/Qt implementation at later date
 
 ### Removed
 
@@ -62,11 +60,18 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Removed module `project`; contents moved to `const`
 - Removed module `type_alias`
   - Aliases `ColorRGB` and `ColorRGBA` were unused and thus not moved anywhere
-  - `Rectangle` has been moved to `const.RectTuple` (to differentiate it from the new `Rect` class)
-- Removed multiple class methods from `combine_core.MapImage`: `getbbox()`, `paste()`, `save()`
-  - The object's `img` attribute should be accessed directly for these methods instead
-- Removed class `StyleJSONEncoder` from `util`; replaced with `ImplementableJSONEncoder`
-- Removed class attribute `COMMON` from `util.Color`
-- Removed class method `from_name` from `util.Color`
-- Removed method `to_json` from `combine_core.CombinerStyle`
-- Removed function `util.copy_method_signature`
+  - Alias `Rectangle` removed, either the new `Rect` class or `tuple[int, int, int, int]` will be used
+- In module `util`:
+  - Removed class `StyleJSONEncoder`; replaced with `ImplementableJSONEncoder`
+  - Removed class attribute `COMMON` from `Color`
+  - Removed class method `from_name` from `Color`
+  - Removed function `util.copy_method_signature`
+- In module `core`:
+  - Removed method `draw_grid_lines` from `core.Combiner`
+  - Removed method `draw_grid_coords_text` from `core.Combiner`
+  - Removed method `to_json` from `core.CombinerStyle`
+  - Removed multiple methods from `core.MapImage`: `getbbox()`, `paste()`, `save()`
+    - The object's `img` attribute should be accessed directly for these methods instead
+- Removed multiple constants from `const`: `APP_SETTINGS_PATH`, `OPT_AUTOSAVE_PATH`, `STYLE_AUTOSAVE_PATH`, `DEFAULT_OUTFILE_FORMAT`, `DEFAULT_TIME_FORMAT`
+- Removed constant `DEFAULT_TIME_FORMAT` from `const`
+- Removed constant `DEFAULT_OUTFILE_FORMAT` from `const`

@@ -21,7 +21,7 @@ def test_rect_instance(coords: tuple[int, int, int, int]) -> None:
     assert (r.x1, r.y1, r.x2, r.y2) == r.as_tuple() == coords
     assert (Coord2i(r.x1, r.y1), Coord2i(r.x2, r.y2)) \
         == (Coord2i(coords[0], coords[1]), Coord2i(coords[2], coords[3])) \
-        == r.as_coords()
+        == (r.corners[0], r.corners[-1])
 
 @pytest.mark.parametrize(('radius', 'origin', 'expected_rect'),
     [

@@ -1,5 +1,6 @@
 .vscode/
 .venv/
+dist/
 testimg/
 pdoc/
 docs/build/

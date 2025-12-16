@@ -15,7 +15,7 @@ import pytest
 from PIL import Image
 from tqdm import tqdm
 
-from squaremap_combine.combine_core import Combiner
+from squaremap_combine.core import Combiner
 
 TEST_TILES = Path('example-tiles')
 TEST_CONTROL = Path('tests/data/control') # Control group, image results to check tests against

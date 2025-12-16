@@ -1,6 +1,6 @@
 import sys
 
-from . import combine_cli
+from . import cli
 
 if __name__ == '__main__':
-    sys.exit(combine_cli.main())
+    sys.exit(cli.main())

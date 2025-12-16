@@ -9,7 +9,7 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 
-from squaremap_combine.combine_core import (
+from squaremap_combine.core import (
     DEFAULT_COORDS_FORMAT,
     DEFAULT_OUTFILE_FORMAT,
     DEFAULT_TIME_FORMAT,
@@ -213,10 +213,10 @@ def main():
 
     image = combiner.combine(
         world=world,
-        detail=detail,
-        autotrim=autotrim,
+        zoom=detail,
+        trim=autotrim,
         area=area,
-        force_size=force_size,
+        canvas_size=force_size,
     )
 
     if not image:
