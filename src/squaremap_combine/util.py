@@ -11,7 +11,7 @@ from squaremap_combine.const import RGB_CHANNEL_MAX, NamedColorHex
 
 class ImplementableJSONEncoder(JSONEncoder):
     """
-    Extended JSON encoder that attempts to call a `__json__` method on the object being serialized, falling back on
+    Extended JSON encoder that attempts to call a ``__json__`` method on the object being serialized, falling back on
     default JSONEncoder behavior otherwise.
     """
     def default(self, o: Any) -> Any:  # noqa: ANN401
@@ -22,19 +22,17 @@ class ImplementableJSONEncoder(JSONEncoder):
 class Color:
     """
     Represents a 24-bit color.
-    Can be constructed from supplied `red`, `green`, `blue`, and `alpha` values between 0 and 255,
-    or `from_hex()` can be used to create a `Color` instance from a hexcode string.
 
-    It can then be converted back out to hex code, three-integer tuple representing RGB, or four-integer tuple
-    representing RGBA.
+    Format strings available:
 
-    Format strings are also available:
+    ============================= ========================
+    Specifier                     Output
+    ============================= ========================
+    ``{Color(255, 0, 255):x}``    ``ff00ff``
+    ``{Color(255, 0, 255):rgb}``  ``(255, 0, 255)``
+    ``{Color(255, 0, 255):rgba}`` ``(255, 0, 255, 255)``
+    ============================= ========================
 
-    | Specifier          | Output                 |
-    |--------------------|------------------------|
-    | `"{magenta:x}"`    | `"ff00ff"`             |
-    | `"{magenta:rgb}"`  | `"(255, 0, 255)"`      |
-    | `"{magenta:rgba}"` | `"(255, 0, 255, 255)"` |
     """
     HEXCODE_REGEX: re.Pattern[str] = re.compile(r"^[0-9a-f]{3}$|^[0-9a-f]{6}$|^[0-9a-f]{8}$")
 
@@ -79,7 +77,7 @@ class Color:
     def ensure_hex_format(hexcode: str) -> str | None:
         """
         Checks whether the given string is a valid 6 or 8 character hexcode, and returns the string if so, returning
-        `None` if invalid. A 3 or 6-character hexcode will be converted to 8 by this function.
+        ``None`` if invalid. A 3 or 6-character hexcode will be converted to 8 by this function.
         """
         hexcode = hexcode.lstrip('#')
         if not re.match(Color.HEXCODE_REGEX, hexcode):
@@ -93,7 +91,7 @@ class Color:
     @classmethod
     def from_hex(cls, hex_string: str) -> Self:
         """
-        Creates a `Color` instance from the a hexcode string. String must be either 3, 6, or 8 characters long.
+        Creates a ``Color`` instance from the a hexcode string. String must be either 3, 6, or 8 characters long.
         If 3 characters are used, they are doubled to create a 6-character hexcode to be used instead.
         The last 2 characters of an 8-character hexcode are used for the alpha value.
         Any 6-character hexcode will have the resulting color's alpha assumed to be 255.
@@ -105,12 +103,12 @@ class Color:
     @classmethod
     def from_name(cls, name: NamedColorHex | str, alpha: int | None = None) -> Self:
         """
-        Returns a `Color` instance created from hexcode found in the `NamedColorHex` enum.
+        Returns a ``Color`` instance created from hexcode found in the ``NamedColorHex`` enum.
 
-        :param alpha: An alpha value for the resulting color. If not `None`, this value will override the hexcode's
+        :param alpha: An alpha value for the resulting color. If not ``None``, this value will override the hexcode's
             alpha value; otherwise, if the hexcode has no alpha value, the default of 255 is used.
 
-        :raises ValueError: Raised if the given `name` does not exist as a `NamedColorHex` key.
+        :raises ValueError: Raised if the given ``name`` does not exist as a ``NamedColorHex`` key.
         """
         try:
             name = name if isinstance(name, NamedColorHex) else NamedColorHex[name.upper()]
@@ -121,14 +119,14 @@ class Color:
         return cls.from_hex(name.value + (alpha_hex if len(name.value) == 7 else ''))  # noqa: PLR2004
 
     def copy(self) -> 'Color':
-        """Returns a new `Color` instance with the same channel values as this instance."""
+        """Returns a new ``Color`` instance with the same channel values as this instance."""
         return Color(*self.as_rgba())
 
     def as_hex(self, *, prefix: bool = True) -> str:
         """
-        Converts this color to an 8-character hexcode string, with leading `#` by default.
+        Converts this color to an 8-character hexcode string, with leading ``#`` by default.
 
-        :param prefix: Whether to include `#` at the beginning of the string.
+        :param prefix: Whether to include ``#`` at the beginning of the string.
         """
         return ('#' if prefix else '') + ''.join(f'{channel:0{2}x}' for channel in self)
 
@@ -142,11 +140,38 @@ class Color:
 
 class Coord2i:
     """
-    Represents a 2D integer coordinate pair. While `x` and `y` are typed as only `int`, and explicit conversion should
-    be used, a `float` is still technically accepted if it is a whole number, i.e. if ends with `.0`. Otherwise, a
-    `ValueError` is raised on initialization.
+    Represents a 2D integer coordinate pair. While ``x`` and ``y`` are typed as only ``int``, and explicit conversion
+    should be used, a ``float`` is still technically accepted if it is a whole number, i.e. if ends with ``.0``.
+    Otherwise, a ``ValueError`` is raised on initialization.
     """
-    def __init__(self, x: int, y: int) -> None:
+    @overload
+    def __init__(self, x_or_xy: int, y: int) -> None: ...
+    @overload
+    def __init__(self, x_or_xy: 'tuple[int, int] | Coord2i', y: None = None) -> None: ...
+    def __init__(self, x_or_xy: 'int | tuple[int, int] | Coord2i', y: int | None = None) -> None:
+        """
+        Initializes a ``Coord2i`` with either a single tuple argument, or two coordinate arguments.
+
+        :param x_or_xy: Either a tuple of two integers, or an X coordinate. Can also be another ``Coord2i`` instance,
+            in which case a new ``Coord2i`` is returned with the same coordinate values.
+        :param y: Y coordinate if ``x_or_xy`` is not a tuple. A ``TypeError`` is raised if ``y`` is supplied a
+            not-``None`` value when ``x_or_xy`` is a tuple.
+        """
+        if isinstance(x_or_xy, Coord2i):
+            self.x = x_or_xy.x
+            self.y = x_or_xy.y
+            return
+
+        if isinstance(x_or_xy, tuple):
+            if y is not None:
+                raise TypeError('Coord2i.__init__() received a tuple for argument \'x_or_xy\', but argument \'y\' also'
+                    + f' received a value: {y!r}')
+            x, y = x_or_xy
+        else:
+            x = x_or_xy
+            if y is None:
+                raise TypeError('Coord2i.__init__() missing 1 required positional argument: \'y\'')
+
         if (x % 1) != 0:
             raise ValueError(f'Coord2i.x must be an int or whole number: {x!r}')
         self.x = int(x)
@@ -218,10 +243,11 @@ class Coord2i:
         return (self.x, self.y)
 
     def map(self, fn: Callable[[int], int]) -> 'Coord2i':
-        """Returns a new `Coord2i` instance with `fn` applied to both `x` and `y` attributes."""
+        """Returns a new ``Coord2i`` instance with ``fn`` applied to its ``x`` and ``y`` attributes."""
         return Coord2i(fn(self.x), fn(self.y))
 
 class Rect:
+    """Represents a simple 2D rectangle."""
     x1: int
     """Top-left X coordinate."""
     y1: int
@@ -256,13 +282,13 @@ class Rect:
 
     @property
     def center(self) -> Coord2i:
-        """The center coordinate of this `Rect`."""
+        """The center coordinate."""
         return Coord2i(self.x1 + (self.width // 2), self.y1 + (self.height // 2))
 
     @property
     def corners(self) -> tuple[Coord2i, Coord2i, Coord2i, Coord2i]:
         """
-        Returns the four corner coordinates of this `Rect` as `Coord2i` objects.
+        Returns the four corner coordinates as :py:class:`~squaremap_combine.util.Coord2i` objects.
 
         :returns corners: (top-left, top-right, bottom-left, bottom-right)
         """
@@ -275,23 +301,29 @@ class Rect:
 
     @classmethod
     def from_radius(cls, radius: int, origin: Coord2i | tuple[int, int] | None = (0, 0)) -> Self:
-        """Returns a new `Rect` based on a given radius and origin coordinate."""
+        """Returns a new ``Rect`` based on a given radius and origin coordinate."""
         origin = origin or (0, 0)
         if radius <= 0:
             raise ValueError(f'Rect radius must be greater than zero: {radius!r}')
         return cls(origin[0] - radius, origin[1] - radius, origin[0] + radius, origin[1] + radius)
 
     def as_tuple(self) -> tuple[int, int, int, int]:
-        """Returns the X1, Y1, X2, and Y2 values as a `tuple`."""
+        """Returns the X1, Y1, X2, and Y2 values as a ``tuple``."""
         return (self.x1, self.y1, self.x2, self.y2)
 
     def map(self, fn: Callable[[int], int]) -> 'Rect':
-        """Returns a new `Rect` with `fn` applied to all coordinate values."""
+        """Returns a new ``Rect`` with ``fn`` applied to all coordinate values."""
         return Rect(fn(self.x1), fn(self.y1), fn(self.x2), fn(self.y2))
+
+    def translate(self, xy: Coord2i | tuple[int, int] | int = 0) -> 'Rect':
+        """Returns a new ``Rect`` with this instance's coordinates shifted by ``xy``."""
+        xy = Coord2i(xy if not isinstance(xy, int) else (xy, xy))
+        return Rect(self.x1 + xy.x, self.y1 + xy.y, self.x2 + xy.x, self.y2 + xy.y)
 
 class Grid:
     """Represents a 2D grid with defined corners and a step value."""
     def __init__(self, rect: Rect | tuple[int, int, int, int], *, step: int = 0) -> None:
+        # TODO: Maybe allow grid to be boundless
         self.rect = rect if isinstance(rect, Rect) else Rect(*rect)
         self.step = step
 
@@ -312,12 +344,12 @@ class Grid:
 
     @property
     def steps_count(self) -> int:
-        """The total number of X,Y coordinates that exist on this grid by `step`."""
+        """The total number of X,Y coordinates that exist on this grid by ``step``."""
         return len(self.steps_x) * len(self.steps_y)
 
     @classmethod
     def from_steps(cls, source_steps: Iterable[Coord2i | tuple[int, int]], step: int = 0) -> Self:
-        """Returns a `Grid` with bounds defined by a given set of X,Y coordinate steps."""
+        """Returns a ``Grid`` with bounds defined by a given set of X,Y coordinate steps."""
         source_steps = list(source_steps)
         if len(source_steps) == 0:
             raise ValueError('Cannot create a Grid from an empty sequence of steps')
@@ -330,7 +362,7 @@ class Grid:
         return cls(Rect(x1, y1, x2, y2), step=step)
 
     def iter_steps(self) -> Iterator[tuple[int, int]]:
-        """Returns a `product` iterator of the x- and y-axis steps."""
+        """Returns a ``product`` iterator of the x- and y-axis steps."""
         return product(self.steps_x, self.steps_y)
 
     def snap_coord(self,
@@ -338,20 +370,20 @@ class Grid:
             round_fn: Callable[[int | float], int] | None = None,
         ) -> Coord2i:
         """
-        Returns the nearest grid interval coordinate for a given coordinate. For example; where `coord` is `(4, 7)`,
-        and this `Grid`'s `step` is 10, `.snap_coord(coord)` would return `Coord2i(0, 10)`.
+        Returns the nearest grid interval coordinate for a given coordinate. For example; where ``coord`` is ``(4, 7)``,
+        and this ``Grid``'s ``step`` is 10, ``.snap_coord(coord)`` would return ``Coord2i(0, 10)``.
 
-        :param round_fn: A function of `(int) -> int` to use for rounding the divided value in the formula. By default
-            the built-in `round` is used, but `math.floor` or `math.ceil` for example could be used to snap to the
+        :param round_fn: A function of ``(int) -> int`` to use for rounding the divided value in the formula. By default
+            the built-in ``round`` is used, but ``math.floor`` or ``math.ceil`` for example could be used to snap to the
             lower or higher coordinate point respectively.
         """
         coord = coord if isinstance(coord, Coord2i) else Coord2i(*coord)
         round_fn = round_fn or round
         return coord.map(lambda n: snap_num(n, self.step, round_fn))
 
-def confirm_yn(message: str, *, override: bool = False) -> bool:
+def confirm_yn(message: str, *, auto_confirm: bool = False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
-    return override or (input(f'{message} (y/n) ').strip().lower() == 'y')
+    return auto_confirm or (input(f'{message} (y/n) ').strip().lower() == 'y')
 
 def filled_tuple[T](source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
     """
@@ -360,9 +392,21 @@ def filled_tuple[T](source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
     """
     return source_tuple if len(source_tuple) == 2 else (source_tuple[0], source_tuple[0])  # noqa: PLR2004
 
-def snap_num(num: int | float, mult: int, snap_func: Callable[[int | float], int]) -> int:
-    """Snaps the given `num` to the smallest or largest (depending on the given `snap_func`) multiple. of `mult`."""
-    return mult * (snap_func(num / mult))
+def coerce_to[A, B](val: A | B, cls: type[B], coerce_fn: Callable[[A], B] | None = None) -> B:
+    """
+    Returns ``val`` if ``val`` is an instance of ``cls``, otherwise calls ``coerce_fn`` on ``val`` and returns the
+    result. If ``coerce_fn`` is ``None``, ``cls`` will be used as the callable.
+    """
+    coerce_fn = coerce_fn or cls
+    if isinstance(val, cls):
+        return val
+    return coerce_fn(val) # type: ignore
+
+def snap_num(num: int | float, mult: int, snap_fn: Callable[[int | float], int]) -> int:
+    """
+    Snaps the given ``num`` to the smallest or largest (depending on the outcome of ``snap_fn``) multiple. of ``mult``.
+    """
+    return mult * (snap_fn(num / mult))
 
 @overload
 def snap_box(box: Rect, multiple: int) -> Rect: ...
@@ -370,11 +414,12 @@ def snap_box(box: Rect, multiple: int) -> Rect: ...
 def snap_box(box: tuple[int, int, int, int], multiple: int) -> tuple[int, int, int, int]: ...
 def snap_box(box: Rect | tuple[int, int, int, int], multiple: int) -> Rect | tuple[int, int, int, int]:
     """
-    Snaps the given four box coordinates to their lowest `multiple` they can reside in. See `snap_num`.
+    Snaps the given four box coordinates to their lowest ``multiple`` they can reside in. See ``snap_num``.
     Since region tiles are named based off of their "coordinate" as their top-left point, the lowest multiples are all
     that matter.
 
-    :returns Rect | tuple[int, int, int, int]: A `Rect` object if `box` is a `Rect`, or a `tuple` of 4 `int`s otherwise.
+    :returns: A :py:class:`~squaremap_combine.util.Rect` object if ``box`` is a ``Rect``, or a ``tuple`` of 4 ``int``s
+        otherwise.
     """
     if (not isinstance(box, Rect)) and (len(box) != 4):  # noqa: PLR2004
         raise ValueError(f'Expected four values in iterable: {box!r}')

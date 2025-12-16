@@ -1,4 +1,5 @@
 import importlib.metadata
+import re
 from collections import OrderedDict
 from enum import Enum
 from pathlib import Path
@@ -18,7 +19,7 @@ LOGS_DIR: Path = USER_DATA_DIR / 'logs'
 
 DEFAULT_COORDS_FORMAT: str = '({x}, {y})'
 
-SQMAP_DETAIL_BPP: OrderedDict[int, int] = OrderedDict({
+SQMAP_ZOOM_BPP: OrderedDict[int, int] = OrderedDict({
     0: 8,
     1: 4,
     2: 2,
@@ -28,6 +29,8 @@ SQMAP_DETAIL_BPP: OrderedDict[int, int] = OrderedDict({
 
 SQMAP_TILE_BLOCKS: int = 512
 """The number of blocks a single squaremap tile covers."""
+
+SQMAP_TILE_NAME_REGEX: re.Pattern[str] = re.compile(r"(-?\d+)_(-?\d+)")
 
 RGB_CHANNEL_MAX: int = 255
 

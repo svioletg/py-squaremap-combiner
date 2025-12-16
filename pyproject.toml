@@ -31,6 +31,11 @@ dev = [
     "pytest>=9.0.1",
     "ruff>=0.14.8",
 ]
+docs = [
+    "furo>=2025.9.25",
+    "sphinx>=6.0,<9.0",
+    "sphinx-autobuild>=2025.8.25",
+]
 
 [project.urls]
 Homepage = "https://github.com/svioletg/py-squaremap-combiner"

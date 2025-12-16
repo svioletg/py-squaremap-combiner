@@ -10,7 +10,8 @@ logger.level('GUI_COMMAND', no=0)
 logger.remove()
 
 def enable_logging(stdout_level: str = 'INFO', output_dir: Path = LOGS_DIR) -> tuple[int, int]:
-    """Adds handlers (after clearing previous ones) to the given `loguru` logger and returns their identifiers.
+    """
+    Adds handlers (after clearing previous ones) to the given `loguru` logger and returns their identifiers.
 
     :param stdout_level: What level to set the `stdout` stream's handler to. Defaults to "INFO".
     :param output_dir: Specify what directory log files should be stored in for this logger.

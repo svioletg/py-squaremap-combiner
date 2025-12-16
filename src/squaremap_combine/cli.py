@@ -216,7 +216,7 @@ def main():
         zoom=detail,
         trim=autotrim,
         area=area,
-        canvas_size=force_size,
+        crop=force_size,
     )
 
     if not image:

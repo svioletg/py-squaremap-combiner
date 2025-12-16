@@ -45,6 +45,36 @@ def test_rect_from_radius(
     r: Rect = Rect.from_radius(radius, origin)
     assert r.as_tuple() == expected_rect
 
+@pytest.mark.parametrize(('coords'),
+    [
+        ((0, 0, 200, 200)),
+        ((0, 0, 150, 200)),
+        ((0, 0, 200, 150)),
+        ((-100, -100, 100, 100)),
+        ((-100, -100, 50, 100)),
+        ((-100, -100, 100, 50)),
+        ((-300, -300, -100, -100)),
+        ((-300, -300, -150, -100)),
+        ((-300, -300, -100, -150)),
+    ],
+)
+def test_rect_transformations(coords: tuple[int, int, int, int]) -> None:
+    r: Rect = Rect(*coords)
+    assert r.as_tuple() == coords
+    assert r.map(lambda n: n // 2).as_tuple() == tuple(n // 2 for n in coords)
+
+    assert r.translate().as_tuple() == r.as_tuple()
+    assert r.translate(100).as_tuple() == (coords[0] + 100, coords[1] + 100, coords[2] + 100, coords[3] + 100)
+    assert r.translate((100, 0)).as_tuple() == (coords[0] + 100, coords[1], coords[2] + 100, coords[3])
+    assert r.translate((0, 100)).as_tuple() == (coords[0], coords[1] + 100, coords[2], coords[3] + 100)
+    assert r.translate(Coord2i(100, 200)).as_tuple() == \
+        (coords[0] + 100, coords[1] + 200, coords[2] + 100, coords[3] + 200)
+    assert r.translate(-100).as_tuple() == (coords[0] - 100, coords[1] - 100, coords[2] - 100, coords[3] - 100)
+    assert r.translate((-100, 0)).as_tuple() == (coords[0] - 100, coords[1], coords[2] - 100, coords[3])
+    assert r.translate((0, -100)).as_tuple() == (coords[0], coords[1] - 100, coords[2], coords[3] - 100)
+    assert r.translate(Coord2i(-100, -200)).as_tuple() == \
+        (coords[0] - 100, coords[1] - 200, coords[2] - 100, coords[3] - 200)
+
 @pytest.mark.parametrize(('coords', 'step_count_x', 'step_count_y'),
     [
         ((0, 0, 200, 200), 20, 20),

@@ -4,6 +4,7 @@ dist/
 testimg/
 pdoc/
 docs/build/
+docs/_*/
 build/
 gui-wrapping/
 .pytest_cache/

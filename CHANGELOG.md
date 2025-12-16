@@ -26,6 +26,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Allows classes to implement a `__json__()` method for serialization
 - Added enum class `const.NamedColorHex`
 - Added method `map` to `util.Coord2i`
+- Added function `util.coerce_to`
 
 ### Changed
 
@@ -41,11 +42,13 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Renamed class `AssertionMessage` in module `errors` to `ErrMsg`
 - Moved class `Coord2i` from `combine_core` to `util`
 - Renamed attribute `MapImage.detail_mul` to `MapImage.zoom`
-- Renamed method `util.Color.to_hex` to `util.Color.as_hex`
-- Renamed method `util.Color.to_rgb` to `util.Color.as_rgb`
-- Renamed method `util.Color.to_rgba` to `util.Color.as_rgba`
+- In module `util`:
+  - Renamed method `Color.to_hex` to `Color.as_hex`
+  - Renamed method `Color.to_rgb` to `Color.as_rgb`
+  - Renamed method `Color.to_rgba` to `Color.as_rgba`
+  - `Coord2i` is now subscriptable, with `Coord2i(...)[0], Coord2i(...)[1]` being equivalent to `Coord2i(...).x, Coord2i(...).y`
+  - `Coord2i.__init__()` can now accept a `tuple[int, int]` or another `Coord2i` instance as a first argument, in which case no `y` argument is required
 - `logging.enable_logging()` now only affects `logging.logger`
-- `util.Coord2i` is now subscriptable, with `Coord2i(...)[0], Coord2i(...)[1]` being equivalent to `Coord2i(...).x, Coord2i(...).y`
 
 ### Removed
 

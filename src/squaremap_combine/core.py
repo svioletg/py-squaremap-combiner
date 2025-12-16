@@ -2,15 +2,16 @@
 Core functionality for squaremap_combine, providing the `Combiner` class amongst others.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from PIL import Image
 
-from squaremap_combine.const import SQMAP_DETAIL_BPP, SQMAP_TILE_BLOCKS
+from squaremap_combine.const import SQMAP_ZOOM_BPP, SQMAP_TILE_BLOCKS, SQMAP_TILE_NAME_REGEX
 from squaremap_combine.util import Color, Coord2i, Grid, Rect
+from squaremap_combine.logging import logger
 
 
 class GameCoord(Coord2i):
@@ -118,7 +119,7 @@ class Combiner:
     tiles_dir: Path
     """The squaremap `tiles` directory to source tile images from."""
     grid_step: int | None
-    """Interval of blocks to use for the grid overlay. Grid overlay is disabled if set to `None`."""
+    """Interval of blocks to use for the grid overlay. Grid overlay is disabled if set to `None` or 0."""
     style: CombinerStyle
     confirm_fn: Callable[[str], bool]
     show_progress: bool
@@ -176,10 +177,9 @@ class Combiner:
             *,
             world: str | Path,
             zoom: int,
-            trim: bool = False,
             area: Rect | None = None,
-            canvas_size: tuple[int, int] | None = None,
-            tile_format: str = '*',
+            crop: tuple[int, int] | Literal['auto'] | None = None,
+            tile_ext: str = '*',
         ) -> MapImage:
         """Combine the given world (dimension) tile images into one large map.
 
@@ -188,10 +188,14 @@ class Combiner:
             this run.
         :param zoom: The zoom level to use, from 0 (lowest detail, 8x8 blocks per pixel) to 3 (highest detail 1 block
             per pixel).
-        :param trim: If `True`, removes excess empty space around the map's borders.
         :param area: Specifies an area of the world to export. If `None`, all tiles available are used.
-        :param canvas_size: An explicit size to use for the final image.
-        :param tile_format: The file extension used for the tile images. By default, `combine()` will attempt to use
+        :param crop: A size to crop the final image to, centering on the center of `area`; or, `'auto'` can
+            be given to trim excess empty space around the map's borders, and crop it to the resulting visible area. In
+            this case, the image is no longer guaranteed to be centered on `area`.
+
+            Note that only tiles within `area` will be used, regardless of this value—if `crop` is larger than the
+            rendered area, blank space will be left surrounding the map.
+        :param tile_ext: The file extension used for the tile images. By default, `combine()` will attempt to use
             all existing files under the relevant tiles directory that have any file suffix, and are not directories.
 
         :raises NotADirectoryError:
@@ -201,13 +205,21 @@ class Combiner:
         if not world.is_dir():
             raise NotADirectoryError(f'Not a directory or does not exist: {world}')
 
-        tiles: dict[Coord2i, Path] = {
-            Coord2i(*map(int, fp.stem.split('_'))):fp \
-            for fp in (world / str(zoom)).glob(f'*.{tile_format}') if fp.is_file()
-        }
+        zoom_bpp: int = SQMAP_ZOOM_BPP[zoom]
 
-        region_grid: Grid = Grid.from_steps(tiles.keys(), step=1)
+        logger.info('Finding tiles...')
+
+        tiles: dict[Coord2i, Path] = {
+            Coord2i(*map(int, SQMAP_TILE_NAME_REGEX.findall(fp.stem))):fp \
+            for fp in (world / str(zoom)).glob(f'*.{tile_ext}') if fp.is_file()
+        }
+        # TODO: What happens when no tiles are found?
+        logger.info(f'Found {len(tiles)} tile images')
+
+        region_grid: Grid = Grid(area.map(lambda n: n // (512 * zoom)), step=1) if area \
+            else Grid.from_steps(tiles.keys(), step=1)
+
         rendered_world: Grid = Grid(
-            Rect(*region_grid.rect.map(lambda n: (n * SQMAP_TILE_BLOCKS) * SQMAP_DETAIL_BPP[zoom])),
+            Rect(*region_grid.rect.map(lambda n: (n * SQMAP_TILE_BLOCKS) * SQMAP_ZOOM_BPP[zoom])),
             step=self.grid_step or SQMAP_TILE_BLOCKS,
         )
