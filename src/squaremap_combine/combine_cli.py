@@ -204,7 +204,7 @@ def main():
 
     combiner = Combiner(
         tiles_dir,
-        use_tqdm=True,
+        show_progress=True,
         skip_confirmation=yes_to_all,
         grid_interval=grid_interval,
         grid_coords_format=coords_format,

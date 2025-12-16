@@ -3,6 +3,7 @@ Core functionality for squaremap_combine, providing the `Combiner` class amongst
 """
 
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from itertools import product
 from pathlib import Path
@@ -12,10 +13,10 @@ from maybetype import Maybe
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
-from squaremap_combine.const import DEFAULT_COORDS_FORMAT, SQMAP_DETAIL, SQMAP_DETAIL_LEVELS, Rectangle
+from squaremap_combine.const import SQMAP_DETAIL, SQMAP_DETAIL_LEVELS, SQMAP_TILE_AREA
 from squaremap_combine.errors import CombineError, ErrMsg
 from squaremap_combine.logging import logger
-from squaremap_combine.util import Color, ConfirmationCallback, Coord2i, snap_box
+from squaremap_combine.util import Color, Coord2i, snap_box
 
 
 class GameCoord(Coord2i):
@@ -79,7 +80,7 @@ class MapImage:
         """Returns a copy of this `MapImage` with only the internal `Image` object changed."""
         return MapImage(new_image, self.game_zero, self.zoom)
 
-    def crop(self, box: Rectangle) -> 'MapImage':
+    def crop(self, box: tuple[int, int, int, int]) -> 'MapImage':
         """Returns a cropped portion of the original image with an accordingly updated `game_zero` attribute."""
         return MapImage(self.img.crop(box), MapImageCoord(*self.game_zero - box[0:2]), self.zoom)
 
@@ -87,7 +88,7 @@ class MapImage:
         """Returns this image centered within a new canvas of the given size."""
         origin_in_image = MapImageCoord(*self.size) // 2
         center_distance = origin_in_image, MapImageCoord(*self.size) - origin_in_image
-        paste_area: Rectangle = (
+        paste_area: tuple[int, int, int, int] = (
             (width // 2) - center_distance[0].x,
             (height // 2) - center_distance[0].y,
             (width // 2) + center_distance[1].x,
@@ -108,7 +109,9 @@ class CombinerStyle:
     grid_coords_format : str          = ''
 
     def __post_init__(self) -> None:
-        raise NotImplementedError
+        self.bg_color = self.bg_color or Color.from_name('clear')
+        self.grid_line_color = self.grid_line_color or Color.from_name('black')
+        self.grid_text_color = self.grid_text_color or Color.from_name('black')
 
     def __json__(self) -> dict[str, Any]:
         return asdict(self)
@@ -116,72 +119,52 @@ class CombinerStyle:
 DEFAULT_COMBINER_STYLE = CombinerStyle()
 
 class Combiner:
-    """
-    Takes a squaremap `tiles` directory path, handles calculating rows/columns,
-    and is able to export full map images.
-    """
-    TILE_SIZE: int = 512
-    """
-    The size of each tile image in pixels.
-    Only made a constant in case squaremap happens to change its image sizes in the future.
-    """
+    """Takes a squaremap `tiles` directory path and can export stitched map images."""
     STANDARD_WORLDS: tuple[str, ...] = ('overworld', 'the_nether', 'the_end')
     def __init__(self,
             tiles_dir: str | Path,
             *,
-            confirm: ConfirmationCallback = lambda message: True,
-            grid_interval: tuple[int, int] = (0, 0),
-            grid_coords_format: str = DEFAULT_COORDS_FORMAT,
+            grid_step: int = SQMAP_TILE_AREA,
             style: CombinerStyle = DEFAULT_COMBINER_STYLE,
-            use_tqdm: bool = False,
-            skip_confirmation: bool = False,
+            confirm: Callable[[str], bool] | None = None,
+            show_progress: bool = False,
         ) -> None:
         """
         :param tiles_dir: A path to a directory in the same format as what squaremap automatically generates.
             Example:
 
-        .. code-block:: text
-            tiles (<- what this path should point to)
-            ├───minecraft_overworld
-            |   ├───0
-            |   ├───1
-            |   ├───2
-            |   └───3
-            ├───minecraft_the_nether
-            |   ├───0
-            |   ├───1
-            |   ├───2
-            |   └───3
-            └───minecraft_the_end
-                ├───0
-                ├───1
-                ├───2
-                └───3
+            .. code-block:: text
+                tiles (<- what this path should point to)
+                ├───minecraft_overworld
+                |   ├───0
+                |   ├───1
+                |   ├───2
+                |   └───3
+                ├───minecraft_the_nether
+                |   ├───0
+                |   ├───1
+                |   ├───2
+                |   └───3
+                └───minecraft_the_end
+                    ├───0
+                    ├───1
+                    ├───2
+                    └───3
 
-        :param use_tqdm: Whether to show a `tqdm` progress bar for any functions that support it.
-        :param skip_confirmation: If `True`, sets `confirmation_callback` to a lambda which will always return `True`,
-            thus bypassing any prompts.
-        :param confirmation_callback: A `Callable` to use in cases where any `Combiner` functions wish to
-            ask for confirmation before continuing. The callable's first argument must be a `str` named `message`, and
-            must return a `bool`.
-
-            Confirmation prompts can be skipped altogether by setting this to something like `lambda message: True`,
-            or by using the `skip_confirmation` argument, which will set `confirmation_callback ` to the lambda above.
-        :param grid_interval: An X and Y interval that should be used for things like drawing grid lines or coordinates
-            ontothe finished image.
-        :param grid_coords_format: A format string to be used when drawing grid coordinates.
-            Valid formatting options are `{x}` and {y}`.
+        :param grid_step: The interval that should be used for things like drawing grid lines or coordinates onto the
+            finished image. Will be treated as an interval of blocks, not pixels on the image.
         :param style: `CombinerStyle` instance to define styling rules with.
+        :param confirm: A `Callable` to use in cases where any `Combiner` functions wish to ask for confirmation before
+            continuing, which must return `True` to continue.
+        :param show_progress: Whether to show a progress bar for any functions that support it.
         """
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
-        self.tiles_dir             = tiles_dir
-        self.use_tqdm              = use_tqdm
-        self.skip_confirmation     = skip_confirmation
-        self.confirmation_callback = confirm if not skip_confirmation else lambda message: True
-        self.grid_interval         = grid_interval or (self.TILE_SIZE, self.TILE_SIZE)
-        self.grid_coords_format    = grid_coords_format
-        self.style                 = style
+        self.tiles_dir     = tiles_dir
+        self.grid_step     = grid_step
+        self.style         = style
+        self.confirm       = confirm if confirm else lambda _: True
+        self.show_progress = show_progress
 
         self.mapped_worlds: list[str] = [p.stem for p in tiles_dir.glob('minecraft_*/')]
         """What valid world folders the given `tiles_dir` contains."""
@@ -207,9 +190,9 @@ class Combiner:
         }
 
         for x in coord_axes['h']:
-            draw.line((x, 0, x, image.height), fill=self.style.grid_line_color.to_rgba())
+            draw.line((x, 0, x, image.height), fill=self.style.grid_line_color.as_rgba())
         for y in coord_axes['v']:
-            draw.line((0, y, image.width, y), fill=self.style.grid_line_color.to_rgba())
+            draw.line((0, y, image.width, y), fill=self.style.grid_line_color.as_rgba())
 
     def draw_grid_coords_text(self, image: MapImage) -> None:
         """
@@ -240,7 +223,7 @@ class Combiner:
 
         if total_intervals > 50000:
             logger.warning('More than 50,000 grid intervals will be iterated over; this may take some time.')
-            if not self.confirmation_callback('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
+            if not self.confirm('More than 50,000 grid intervals will be iterated over, which can take a very long time.' +
                 ' Continue?'):
                 logger.info('Skipping coordinates...')
                 return
@@ -252,13 +235,13 @@ class Combiner:
         draw = ImageDraw.Draw(image.img)
         font = ImageFont.truetype(self.style.grid_text_font, size=self.style.grid_text_size)
 
-        for img_coord in (pbar := tqdm(interval_coords, disable=not self.use_tqdm)):
+        for img_coord in (pbar := tqdm(interval_coords, disable=not self.show_progress)):
             logger.log('GUI_COMMAND', f'/pbar set {pbar.n / total_intervals}')
             game_coord = img_coord.to_game_coord(image)
             coord_text = self.grid_coords_format.format(x=game_coord.x, y=game_coord.y)
-            if self.use_tqdm and (total_intervals <= 5000):
+            if self.show_progress and (total_intervals <= 5000):
                 pbar.set_description(f'Drawing {coord_text} at {img_coord.as_tuple()}')
-            draw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.to_rgba(),
+            draw.text(xy=img_coord.as_tuple(), text=str(coord_text), fill=self.style.grid_text_color.as_rgba(),
                 font=font)
         logger.log('GUI_COMMAND', '/pbar hide')
 
@@ -299,7 +282,7 @@ class Combiner:
         rows: set[int] = set()
         regions: dict[int, dict[int, Path]] = {}
         logger.info('Finding region images...')
-        for img in tqdm(source_dir.glob('*_*.png'), disable=not self.use_tqdm):
+        for img in tqdm(source_dir.glob('*_*.png'), disable=not self.show_progress):
             col, row = map(int, img.stem.split('_'))
             if col not in regions:
                 columns.add(col)
@@ -322,7 +305,7 @@ class Combiner:
             row_range = range(area_regions[1], area_regions[3] + 1)
 
         size_estimate = f'{self.TILE_SIZE * len(column_range)}x{self.TILE_SIZE * len(row_range)}'
-        if not self.confirmation_callback(f'Estimated image size before trimming: {size_estimate}\nContinue?'):
+        if not self.confirm(f'Estimated image size before trimming: {size_estimate}\nContinue?'):
             logger.info('Cancelling...')
             return None
 
@@ -337,7 +320,7 @@ class Combiner:
         # Represents where 0, 0 in our Minecraft world is, in relation to the image's coordinates
         game_zero_in_image: Coord2i | None = None
         regions_iter: list[tuple[int, int]] = list(product(column_range, row_range))
-        for c, r in (pbar := tqdm(regions_iter, disable=not self.use_tqdm)):
+        for c, r in (pbar := tqdm(regions_iter, disable=not self.show_progress)):
             pbar.set_description(f'Region: {c}, {r}')
             logger.log('GUI_COMMAND', f'/pbar set {pbar.n / len(regions_iter)}')
 
@@ -347,7 +330,7 @@ class Combiner:
             # The pasting coordinates are determined based on what current column and row the for loops
             # are on, so they'll increase by a tile regardless of whether an image has actually been pasted
             tile_path = regions[c][r]
-            if self.use_tqdm:
+            if self.show_progress:
                 tqdm.write(f'Pasting image: {tile_path}')
 
             x, y = self.TILE_SIZE * (c - min(column_range)), self.TILE_SIZE * (r - min(row_range))

@@ -11,12 +11,12 @@ PROJECT_DOCS_URL: str = 'https://squaremap-combine.readthedocs.io/en/latest/'
 
 MODULE_DIR: Path = Path(__file__).absolute().parent
 
-LOGS_DIR: Path = MODULE_DIR / 'logs'
 ASSET_DIR: Path = MODULE_DIR / 'asset'
 GUI_ASSET_DIR: Path = MODULE_DIR / 'gui/asset'
 
 USER_DATA_DIR: Path = Path(platformdirs.user_data_dir(PROJECT_NAME))
 
+LOGS_DIR: Path = USER_DATA_DIR / 'logs'
 APP_SETTINGS_PATH: Path = USER_DATA_DIR / 'preferences.json'
 OPT_AUTOSAVE_PATH: Path = USER_DATA_DIR / 'options-autosave.json'
 STYLE_AUTOSAVE_PATH: Path = USER_DATA_DIR / 'style-autosave.json'
@@ -34,6 +34,9 @@ DEFAULT_OUTFILE_FORMAT: str = '{timestamp}{world}-{detail}.{output_ext}'
 SQMAP_DETAIL: dict[int, int] = {0: 8, 1: 4, 2: 2, 3: 1}
 """Square-blocks-per-pixel for each detail level."""
 
+SQMAP_TILE_AREA: int = 512
+"""The number of blocks a single squaremap tile covers."""
+
 RGB_CHANNEL_MAX: int = 255
 
 SQMAP_DETAIL_LEVELS: OrderedDict[int, float] = OrderedDict({
@@ -44,12 +47,13 @@ SQMAP_DETAIL_LEVELS: OrderedDict[int, float] = OrderedDict({
 })
 
 class NamedColorHex(str, Enum):
+    """Common colors as RGBA hexcodes."""
     CLEAR   = '#00000000'
-    WHITE   = '#ffffff'
-    BLACK   = '#000000'
-    RED     = '#ff0000'
-    YELLOW  = '#ffff00'
-    GREEN   = '#00ff00'
-    CYAN    = '#00ffff'
-    BLUE    = '#0000ff'
-    MAGENTA = '#ff00ff'
+    WHITE   = '#ffffffff'
+    BLACK   = '#000000ff'
+    RED     = '#ff0000ff'
+    YELLOW  = '#ffff00ff'
+    GREEN   = '#00ff00ff'
+    CYAN    = '#00ffffff'
+    BLUE    = '#0000ffff'
+    MAGENTA = '#ff00ffff'

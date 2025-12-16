@@ -18,12 +18,14 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Added `-z/--zoom`
   - Added `--grid-lines`
 - Added module `const`
-- Added test module `test_grid_class`
+- Added test module `test_rect_and_grid`
+- Added test module `test_color_class`
 - Added class `util.Grid`
 - Added class `util.Rect`
-- Added enum class `const.NamedColorHex`
 - Added `JSONEncoder`-extended class `ImplementableJSONEncoder` to `util`
   - Allows classes to implement a `__json__()` method for serialization
+- Added enum class `const.NamedColorHex`
+- Added method `map` to `util.Coord2i`
 
 ### Changed
 
@@ -36,7 +38,12 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Renamed module `helper` to `util`
 - Renamed class `AssertionMessage` in module `errors` to `ErrMsg`
 - Moved class `Coord2i` from `combine_core` to `util`
-- Renamed class attribute `MapImage.detail_mul` to `MapImage.zoom`
+- Renamed attribute `MapImage.detail_mul` to `MapImage.zoom`
+- Renamed method `util.Color.to_hex` to `util.Color.as_hex`
+- Renamed method `util.Color.to_rgb` to `util.Color.as_rgb`
+- Renamed method `util.Color.to_rgba` to `util.Color.as_rgba`
+- `logging.enable_logging()` now only affects `logging.logger`
+- `util.Coord2i` is now subscriptable, with `Coord2i(...)[0], Coord2i(...)[1]` being equivalent to `Coord2i(...).x, Coord2i(...).y`
 
 ### Deprecated
 
@@ -54,7 +61,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Removed module `gui`
 - Removed module `project`; contents moved to `const`
 - Removed module `type_alias`
-  - Aliases `ColorRGB` and `ColorRGBA` were unused, `Rectangle` has been replaced with a full class in the form of `util.Rect`
+  - Aliases `ColorRGB` and `ColorRGBA` were unused and thus not moved anywhere
+  - `Rectangle` has been moved to `const.RectTuple` (to differentiate it from the new `Rect` class)
 - Removed multiple class methods from `combine_core.MapImage`: `getbbox()`, `paste()`, `save()`
   - The object's `img` attribute should be accessed directly for these methods instead
 - Removed class `StyleJSONEncoder` from `util`; replaced with `ImplementableJSONEncoder`

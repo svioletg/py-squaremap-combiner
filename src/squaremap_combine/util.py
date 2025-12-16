@@ -1,16 +1,12 @@
-"""
-Miscellaneous helper utility functions and classes.
-"""
-
 import operator
 import re
 from collections.abc import Callable, Generator, Iterator
 from itertools import batched, product
 from json import JSONEncoder
 from math import floor
-from typing import Any, Literal, Protocol, Self, cast, overload
+from typing import Any, Literal, Self, overload
 
-from squaremap_combine.const import RGB_CHANNEL_MAX
+from squaremap_combine.const import RGB_CHANNEL_MAX, NamedColorHex
 
 
 class ImplementableJSONEncoder(JSONEncoder):
@@ -22,11 +18,6 @@ class ImplementableJSONEncoder(JSONEncoder):
         if hasattr(o, '__json__'):
             return o.__json__()
         return super().default(o)
-
-class ConfirmationCallback(Protocol):
-    """Typing protocol for `combine_core.Combiner.combine()`'s `confirmation_callback` argument."""
-    def __call__(self, message: str, *args: Any, **kwargs: Any) -> bool:
-        ...
 
 class Color:
     """
@@ -41,7 +32,7 @@ class Color:
 
     | Specifier          | Output                 |
     |--------------------|------------------------|
-    | `"{magenta:hex}"`  | `"ff00ff"`             |
+    | `"{magenta:x}"`    | `"ff00ff"`             |
     | `"{magenta:rgb}"`  | `"(255, 0, 255)"`      |
     | `"{magenta:rgba}"` | `"(255, 0, 255, 255)"` |
     """
@@ -57,9 +48,6 @@ class Color:
         self.blue  = blue
         self.alpha = alpha
 
-    def __iter__(self) -> Generator[int]:
-        yield from (self.red, self.green, self.blue, self.alpha)
-
     def __repr__(self) -> str:
         return f'Color<#{self:x}>({self.red}, {self.green}, {self.blue}, {self.alpha})'
 
@@ -68,15 +56,24 @@ class Color:
 
     def __format__(self, fmt: str) -> str:
         if fmt == 'x':
-            return self.to_hex()
+            return self.as_hex()
         if fmt == 'rgb':
-            return str(self.to_rgb())
+            return str(self.as_rgb())
         if fmt == 'rgba':
-            return str(self.to_rgba())
+            return str(self.as_rgba())
         return self.__str__()
 
+    def __iter__(self) -> Generator[int]:
+        yield from (self.red, self.green, self.blue, self.alpha)
+
+    def __hash__(self) -> int:
+        return self.as_rgba().__hash__()
+
+    def __eq__(self, other: 'Color') -> bool:
+        return self.as_rgba() == other.as_rgba()
+
     def __json__(self) -> str:
-        return '#' + self.to_hex()
+        return '#' + self.as_hex()
 
     @staticmethod
     def ensure_hex_format(hexcode: str) -> str | None:
@@ -105,23 +102,57 @@ class Color:
             raise ValueError('Invalid hexcode given; must be 3, 6, or 8 characters long')
         return cls(*[int(''.join(channel), 16) for channel in batched(hexcode, 2)])
 
-    def to_rgb(self) -> tuple[int, int, int]:
+    @classmethod
+    def from_name(cls, name: NamedColorHex | str, alpha: int | None = None) -> Self:
+        """
+        Returns a `Color` instance created from hexcode found in the `NamedColorHex` enum.
+
+        :param alpha: An alpha value for the resulting color. If not `None`, this value will override the hexcode's
+            alpha value; otherwise, if the hexcode has no alpha value, the default of 255 is used.
+
+        :raises ValueError: Raised if the given `name` does not exist as a `NamedColorHex` key.
+        """
+        try:
+            name = name if isinstance(name, NamedColorHex) else NamedColorHex[name.upper()]
+        except KeyError as e:
+            raise ValueError(f'Not a recognized color name: {name}') from e
+
+        alpha_hex = f'{alpha:0{2}x}' if alpha is not None else 'ff'
+        return cls.from_hex(name.value + (alpha_hex if len(name.value) == 7 else ''))  # noqa: PLR2004
+
+    def copy(self) -> 'Color':
+        """Returns a new `Color` instance with the same channel values as this instance."""
+        return Color(*self.as_rgba())
+
+    def as_hex(self, *, prefix: bool = True) -> str:
+        """
+        Converts this color to an 8-character hexcode string, with leading `#` by default.
+
+        :param prefix: Whether to include `#` at the beginning of the string.
+        """
+        return ('#' if prefix else '') + ''.join(f'{channel:0{2}x}' for channel in self)
+
+    def as_rgb(self) -> tuple[int, int, int]:
         """Converts this color to a three-integer tuple representing its RGB values."""
         return self.red, self.green, self.blue
 
-    def to_rgba(self) -> tuple[int, int, int, int]:
+    def as_rgba(self) -> tuple[int, int, int, int]:
         """Converts this color to a four-integer tuple representing its RGBA values."""
         return self.red, self.green, self.blue, self.alpha
 
-    def to_hex(self) -> str:
-        """Converts this color to an 8-character hexcode string."""
-        return ''.join(f'{channel:0{2}x}' for channel in self)
-
 class Coord2i:
-    """Represents a 2D integer coordinate pair."""
+    """
+    Represents a 2D integer coordinate pair. While `x` and `y` are typed as only `int`, and explicit conversion should
+    be used, a `float` is still technically accepted if it is a whole number, i.e. if ends with `.0`. Otherwise, a
+    `ValueError` is raised on initialization.
+    """
     def __init__(self, x: int, y: int) -> None:
-        self.x = x
-        self.y = y
+        if (x % 1) != 0:
+            raise ValueError(f'Coord2i.x must be an int or whole number: {x!r}')
+        self.x = int(x)
+        if (y % 1) != 0:
+            raise ValueError(f'Coord2i.y must be an int or whole number: {y!r}')
+        self.y = int(y)
 
     def __repr__(self) -> str:
         return f'Coord2i(x={self.x}, y={self.y})'
@@ -129,34 +160,17 @@ class Coord2i:
     def __str__(self) -> str:
         return f'({self.x}, {self.y})'
 
-    def __iter__(self) -> Iterator[int]:
+    def __iter__(self) -> Generator[int]:
         yield from (self.x, self.y)
 
-    def __hash__(self) -> int:
-        return self.as_tuple().__hash__()
+    def __getitem__(self, idx: int) -> int:
+        return (self.x, self.y)[idx]
 
     def __eq__(self, other: 'Coord2i') -> bool:
         return self.as_tuple() == other.as_tuple()
 
-    def as_tuple(self) -> tuple[int, int]:
-        """Returns the coordinate as a tuple."""
-        return (self.x, self.y)
-
-    def _math(self,
-            math_op: Callable,
-            other: 'int | tuple[int, int] | Coord2i',
-            direction: Literal['l', 'r']='l',
-        ) -> 'Coord2i':
-        if isinstance(other, int):
-            other = (other, other)
-        elif isinstance(other, Coord2i):
-            other = (other.x, other.y)
-
-        if direction == 'l':
-            return Coord2i(math_op(self.x, other[0]), math_op(self.y, other[1]))
-        if direction == 'r':
-            return Coord2i(math_op(other[0], self.x), math_op(other[1], self.y))
-        raise ValueError(f'_math direction must be "l" or "r"; got {direction!r}')
+    def __hash__(self) -> int:
+        return self.as_tuple().__hash__()
 
     def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.add, other)
@@ -183,6 +197,30 @@ class Coord2i:
     def __rpow__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
         return self._math(operator.pow, other, 'r')
 
+    def _math(self,
+            math_op: Callable[[int, int], int],
+            other: 'int | tuple[int, int] | Coord2i',
+            direction: Literal['l', 'r']='l',
+        ) -> 'Coord2i':
+        if isinstance(other, int):
+            other = (other, other)
+        elif isinstance(other, Coord2i):
+            other = (other.x, other.y)
+
+        if direction == 'l':
+            return Coord2i(math_op(self.x, other[0]), math_op(self.y, other[1]))
+        if direction == 'r':
+            return Coord2i(math_op(other[0], self.x), math_op(other[1], self.y))
+        raise ValueError(f'_math direction must be "l" or "r"; got {direction!r}')
+
+    def as_tuple(self) -> tuple[int, int]:
+        """Returns the coordinate as a tuple."""
+        return (self.x, self.y)
+
+    def map(self, fn: Callable[[int], int]) -> 'Coord2i':
+        """Returns a new `Coord2i` instance with `fn` applied to both `x` and `y` attributes."""
+        return Coord2i(fn(self.x), fn(self.y))
+
 class Rect:
     def __init__(self, x1: int, y1: int, x2: int, y2: int) -> None:
         self.x1 = x1
@@ -207,6 +245,28 @@ class Rect:
     def width(self) -> int:
         return self.x2 - self.x1
 
+    @property
+    def corners(self) -> tuple[Coord2i, Coord2i, Coord2i, Coord2i]:
+        """
+        Returns the four corner coordinates of this `Rect` as `Coord2i` objects.
+
+        :returns corners: (top-left, top-right, bottom-left, bottom-right)
+        """
+        return (
+            Coord2i(self.x1, self.y1),
+            Coord2i(self.x2, self.y1),
+            Coord2i(self.x1, self.y2),
+            Coord2i(self.x2, self.y2),
+        )
+
+    @classmethod
+    def from_radius(cls, radius: int, origin: Coord2i | tuple[int, int] | None = (0, 0)) -> Self:
+        """Returns a new `Rect` based on a given radius and origin coordinate."""
+        origin = origin or (0, 0)
+        if radius <= 0:
+            raise ValueError(f'Rect radius must be greater than zero: {radius!r}')
+        return cls(origin[0] - radius, origin[1] - radius, origin[0] + radius, origin[1] + radius)
+
     def as_coords(self) -> tuple[Coord2i, Coord2i]:
         """
         Returns two `Coord2i` objects for the rectangle's upper-left corner (X1, Y1) and bottom-right corner (X2, Y2).
@@ -216,6 +276,10 @@ class Rect:
     def as_tuple(self) -> tuple[int, int, int, int]:
         """Returns the X1, Y1, X2, and Y2 values as a `tuple`."""
         return (self.x1, self.y1, self.x2, self.y2)
+
+    def map(self, fn: Callable[[int], int]) -> 'Rect':
+        """Returns a new `Rect` with `fn` applied to all coordinate values."""
+        return Rect(fn(self.x1), fn(self.y1), fn(self.x2), fn(self.y2))
 
 class Grid:
     """Represents a 2D grid with defined corners and a step value."""
@@ -247,6 +311,22 @@ class Grid:
         """Returns a `product` iterator of the x- and y-axis steps."""
         return product(self.steps_x, self.steps_y)
 
+    def snap_coord(self,
+            coord: Coord2i | tuple[int, int],
+            round_fn: Callable[[int | float], int] | None = None,
+        ) -> Coord2i:
+        """
+        Returns the nearest grid interval coordinate for a given coordinate. For example; where `coord` is `(4, 7)`,
+        and this `Grid`'s `step` is 10, `.snap_coord(coord)` would return `Coord2i(0, 10)`.
+
+        :param round_fn: A function of `(int) -> int` to use for rounding the divided value in the formula. By default
+            the built-in `round` is used, but `math.floor` or `math.ceil` for example could be used to snap to the
+            lower or higher coordinate point respectively.
+        """
+        coord = coord if isinstance(coord, Coord2i) else Coord2i(*coord)
+        round_fn = round_fn or round
+        return coord.map(lambda n: snap_num(n, self.step, round_fn))
+
 def confirm_yn(message: str, *, override: bool = False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
     return override or (input(f'{message} (y/n) ').strip().lower() == 'y')
@@ -259,7 +339,7 @@ def filled_tuple[T](source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
     return source_tuple if len(source_tuple) == 2 else (source_tuple[0], source_tuple[0])  # noqa: PLR2004
 
 def snap_num(num: int | float, mult: int, snap_func: Callable[[int | float], int]) -> int:
-    """Snaps the given `num` to the smallest or largest (depending on the given `snap_method`) multiple. of `mult`."""
+    """Snaps the given `num` to the smallest or largest (depending on the given `snap_func`) multiple. of `mult`."""
     return mult * (snap_func(num / mult))
 
 @overload
@@ -274,7 +354,7 @@ def snap_box(box: Rect | tuple[int, int, int, int], multiple: int) -> Rect | tup
 
     :returns Rect | tuple[int, int, int, int]: A `Rect` object if `box` is a `Rect`, or a `tuple` of 4 `int`s otherwise.
     """
-    if (not isinstance(box, Rect)) and (len(box) != 4):
+    if (not isinstance(box, Rect)) and (len(box) != 4):  # noqa: PLR2004
         raise ValueError(f'Expected four values in iterable: {box!r}')
     snapped: tuple[int, int, int, int] = tuple(snap_num(n, multiple, floor) for n in box) # type: ignore
     if isinstance(box, Rect):
