@@ -6,6 +6,7 @@ pdoc/
 docs/build/
 docs/_*/
 build/
+_build/
 gui-wrapping/
 .pytest_cache/
 __pycache__/

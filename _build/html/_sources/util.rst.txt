@@ -1,5 +1,0 @@
-squaremap-combine documentation
-===============================
-
-.. automodule:: squaremap_combine.util
-   :members:
