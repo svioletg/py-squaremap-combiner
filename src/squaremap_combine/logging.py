@@ -1,9 +1,18 @@
 import sys
+from enum import Enum
 from pathlib import Path
 
 from loguru import logger
 
 from squaremap_combine.const import LOGS_DIR
+
+
+class LogLevel(str, Enum):
+    DEBUG    = 'DEBUG'
+    INFO     = 'INFO'
+    WARNING  = 'WARNING'
+    ERROR    = 'ERROR'
+    CRITICAL = 'CRITICAL'
 
 logger.level('GUI_COMMAND', no=0)
 

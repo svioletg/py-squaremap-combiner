@@ -7,6 +7,7 @@ from maybetype import Maybe
 from PIL import Image
 
 from squaremap_combine.const import (
+    DEFAULT_COORDS_FORMAT,
     IMAGE_SIZE_WARN_THRESH,
     SQMAP_TILE_BLOCKS,
     SQMAP_TILE_NAME_REGEX,
@@ -108,19 +109,35 @@ class MapImage:
 class CombinerStyle:
     """Defines styling rules for :py:class:`~squaremap_combine.core.Combiner`-generated map images."""
 
-    bg_color           : Color | None = None
-    grid_line_color    : Color | None = None
-    grid_line_size     : int   | None = None
-    grid_text_color    : Color | None = None
-    grid_coords_format : str   | None = None
+    bg_color: Color
+    grid_line_color: Color
+    grid_line_size: int
+    grid_text_color: Color
+    grid_coords_format: str
 
-    def __post_init__(self) -> None:
-        self.bg_color = self.bg_color or Color.from_name('clear')
-        self.grid_line_color = self.grid_line_color or Color.from_name('black')
-        self.grid_text_color = self.grid_text_color or Color.from_name('black')
+    def __init__(self,
+            bg_color: Color | str | None = None,
+            grid_line_color: Color | str | None = None,
+            grid_line_size: int = 1,
+            grid_text_color: Color | str | None = None,
+            grid_coords_format: str = DEFAULT_COORDS_FORMAT,
+        ) -> None:
+        self.bg_color = self._parse_color_arg(bg_color or 'clear')
+        self.grid_line_color = self._parse_color_arg(grid_line_color or 'black')
+        self.grid_line_size = grid_line_size
+        self.grid_text_color = self._parse_color_arg(grid_text_color or 'white')
+        self.grid_coords_format = grid_coords_format
+
+        super().__init__()
 
     def __json__(self) -> dict[str, Any]:
         return asdict(self)
+
+    @staticmethod
+    def _parse_color_arg(val: Color | str) -> Color:
+        if isinstance(val, str):
+            return Color.from_hex(val) if val.startswith('#') else Color.from_name(val)
+        return val
 
 DEFAULT_COMBINER_STYLE = CombinerStyle()
 
@@ -223,6 +240,9 @@ class Combiner:
         if not world.is_dir():
             raise NotADirectoryError(f'Not a directory or does not exist: {world}')
 
+        if not area:
+            logger.info('No area specified, using full map')
+
         area = Maybe(area).then(lambda a: a if isinstance(a, Rect) else Rect(*a))
         zoom_bpp: int = SQMAP_ZOOM_BPP[zoom]
 
@@ -234,7 +254,8 @@ class Combiner:
             Coord2i(*map(int, SQMAP_TILE_NAME_REGEX.findall(fp.stem)[0])):fp \
             for fp in (world / str(zoom)).glob(f'*.{tile_ext}') if fp.is_file()
         }
-        # TODO: What happens when no tiles are found?
+        if not tiles:
+            raise CombineError(f'No images found for: {world / str(zoom)}/*.{tile_ext}')
         logger.info(f'Found {len(tiles)} tile images')
 
         # Grid of tile coordinates
@@ -270,12 +291,14 @@ class Combiner:
 
         for region, img_coord in zip(
                 map(Coord2i, tile_grid.iter_steps()),
-                canvas_grid.iter_steps(),
+                # Resize canvas grid down so the coordinates correlate correctly
+                canvas_grid.resize(-SQMAP_TILE_SIZE).iter_steps(),
                 strict=True,
             ):
             if not (tile_path := tiles.get(region)):
                 continue
-            logger.info(f'Placing tile: {tile_path}')
+            logger.info(f'Tile {region}: {tile_path}')
+            logger.debug(f'Placing tile {region} at image coordinate {img_coord}')
             tile: Image.Image = Image.open(tile_path)
             map_img.alpha_composite(tile, img_coord)
 

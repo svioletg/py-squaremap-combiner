@@ -5,6 +5,7 @@ squaremap-combine documentation
    :maxdepth: 2
    :caption: Contents:
 
+   readme.rst
    reference/index.rst
 
 Indices and tables

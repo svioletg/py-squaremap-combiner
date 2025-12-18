@@ -68,8 +68,10 @@ under `squaremap/web/tiles/<world>`. For example, if your current working direct
 server JAR is located, you may run this command:
 
 ```bash
-squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
+squaremap-combine run -i plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
 ```
+
+You can alternatively use the `sqmapcom` command in place of `squaremap-combine` as a shortcut, e.g. `sqmapcom run plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png`
 
 ## CLI Options
 
@@ -80,7 +82,7 @@ squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overwor
 |------|----|-------|-----------|
 |`-h/--help`|Flag|N/A|Displays information about every argument / option and their parameters.|
 |`-z/--zoom`|Integer|3|The zoom/detail level of tiles to use. Defaults to the highest level of 3, which is 1 block per pixel.|
-|`-o/--out FILEPATH`|File path|`<world_name>.png`|Where to save the combined map image. Defaults to the current directory and named after the world folder name.|
+|`-o/--out FILEPATH`|File path|`world.png`|Where to save the combined map image. Defaults to the current directory and named after the world folder name.|
 |`--overwite`|Flag|`False`|Allows the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.|
 |`-r/--rect X1,Z1,X2,Z2`|Integer list (4)|Entire rendered map area|A rectangle area of the world to export an image of, separated by commas.|
 |`-t/--trim`|Flag|`False`|Trims empty (fully transparent) space surrounding the completed image. Note that this is done before any specified background color is applied.|
@@ -99,9 +101,10 @@ squaremap-combine run plugins/squaremap/web/tiles/minecraft_overworld -o overwor
 ### CLI Grid Options
 
 > [!NOTE]
-> All options below prefixed with `grid-` are only used if `--grid` is specified; otherwise, they do nothing.
+> All options below prefixed with `grid-` are only used if the `--grid` option is used; otherwise, they do nothing.
+> Color values can be either a hex code (must be preceded by `#`) or [one of 16 color names](https://www.w3.org/TR/REC-html40/types.html#h-6.5) defined in the HTML 4.01 spec, with the addition of "clear" for full transparency.
 
 |Option|Type|Default|Description|
 |------|----|-------|-----------|
-|`--grid-lines`|String|`"black 1px"`|The color and pixel size to use for grid lines, separated by space. The color given can be either a hex code (must be preceded by `#`) or [one of 16 color names](https://www.w3.org/TR/REC-html40/types.html#h-6.5) defined in the HTML 4.01 spec.  |
+|`--grid-lines`|String|`"black 1px"`|The color and pixel size to use for grid lines, separated by space.  |
 |`--grid-coords`|String|`"{x}, {z}"`|The string format to use for overlaying grid coordinates, replacing `{x}` and `{z}` with the respective coordinate values, e.g. `"X: {x}, Z: {z}"`. By default, coordinates are not added to the image at all.|

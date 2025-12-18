@@ -5,6 +5,9 @@ from enum import Enum
 from pathlib import Path
 
 import platformdirs
+from rich.console import Console
+from rich.highlighter import RegexHighlighter
+from rich.theme import Theme
 
 PROJECT_NAME: str = 'squaremap_combine'
 PROJECT_VERSION: str = importlib.metadata.version(PROJECT_NAME)
@@ -39,13 +42,52 @@ RGB_CHANNEL_MAX: int = 255
 IMAGE_SIZE_WARN_THRESH: int = 20_000
 
 class NamedColorHex(str, Enum):
-    """Common colors as RGBA hexcodes."""
+    """
+    Common colors as RGBA hexcodes, based off the HTML 4.01 spec: https://www.w3.org/TR/REC-html40/types.html#h-6.5
+    """
     CLEAR   = '#00000000'
-    WHITE   = '#ffffffff'
     BLACK   = '#000000ff'
+    SILVER  = '#c0c0c0ff'
+    GRAY    = '#808080ff'
+    WHITE   = '#ffffffff'
+    MAROON  = '#800000ff'
     RED     = '#ff0000ff'
+    PURPLE  = '#800080ff'
+    FUCHSIA = '#ff00ffff'
+    GREEN   = '#008000ff'
+    LIME    = '#00ff00ff'
+    OLIVE   = '#808000ff'
     YELLOW  = '#ffff00ff'
-    GREEN   = '#00ff00ff'
-    CYAN    = '#00ffffff'
+    NAVY    = '#000080ff'
     BLUE    = '#0000ffff'
-    MAGENTA = '#ff00ffff'
+    TEAL    = '#008080ff'
+    AQUA    = '#00ffffff'
+
+def setup_rich_console() -> Console:
+    class Highlighter(RegexHighlighter):
+        base_style = 'autohl.'
+        highlights = [ # noqa: RUF012
+            r"\b(?P<true>True)\b",
+            r"\b(?P<false>False)\b",
+        ]
+
+    theme = Theme({
+        'info': 'cyan',
+        'info2': 'bright_cyan',
+        'ok': 'bright_green',
+        'warn': 'yellow',
+        'err': 'red',
+        'low': 'grey70',
+        'path': 'magenta',
+        'path2': 'bright_magenta',
+
+        'autohl.true': 'green',
+        'autohl.false': 'red',
+    })
+
+    return Console(
+        highlighter=Highlighter(),
+        theme=theme,
+    )
+
+console: Console = setup_rich_console()

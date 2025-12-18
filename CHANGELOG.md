@@ -18,6 +18,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Added `-z/--zoom`
   - Added `--grid-lines`
 - Added module `const`
+- Added module `geo`
 - Added test module `test_rect_and_grid`
 - Added test module `test_color_class`
 - Added class `util.Grid`
@@ -25,8 +26,10 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Added `JSONEncoder`-extended class `ImplementableJSONEncoder` to `util`
   - Allows classes to implement a `__json__()` method for serialization
 - Added enum class `const.NamedColorHex`
-- Added method `map` to `util.Coord2i`
+- Added enum class `logging.LogLevel`
+- Added method `map()` to `util.Coord2i`
 - Added function `util.coerce_to`
+- Added function `util.draw_corners`
 
 ### Changed
 
@@ -40,12 +43,14 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Renamed module `combine_core` to `core`
 - Renamed module `helper` to `util`
 - Renamed class `AssertionMessage` in module `errors` to `ErrMsg`
-- Moved class `Coord2i` from `combine_core` to `util`
+- Moved class `Coord2i` from `combine_core` to `geo`
 - Renamed attribute `MapImage.detail_mul` to `MapImage.zoom`
+- Rewrote class `core.Combiner`, [see the docs](https://squaremap-combine.readthedocs.io/en/latest/reference/core.html#squaremap_combine.core.Combiner) for details
 - In module `util`:
-  - Renamed method `Color.to_hex` to `Color.as_hex`
-  - Renamed method `Color.to_rgb` to `Color.as_rgb`
-  - Renamed method `Color.to_rgba` to `Color.as_rgba`
+  - Renamed method `Color.to_hex()` to `Color.as_hex()`
+  - Renamed method `Color.to_rgb()` to `Color.as_rgb()`
+  - Renamed method `Color.to_rgba()` to `Color.as_rgba()`
+- In module `geo`:
   - `Coord2i` is now subscriptable, with `Coord2i(...)[0], Coord2i(...)[1]` being equivalent to `Coord2i(...).x, Coord2i(...).y`
   - `Coord2i.__init__()` can now accept a `tuple[int, int]` or another `Coord2i` instance as a first argument, in which case no `y` argument is required
 - `logging.enable_logging()` now only affects `logging.logger`
@@ -64,18 +69,19 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Removed module `type_alias`
   - Aliases `ColorRGB` and `ColorRGBA` were unused and thus not moved anywhere
   - Alias `Rectangle` removed, either the new `Rect` class or `tuple[int, int, int, int]` will be used
+- In module `core`:
+  - Removed class `MapImage`
+  - Removed method `draw_grid_lines()` from `core.Combiner`
+  - Removed method `draw_grid_coords_text()` from `core.Combiner`
+  - Removed method `to_json()` from `core.CombinerStyle`
+  - Removed multiple methods from `core.MapImage`: `getbbox()`, `paste()`, `save()`
+    - The object's `img` attribute should be accessed directly for these methods instead
 - In module `util`:
   - Removed class `StyleJSONEncoder`; replaced with `ImplementableJSONEncoder`
   - Removed class attribute `COMMON` from `Color`
-  - Removed class method `from_name` from `Color`
-  - Removed function `util.copy_method_signature`
-- In module `core`:
-  - Removed class `MapImage`
-  - Removed method `draw_grid_lines` from `core.Combiner`
-  - Removed method `draw_grid_coords_text` from `core.Combiner`
-  - Removed method `to_json` from `core.CombinerStyle`
-  - Removed multiple methods from `core.MapImage`: `getbbox()`, `paste()`, `save()`
-    - The object's `img` attribute should be accessed directly for these methods instead
+  - Removed class method `from_name()` from `Color`
+  - Removed function `copy_method_signature()`
+  - Removed function `filled_tuple()`
 - Removed multiple constants from `const`: `APP_SETTINGS_PATH`, `OPT_AUTOSAVE_PATH`, `STYLE_AUTOSAVE_PATH`, `DEFAULT_OUTFILE_FORMAT`, `DEFAULT_TIME_FORMAT`
 - Removed constant `DEFAULT_TIME_FORMAT` from `const`
 - Removed constant `DEFAULT_OUTFILE_FORMAT` from `const`

@@ -19,9 +19,10 @@ classifiers = [
 ]
 dependencies=[
   "loguru>=0.7.2",
-  "maybetype@git+https://github.com/svioletg/py-maybetype",
+  "maybetype@git+https://github.com/svioletg/py-maybetype@latest",
   "pillow>=10.4.0",
   "platformdirs>=4.3.6",
+  "rich>=14.2.0",
   "tqdm>=4.66.5",
 ]
 
@@ -33,6 +34,8 @@ dev = [
 ]
 docs = [
     "furo>=2025.9.25",
+    "m2r>=0.3.1",
+    "myst-parser>=4.0.1",
     "sphinx>=6.0,<9.0",
     "sphinx-autobuild>=2025.8.25",
 ]
@@ -42,7 +45,8 @@ Homepage = "https://github.com/svioletg/py-squaremap-combiner"
 Issues = "https://github.com/svioletg/py-squaremap-combiner/issues"
 
 [project.scripts]
-squaremap-combine = "squaremap_combine.combine_cli:main"
+squaremap-combine = "squaremap_combine.cli:main"
+sqmapcom = "squaremap_combine.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

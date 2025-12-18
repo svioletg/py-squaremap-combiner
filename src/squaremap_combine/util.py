@@ -2,7 +2,10 @@ import re
 from collections.abc import Callable, Generator
 from itertools import batched
 from json import JSONEncoder
+from pathlib import Path
 from typing import Any, Self
+
+from PIL import Image, ImageDraw
 
 from squaremap_combine.const import RGB_CHANNEL_MAX, NamedColorHex
 
@@ -45,7 +48,7 @@ class Color:
         self.alpha = alpha
 
     def __repr__(self) -> str:
-        return f'Color<#{self:x}>({self.red}, {self.green}, {self.blue}, {self.alpha})'
+        return f'Color<{self:x}>({self.red}, {self.green}, {self.blue}, {self.alpha})'
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -65,7 +68,9 @@ class Color:
     def __hash__(self) -> int:
         return self.as_rgba().__hash__()
 
-    def __eq__(self, other: 'Color') -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Color):
+            return False
         return self.as_rgba() == other.as_rgba()
 
     def __json__(self) -> str:
@@ -136,16 +141,13 @@ class Color:
         """Converts this color to a four-integer tuple representing its RGBA values."""
         return self.red, self.green, self.blue, self.alpha
 
+COL_CLEAR: Color = Color.from_name('clear')
+COL_BLACK: Color = Color.from_name('black')
+COL_WHITE: Color = Color.from_name('white')
+
 def confirm_yn(message: str, *, auto_confirm: bool = False) -> bool:
     """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
     return auto_confirm or (input(f'{message} (y/n) ').strip().lower() == 'y')
-
-def filled_tuple[T](source_tuple: tuple[T] | tuple[T, T]) -> tuple[T, T]:
-    """
-    Takes a tuple of no more than two values, and returns the original tuple if two values are present, or a new tuple
-    consisting of the first value having been doubled if only one value is present.
-    """
-    return source_tuple if len(source_tuple) == 2 else (source_tuple[0], source_tuple[0])  # noqa: PLR2004
 
 def coerce_to[A, B](val: A | B, cls: type[B], coerce_fn: Callable[[A], B] | None = None) -> B:
     """
@@ -162,3 +164,39 @@ def snap_num(num: int | float, mult: int, snap_fn: Callable[[int | float], int])
     Snaps the given ``num`` to the smallest or largest (depending on the outcome of ``snap_fn``) multiple. of ``mult``.
     """
     return mult * (snap_fn(num / mult))
+
+def draw_corners(img: Image.Image | str | Path, *, length: int = 8, fill: Color | str = 'red') -> Image.Image:
+    """
+    Loads an image, either as an existing ``Image`` object or from a path, and draws lines of ``length`` pixels for
+    each corner of the image, returning the edited image.
+
+    .. note::
+        Note that if given an ``Image`` object, the image will be edited in-place due to how
+        Pillow's ``ImageDraw.Draw`` method works.
+    """
+    if not isinstance(img, Image.Image):
+        img = Image.open(img)
+    if isinstance(fill, Color):
+        fill = fill.as_hex()
+    length -= 1
+
+    draw = ImageDraw.Draw(img)
+    iw, ih = img.size
+
+    # Top left
+    draw.line((0, 0, length, 0), fill=fill)
+    draw.line((0, 0, 0, length), fill=fill)
+
+    # Top right
+    draw.line((iw - 1, 0, iw - (length + 1), 0), fill=fill)
+    draw.line((iw - 1, 0, iw - 1, length), fill=fill)
+
+    # Bottom left
+    draw.line((0, ih - 1, length, ih - 1), fill=fill)
+    draw.line((0, ih - 1, 0, ih - (length + 1)), fill=fill)
+
+    # Bottom right
+    draw.line((iw - 1, ih - 1, iw - (length + 1), ih - 1), fill=fill)
+    draw.line((iw - 1, ih - 1, iw - 1, ih - (length + 1)), fill=fill)
+
+    return img

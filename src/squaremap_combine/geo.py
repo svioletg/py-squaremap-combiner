@@ -270,15 +270,18 @@ class Grid:
             snap_num(self.rect.x2, self.step, floor) + self.origin.x,
         )
         return tuple(range(boundary[0], min(self.origin.x, boundary[1]) + 1, self.step)) \
-            + tuple(range(self.origin.x, boundary[1], self.step))[1:]
+            + tuple(range(self.origin.x, boundary[1] + 1, self.step))[1:]
 
     @property
     def steps_y(self) -> tuple[int, ...]:
         if self.step == 0:
             return ()
-        boundary: tuple[int, int] = (snap_num(self.rect.y1, self.step, ceil), snap_num(self.rect.y2, self.step, floor))
+        boundary: tuple[int, int] = (
+            snap_num(self.rect.y1, self.step, ceil) + self.origin.y,
+            snap_num(self.rect.y2, self.step, floor) + self.origin.y,
+        )
         return tuple(range(boundary[0], min(self.origin.y, boundary[1]) + 1, self.step)) \
-            + tuple(range(self.origin.y, boundary[1], self.step))[1:]
+            + tuple(range(self.origin.y, boundary[1] + 1, self.step))[1:]
 
     @property
     def steps_count(self) -> int:
