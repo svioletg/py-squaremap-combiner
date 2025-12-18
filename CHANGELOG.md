@@ -70,6 +70,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Removed class method `from_name` from `Color`
   - Removed function `util.copy_method_signature`
 - In module `core`:
+  - Removed class `MapImage`
   - Removed method `draw_grid_lines` from `core.Combiner`
   - Removed method `draw_grid_coords_text` from `core.Combiner`
   - Removed method `to_json` from `core.CombinerStyle`

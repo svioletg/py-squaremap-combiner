@@ -6,4 +6,5 @@ Reference
 
     core
     errors
+    geo
     util

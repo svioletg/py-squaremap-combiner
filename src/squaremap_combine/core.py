@@ -3,11 +3,20 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from maybetype import Maybe
 from PIL import Image
 
-from squaremap_combine.const import IMAGE_SIZE_WARN_THRESH, SQMAP_TILE_NAME_REGEX, SQMAP_TILE_SIZE, SQMAP_ZOOM_BPP
+from squaremap_combine.const import (
+    IMAGE_SIZE_WARN_THRESH,
+    SQMAP_TILE_BLOCKS,
+    SQMAP_TILE_NAME_REGEX,
+    SQMAP_TILE_SIZE,
+    SQMAP_ZOOM_BPP,
+)
+from squaremap_combine.errors import CombineError
+from squaremap_combine.geo import Coord2i, Grid, Rect
 from squaremap_combine.logging import logger
-from squaremap_combine.util import Color, Coord2i, Grid, Rect
+from squaremap_combine.util import Color
 
 
 class GameCoord(Coord2i):
@@ -183,15 +192,15 @@ class Combiner:
             world: str | Path,
             *,
             zoom: int,
-            area: Rect | None = None,
+            area: Rect | tuple[int, int, int, int] | None = None,
             crop: tuple[int, int] | Literal['auto'] | None = None,
             tile_ext: str = '*',
-        ) -> MapImage:
+        ) -> Image.Image:
         """Combine the given world (dimension) tile images into one large map.
 
-        :param world: Name of the world to use the tiles of, as a subdirectory of the instance's ``tiles_dir`` attribute.
-            Alternatively, if given as a ``Path`` object, the path will be used as-is and will ignore ``tiles_dir`` for
-            this run.
+        :param world: Name of the world to use the tiles of, as a subdirectory of the instance's ``tiles_dir``
+            attribute. Alternatively, if given as a ``Path`` object, the path will be used as-is and will ignore
+            ``tiles_dir`` for this run.
         :param zoom: The zoom level to use, from 0 (lowest detail, 8x8 blocks per pixel) to 3 (highest detail 1 block
             per pixel).
         :param area: Specifies an area of the world to export. If ``None``, all tiles available are used.
@@ -214,9 +223,13 @@ class Combiner:
         if not world.is_dir():
             raise NotADirectoryError(f'Not a directory or does not exist: {world}')
 
+        area = Maybe(area).then(lambda a: a if isinstance(a, Rect) else Rect(*a))
+        zoom_bpp: int = SQMAP_ZOOM_BPP[zoom]
+
         logger.info(f'Using directory: {world.absolute() / str(zoom)}')
         logger.info('Looking for tiles...')
 
+        # Gather tile images, mapped to coordinates
         tiles: dict[Coord2i, Path] = {
             Coord2i(*map(int, SQMAP_TILE_NAME_REGEX.findall(fp.stem)[0])):fp \
             for fp in (world / str(zoom)).glob(f'*.{tile_ext}') if fp.is_file()
@@ -224,36 +237,62 @@ class Combiner:
         # TODO: What happens when no tiles are found?
         logger.info(f'Found {len(tiles)} tile images')
 
-        zoom_bpp: int = SQMAP_ZOOM_BPP[zoom]
-        region_grid: Grid = Grid(area.map(lambda n: n // (512 * zoom_bpp)), step=1) if area \
+        # Grid of tile coordinates
+        tile_grid: Grid = Grid(area.map(lambda n: n // (SQMAP_TILE_BLOCKS * zoom_bpp)), step=1) if area \
             else Grid.from_steps(tiles.keys(), step=1)
 
-        area = area or region_grid.rect.map(lambda n: n * (512 * zoom_bpp))
-        area_image_size: tuple[int, int] = region_grid.rect \
-            .translate_to_zero() \
+        # Grid representing the Minecraft world
+        world_grid: Grid = tile_grid \
+            .map(lambda n: n * (SQMAP_TILE_BLOCKS * zoom_bpp)) \
+            .resize(SQMAP_TILE_BLOCKS * zoom_bpp) \
+            .copy(step=self.grid_step)
+
+        # Grid representing the actual image, shifted so that the top-left corner is 0, 0
+        canvas_grid: Grid = tile_grid \
+            .translate_to((0, 0)) \
             .map(lambda n: n * SQMAP_TILE_SIZE) \
             .resize(SQMAP_TILE_SIZE) \
-            .size
+            .copy(step=SQMAP_TILE_SIZE) \
+
         # Since the region coordinates refer to the top left of each region, one more tile's worth of space needs to be
         # added to the map image so it doesn't get cut off
 
-        img: Image.Image = Image.new(
+        map_img: Image.Image = Image.new(
             'RGBA',
-            (crop if isinstance(crop, tuple) else area_image_size),
+            canvas_grid.rect.size,
             color=self.style.bg_color.as_rgba(),
         )
 
-        if any(n >= IMAGE_SIZE_WARN_THRESH for n in img.size):
-            logger.warning(f'Image dimensions exceed warning threshold of {IMAGE_SIZE_WARN_THRESH}: {img.size!r}')
+        logger.info(f'Image size: {map_img.size}')
 
-        for coord in map(Coord2i, region_grid.iter_steps()):
-            if not (tile_path := tiles.get(coord)):
+        if any(n >= IMAGE_SIZE_WARN_THRESH for n in map_img.size):
+            logger.warning(f'Image dimensions exceed warning threshold of {IMAGE_SIZE_WARN_THRESH}: {map_img.size!r}')
+
+        for region, img_coord in zip(
+                map(Coord2i, tile_grid.iter_steps()),
+                canvas_grid.iter_steps(),
+                strict=True,
+            ):
+            if not (tile_path := tiles.get(region)):
                 continue
+            logger.info(f'Placing tile: {tile_path}')
             tile: Image.Image = Image.open(tile_path)
+            map_img.alpha_composite(tile, img_coord)
 
-        raise NotImplementedError
+        if area:
+            offset: tuple[Coord2i, Coord2i] = (
+                (area.corners[0] - world_grid.rect.corners[0]) // zoom_bpp,
+                (area.corners[-1] - world_grid.rect.corners[-1]) // zoom_bpp,
+            )
+            map_img = map_img.crop(
+                (*(canvas_grid.rect.corners[0] + offset[0]), *(canvas_grid.rect.corners[-1] + offset[1])), # type: ignore
+            )
 
-        # rendered_world: Grid = Grid(
-        #     Rect(*region_grid.rect.map(lambda n: (n * SQMAP_TILE_BLOCKS) * SQMAP_ZOOM_BPP[zoom])),
-        #     step=self.grid_step or SQMAP_TILE_BLOCKS,
-        # )
+        if crop:
+            crop_box: tuple[int, int, int, int] = Maybe(map_img.getbbox()) \
+                .unwrap(CombineError(f'Failed to get bounding box of map image: {map_img}')) \
+                if crop == 'auto' \
+                else Rect.from_size(*crop, center=Coord2i(map_img.size) // 2).as_tuple()
+            map_img = map_img.crop(crop_box)
+
+        return map_img

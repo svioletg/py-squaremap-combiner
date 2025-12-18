@@ -17,7 +17,7 @@ GUI_ASSET_DIR: Path = MODULE_DIR / 'gui/asset'
 USER_DATA_DIR: Path = Path(platformdirs.user_data_dir(PROJECT_NAME))
 LOGS_DIR: Path = USER_DATA_DIR / 'logs'
 
-DEFAULT_COORDS_FORMAT: str = '({x}, {y})'
+DEFAULT_COORDS_FORMAT: str = ' X {x}\n Y {y}'
 
 SQMAP_ZOOM_BPP: OrderedDict[int, int] = OrderedDict({
     0: 8,

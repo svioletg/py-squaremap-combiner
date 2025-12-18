@@ -63,16 +63,16 @@ def test_rect_transformations(coords: tuple[int, int, int, int]) -> None:
     assert r.as_tuple() == coords
     assert r.map(lambda n: n // 2).as_tuple() == tuple(n // 2 for n in coords)
 
-    assert r.translate().as_tuple() == r.as_tuple()
-    assert r.translate(100).as_tuple() == (coords[0] + 100, coords[1] + 100, coords[2] + 100, coords[3] + 100)
-    assert r.translate((100, 0)).as_tuple() == (coords[0] + 100, coords[1], coords[2] + 100, coords[3])
-    assert r.translate((0, 100)).as_tuple() == (coords[0], coords[1] + 100, coords[2], coords[3] + 100)
-    assert r.translate(Coord2i(100, 200)).as_tuple() == \
+    assert r.translate_by().as_tuple() == r.as_tuple()
+    assert r.translate_by(100).as_tuple() == (coords[0] + 100, coords[1] + 100, coords[2] + 100, coords[3] + 100)
+    assert r.translate_by((100, 0)).as_tuple() == (coords[0] + 100, coords[1], coords[2] + 100, coords[3])
+    assert r.translate_by((0, 100)).as_tuple() == (coords[0], coords[1] + 100, coords[2], coords[3] + 100)
+    assert r.translate_by(Coord2i(100, 200)).as_tuple() == \
         (coords[0] + 100, coords[1] + 200, coords[2] + 100, coords[3] + 200)
-    assert r.translate(-100).as_tuple() == (coords[0] - 100, coords[1] - 100, coords[2] - 100, coords[3] - 100)
-    assert r.translate((-100, 0)).as_tuple() == (coords[0] - 100, coords[1], coords[2] - 100, coords[3])
-    assert r.translate((0, -100)).as_tuple() == (coords[0], coords[1] - 100, coords[2], coords[3] - 100)
-    assert r.translate(Coord2i(-100, -200)).as_tuple() == \
+    assert r.translate_by(-100).as_tuple() == (coords[0] - 100, coords[1] - 100, coords[2] - 100, coords[3] - 100)
+    assert r.translate_by((-100, 0)).as_tuple() == (coords[0] - 100, coords[1], coords[2] - 100, coords[3])
+    assert r.translate_by((0, -100)).as_tuple() == (coords[0], coords[1] - 100, coords[2], coords[3] - 100)
+    assert r.translate_by(Coord2i(-100, -200)).as_tuple() == \
         (coords[0] - 100, coords[1] - 200, coords[2] - 100, coords[3] - 200)
 
 @pytest.mark.parametrize(('coords', 'step_count_x', 'step_count_y'),
