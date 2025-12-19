@@ -29,10 +29,13 @@ jobs:
         pip install .[dev]
     - name: Check types with ty
       run: |
+        source .venv/bin/activate
         ty check .
     - name: Lint with ruff
       run: |
+        source .venv/bin/activate
         ruff check .
     - name: Test with pytest
       run: |
+        source .venv/bin/activate
         pytest -v
