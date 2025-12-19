@@ -108,5 +108,5 @@ You can alternatively use the `sqmapcom` command in place of `squaremap-combine`
 |Option|Type|Default|Description|
 |------|----|-------|-----------|
 |`--grid-lines`|String|`'black 1px'`|The color and thickness in pixels to use for grid lines, separated by space.|
-|`--grid-coords`|String|`'{x}, {z}'`|The string format to use for overlaying grid coordinates, replacing `{x}` and `{z}` with the respective coordinate values, e.g. `"X: {x}, Z: {z}"`. By default, coordinates are not added to the image at all.|
+|`--grid-coords`|String|`'{x}, {z}'`|The string format to use for overlaying grid coordinates, replacing `{x}` and `{z}` with the respective coordinate values, e.g. `"X: {x}, Z: {z}"`. By default, coordinates are not added to the image at all. Note that drawing coordinate text will make creating the image **significantly** slower, especially with large grids and small grid steps.|
 |`--grid-font`|String/File path, Integer, Color|`''`|The name or file path for a font to use for grid coordinate text, as well as the "point" size to use, separated by comma. If left blank (default), [Fira Code SemiBold](https://github.com/tonsky/FiraCode), which is included in `squaremap_combine`'s installation directory, is used at 32pt in black. Example values include: `'Arial, 64, white'`, `'Consolas, 32, red'`, `'Times New Roman, 48, #ff00ff'`|

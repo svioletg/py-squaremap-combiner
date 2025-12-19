@@ -223,15 +223,25 @@ class Combiner:
             world_grid: Grid,
             canvas_grid: Grid,
             style: CombinerStyle,
+            progress_interval_secs: float,
         ) -> None:
         if world_grid.step:
-            logger.info('Drawing grid overlay...')
             logger.info(f'Grid step: {world_grid.step}')
+            logger.info('Drawing grid overlay... 0%')
             draw = ImageDraw.Draw(map_img)
             font = ImageFont.truetype(style.grid_text_font, size=style.grid_text_pt)
 
+            progress_update_timer: float = perf_counter()
+            total: int = world_grid.steps_count
+
             ta: float = perf_counter()
-            for world_coord in world_grid.iter_steps():
+            for n, world_coord in enumerate(world_grid.iter_steps()):
+                if (progress_interval_secs > 0) \
+                    and ((perf_counter() - progress_update_timer) >= progress_interval_secs):
+                    progress_update_timer = perf_counter()
+                    progress_perc: float = (n / total) * 100
+                    logger.info(f'Drawing grid overlay... {progress_perc:.1f}%')
+
                 wtr, wbr = world_grid.rect.corners[0], world_grid.rect.corners[-1]
                 ctr, cbr = canvas_grid.rect.corners[0], canvas_grid.rect.corners[-1]
                 offset_factor: Coord2f = Coord2f(world_coord - wtr) / Coord2f(wbr - wtr)
@@ -261,6 +271,7 @@ class Combiner:
                     )
             tb: float = perf_counter()
 
+            logger.info('Drawing grid overlay... 100%')
             logger.info(f'Finished drawing grid in {tb - ta:.04f}s')
             del ta, tb
 
@@ -273,6 +284,7 @@ class Combiner:
             tile_ext: str = '*',
             grid_step: int | None = None,
             style: CombinerStyle | dict[str, Any] | None = None,
+            grid_progress_interval_secs: float = 1.0,
         ) -> Image.Image:
         """Combine the given world (dimension) tile images into one large map.
 
@@ -297,6 +309,8 @@ class Combiner:
             instance's ``style`` instance, if not ``None``. Can also be a ``dict`` of key-value pairs, in which case
             only the specified keys' values are overridden, and the ``Combiner`` instance's ``style`` is use as a
             fallback.
+        :param grid_progress_interval_secs: At what interval to log grid overlay drawing updates. Set to ``0`` or lower
+            to disable.
 
         :returns image: The final stitched image as a :py:class:`~squaremap_combine.core.MapImage`.
 
@@ -321,6 +335,8 @@ class Combiner:
 
         logger.info(f'Using directory: {world.absolute() / str(zoom)}')
         logger.info('Looking for tiles...')
+
+        combine_ta: float = perf_counter()
 
         # Gather tile images, mapped to coordinates
         tiles: dict[Coord2i, Path] = {
@@ -377,7 +393,13 @@ class Combiner:
             map_img.alpha_composite(tile, img_coord.as_tuple())
 
         # Draw grid overlay
-        self._draw_grid_overlay(map_img, world_grid, canvas_grid, style)
+        self._draw_grid_overlay(
+            map_img,
+            world_grid,
+            canvas_grid,
+            style,
+            grid_progress_interval_secs,
+        )
 
         # Crop to world area if specified
         if area:
@@ -399,5 +421,7 @@ class Combiner:
             logger.info(f'Cropping image to {Rect(*crop_box).size}...')
             map_img = map_img.crop(crop_box)
 
-        logger.info('Image creation finished')
+        combine_tb: float = perf_counter()
+
+        logger.info(f'Image creation finished in {combine_tb - combine_ta:.4f}')
         return map_img
