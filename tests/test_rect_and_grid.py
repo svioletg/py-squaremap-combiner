@@ -1,6 +1,6 @@
 import pytest
 
-from squaremap_combine.util import Coord2i, Grid, Rect
+from squaremap_combine.geo import Coord2i, Grid, Rect
 
 
 @pytest.mark.parametrize(('coords'),

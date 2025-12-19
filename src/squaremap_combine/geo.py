@@ -67,7 +67,9 @@ class Coord2i:
     def __hash__(self) -> int:
         return self.as_tuple().__hash__()
 
-    def __eq__(self, other: 'Coord2i') -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Coord2i):
+            return False
         return self.as_tuple() == other.as_tuple()
 
     def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':

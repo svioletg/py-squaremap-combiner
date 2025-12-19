@@ -145,10 +145,6 @@ COL_CLEAR: Color = Color.from_name('clear')
 COL_BLACK: Color = Color.from_name('black')
 COL_WHITE: Color = Color.from_name('white')
 
-def confirm_yn(message: str, *, auto_confirm: bool = False) -> bool:
-    """Prompts the user for confirmation, only returning true if "Y" or "y" was entered."""
-    return auto_confirm or (input(f'{message} (y/n) ').strip().lower() == 'y')
-
 def coerce_to[A, B](val: A | B, cls: type[B], coerce_fn: Callable[[A], B] | None = None) -> B:
     """
     Returns ``val`` if ``val`` is an instance of ``cls``, otherwise calls ``coerce_fn`` on ``val`` and returns the

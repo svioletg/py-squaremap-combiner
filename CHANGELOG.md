@@ -80,8 +80,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Removed class `StyleJSONEncoder`; replaced with `ImplementableJSONEncoder`
   - Removed class attribute `COMMON` from `Color`
   - Removed class method `from_name()` from `Color`
-  - Removed function `copy_method_signature()`
-  - Removed function `filled_tuple()`
+  - Removed multiple functions: `confirm_yn()`, `copy_method_signature()`, `filled_tuple()`
 - Removed multiple constants from `const`: `APP_SETTINGS_PATH`, `OPT_AUTOSAVE_PATH`, `STYLE_AUTOSAVE_PATH`, `DEFAULT_OUTFILE_FORMAT`, `DEFAULT_TIME_FORMAT`
 - Removed constant `DEFAULT_TIME_FORMAT` from `const`
 - Removed constant `DEFAULT_OUTFILE_FORMAT` from `const`
