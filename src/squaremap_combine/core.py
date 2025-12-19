@@ -226,7 +226,7 @@ class Combiner:
             progress_interval_secs: float,
         ) -> None:
         if world_grid.step:
-            logger.info(f'Grid step: {world_grid.step}')
+            logger.info(f'Grid step: {world_grid.step}; {world_grid.steps_count} total steps to iterate')
             logger.info('Drawing grid overlay... 0%')
             draw = ImageDraw.Draw(map_img)
             font = ImageFont.truetype(style.grid_text_font, size=style.grid_text_pt)
