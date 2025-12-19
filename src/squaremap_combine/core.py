@@ -15,12 +15,12 @@ from squaremap_combine.const import (
     SQMAP_ZOOM_BPP,
 )
 from squaremap_combine.errors import CombineError
-from squaremap_combine.geo import Coord2i, Grid, Rect
+from squaremap_combine.geo import Coord, Grid, Rect
 from squaremap_combine.logging import logger
 from squaremap_combine.util import Color
 
 
-class GameCoord(Coord2i):
+class GameCoord(Coord):
     """
     A coordinate as relative to a Minecraft world.
     Largely identical to :py:class:`~squaremap_combine.util.Coord2i`, but used mainly for typing to more effectively
@@ -29,13 +29,13 @@ class GameCoord(Coord2i):
     def __repr__(self) -> str:
         return f'GameCoord(x={self.x}, y={self.y})'
 
-    def to_image_coord(self, image: 'MapImage') -> Coord2i:
+    def to_image_coord(self, image: 'MapImage') -> Coord:
         """
         Converts this Minecraft coordinate to its position on the given :py:class:`~squaremap_combine.core.MapImage`.
         """
         return image.game_zero + (self // image.zoom)
 
-class MapImageCoord(Coord2i):
+class MapImageCoord(Coord):
     """
     A coordinate as relative to a :py:class:`~squaremap_combine.core.MapImage`.
     Largely identical to :py:class:`~squaremap_combine.util.Coord2i`, but used mainly for typing to more effectively
@@ -44,7 +44,7 @@ class MapImageCoord(Coord2i):
     def __repr__(self) -> str:
         return f'MapImageCoord(x={self.x}, y={self.y})'
 
-    def to_game_coord(self, image: 'MapImage') -> Coord2i:
+    def to_game_coord(self, image: 'MapImage') -> Coord:
         """Converts this image coordinate to its position in the Minecraft world it represents."""
         return (self - image.game_zero) * image.zoom
 
@@ -53,7 +53,7 @@ class MapImage:
     A class to wrap :py:class:`~PIL.Image.Image` with Minecraft-map-specific functionality, like automatically
     recalculating the world's ``0, 0`` position in the image upon any crops or other changes.
     """
-    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord | Coord2i', *, zoom: int) -> None:
+    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord | Coord', *, zoom: int) -> None:
         """
         :param image: The ``Image`` to wrap.
         :param game_zero: At what coordinate in this image ``0, 0`` would be located in the Minecraft world it
@@ -250,8 +250,8 @@ class Combiner:
         logger.info('Looking for tiles...')
 
         # Gather tile images, mapped to coordinates
-        tiles: dict[Coord2i, Path] = {
-            Coord2i(*map(int, SQMAP_TILE_NAME_REGEX.findall(fp.stem)[0])):fp \
+        tiles: dict[Coord, Path] = {
+            Coord(*map(int, SQMAP_TILE_NAME_REGEX.findall(fp.stem)[0])):fp \
             for fp in (world / str(zoom)).glob(f'*.{tile_ext}') if fp.is_file()
         }
         if not tiles:
@@ -290,7 +290,7 @@ class Combiner:
             logger.warning(f'Image dimensions exceed warning threshold of {IMAGE_SIZE_WARN_THRESH}: {map_img.size!r}')
 
         for region, img_coord in zip(
-                map(Coord2i, tile_grid.iter_steps()),
+                map(Coord, tile_grid.iter_steps()),
                 # Resize canvas grid down so the coordinates correlate correctly
                 canvas_grid.resize(-SQMAP_TILE_SIZE).iter_steps(),
                 strict=True,
@@ -303,7 +303,7 @@ class Combiner:
             map_img.alpha_composite(tile, img_coord)
 
         if area:
-            offset: tuple[Coord2i, Coord2i] = (
+            offset: tuple[Coord, Coord] = (
                 (area.corners[0] - world_grid.rect.corners[0]) // zoom_bpp,
                 (area.corners[-1] - world_grid.rect.corners[-1]) // zoom_bpp,
             )
@@ -315,7 +315,7 @@ class Combiner:
             crop_box: tuple[int, int, int, int] = Maybe(map_img.getbbox()) \
                 .unwrap(CombineError(f'Failed to get bounding box of map image: {map_img}')) \
                 if crop == 'auto' \
-                else Rect.from_size(*crop, center=Coord2i(map_img.size) // 2).as_tuple()
+                else Rect.from_size(*crop, center=Coord(map_img.size) // 2).as_tuple()
             map_img = map_img.crop(crop_box)
 
         return map_img

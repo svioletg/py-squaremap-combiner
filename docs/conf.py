@@ -9,7 +9,7 @@ from squaremap_combine.const import PROJECT_VERSION
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'squaremap-combine'
-copyright = '2025, Seth "Violet" Gibbs'
+copyright = '2025, Seth "Violet" Gibbs'  # noqa: A001
 author = 'Seth "Violet" Gibbs'
 release = PROJECT_VERSION
 

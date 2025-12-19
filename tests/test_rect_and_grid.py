@@ -1,6 +1,6 @@
 import pytest
 
-from squaremap_combine.geo import Coord2i, Grid, Rect
+from squaremap_combine.geo import Coord, Grid, Rect
 
 
 @pytest.mark.parametrize(('coords'),
@@ -19,23 +19,23 @@ from squaremap_combine.geo import Coord2i, Grid, Rect
 def test_rect_instance(coords: tuple[int, int, int, int]) -> None:
     r: Rect = Rect(*coords)
     assert (r.x1, r.y1, r.x2, r.y2) == r.as_tuple() == coords
-    assert (Coord2i(r.x1, r.y1), Coord2i(r.x2, r.y2)) \
-        == (Coord2i(coords[0], coords[1]), Coord2i(coords[2], coords[3])) \
+    assert (Coord(r.x1, r.y1), Coord(r.x2, r.y2)) \
+        == (Coord(coords[0], coords[1]), Coord(coords[2], coords[3])) \
         == (r.corners[0], r.corners[-1])
 
 @pytest.mark.parametrize(('radius', 'origin', 'expected_rect'),
     [
         (100, None, (-100, -100, 100, 100)),
         (100, (25, 25), (-75, -75, 125, 125)),
-        (100, Coord2i(25, 25), (-75, -75, 125, 125)),
+        (100, Coord(25, 25), (-75, -75, 125, 125)),
         (100, (-25, -25), (-125, -125, 75, 75)),
-        (100, Coord2i(-25, -25), (-125, -125, 75, 75)),
+        (100, Coord(-25, -25), (-125, -125, 75, 75)),
         (-100, None, ()),
     ],
 )
 def test_rect_from_radius(
         radius: int,
-        origin: Coord2i | tuple[int, int] | None,
+        origin: Coord | tuple[int, int] | None,
         expected_rect: tuple[int, int, int, int],
     ) -> None:
     if radius <= 0:
@@ -67,12 +67,12 @@ def test_rect_transformations(coords: tuple[int, int, int, int]) -> None:
     assert r.translate_by(100).as_tuple() == (coords[0] + 100, coords[1] + 100, coords[2] + 100, coords[3] + 100)
     assert r.translate_by((100, 0)).as_tuple() == (coords[0] + 100, coords[1], coords[2] + 100, coords[3])
     assert r.translate_by((0, 100)).as_tuple() == (coords[0], coords[1] + 100, coords[2], coords[3] + 100)
-    assert r.translate_by(Coord2i(100, 200)).as_tuple() == \
+    assert r.translate_by(Coord(100, 200)).as_tuple() == \
         (coords[0] + 100, coords[1] + 200, coords[2] + 100, coords[3] + 200)
     assert r.translate_by(-100).as_tuple() == (coords[0] - 100, coords[1] - 100, coords[2] - 100, coords[3] - 100)
     assert r.translate_by((-100, 0)).as_tuple() == (coords[0] - 100, coords[1], coords[2] - 100, coords[3])
     assert r.translate_by((0, -100)).as_tuple() == (coords[0], coords[1] - 100, coords[2], coords[3] - 100)
-    assert r.translate_by(Coord2i(-100, -200)).as_tuple() == \
+    assert r.translate_by(Coord(-100, -200)).as_tuple() == \
         (coords[0] - 100, coords[1] - 200, coords[2] - 100, coords[3] - 200)
 
 @pytest.mark.parametrize(('coords', 'step_count_x', 'step_count_y'),

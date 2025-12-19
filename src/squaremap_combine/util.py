@@ -141,10 +141,6 @@ class Color:
         """Converts this color to a four-integer tuple representing its RGBA values."""
         return self.red, self.green, self.blue, self.alpha
 
-COL_CLEAR: Color = Color.from_name('clear')
-COL_BLACK: Color = Color.from_name('black')
-COL_WHITE: Color = Color.from_name('white')
-
 def coerce_to[A, B](val: A | B, cls: type[B], coerce_fn: Callable[[A], B] | None = None) -> B:
     """
     Returns ``val`` if ``val`` is an instance of ``cls``, otherwise calls ``coerce_fn`` on ``val`` and returns the
