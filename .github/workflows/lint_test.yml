@@ -14,9 +14,7 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.12
@@ -26,6 +24,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        python -m venv .venv
+        source .venv/bin/activate
         pip install .[dev]
     - name: Check types with ty
       run: |
