@@ -15,12 +15,12 @@ PROJECT_DOCS_URL: str = 'https://squaremap-combine.readthedocs.io/en/latest/'
 
 MODULE_DIR: Path = Path(__file__).absolute().parent
 ASSET_DIR: Path = MODULE_DIR / 'asset'
-GUI_ASSET_DIR: Path = MODULE_DIR / 'gui/asset'
+DEFAULT_FONT_PATH: Path = ASSET_DIR / 'FiraCode-SemiBold.ttf'
 
 USER_DATA_DIR: Path = Path(platformdirs.user_data_dir(PROJECT_NAME))
 LOGS_DIR: Path = USER_DATA_DIR / 'logs'
 
-DEFAULT_COORDS_FORMAT: str = ' X {x}\n Y {y}'
+DEFAULT_COORDS_FORMAT: str = 'X {x}\nY {y}'
 
 SQMAP_ZOOM_BPP: OrderedDict[int, int] = OrderedDict({
     0: 8,

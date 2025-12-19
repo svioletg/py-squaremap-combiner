@@ -5,10 +5,11 @@ from time import perf_counter
 from typing import Any, Literal
 
 from maybetype import Maybe
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from squaremap_combine.const import (
     DEFAULT_COORDS_FORMAT,
+    DEFAULT_FONT_PATH,
     IMAGE_SIZE_WARN_THRESH,
     SQMAP_TILE_BLOCKS,
     SQMAP_TILE_NAME_REGEX,
@@ -109,24 +110,35 @@ class MapImage:
 @dataclass
 class CombinerStyle:
     """Defines styling rules for :py:class:`~squaremap_combine.core.Combiner`-generated map images."""
-
     bg_color: Color
     grid_line_color: Color
     grid_line_size: int
-    grid_text_color: Color
+    grid_text_font: str | Path
+    grid_text_pt: int
+    grid_text_stroke_size: int
+    grid_text_stroke_color: Color
+    grid_text_fill_color: Color
     grid_coords_format: str
 
     def __init__(self,
             bg_color: Color | str | None = None,
             grid_line_color: Color | str | None = None,
             grid_line_size: int = 1,
-            grid_text_color: Color | str | None = None,
+            grid_text_font: str | Path | None = None,
+            grid_text_pt: int = 32,
+            grid_text_stroke_size: int | None = None,
+            grid_text_stroke_color: Color | str | None = None,
+            grid_text_fill_color: Color | str | None = None,
             grid_coords_format: str = DEFAULT_COORDS_FORMAT,
         ) -> None:
         self.bg_color = self._parse_color_arg(bg_color or 'clear')
         self.grid_line_color = self._parse_color_arg(grid_line_color or 'black')
         self.grid_line_size = grid_line_size
-        self.grid_text_color = self._parse_color_arg(grid_text_color or 'white')
+        self.grid_text_font = grid_text_font or DEFAULT_FONT_PATH
+        self.grid_text_pt = grid_text_pt
+        self.grid_text_stroke_size = Maybe(grid_text_stroke_size).this_or(int(grid_text_pt * 0.2)).unwrap()
+        self.grid_text_stroke_color = self._parse_color_arg(grid_text_stroke_color or 'black')
+        self.grid_text_fill_color = self._parse_color_arg(grid_text_fill_color or 'white')
         self.grid_coords_format = grid_coords_format
 
         super().__init__()
@@ -147,8 +159,8 @@ class Combiner:
 
     tiles_dir: Path
     """The squaremap ``tiles`` directory to source tile images from."""
-    grid_step: int | None
-    """Interval of blocks to use for the grid overlay. Grid overlay is disabled if set to ``None`` or 0."""
+    grid_step: int
+    """Interval of blocks to use for the grid overlay. Grid overlay is disabled if set to 0."""
     style: CombinerStyle
     confirm_fn: Callable[[str], bool]
     show_progress: bool
@@ -194,7 +206,7 @@ class Combiner:
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
         self.tiles_dir     = tiles_dir
-        self.grid_step     = grid_step
+        self.grid_step     = grid_step or 0
         self.style         = style
         self.confirm       = confirm_fn if confirm_fn else lambda _: True
         self.show_progress = show_progress
@@ -206,11 +218,17 @@ class Combiner:
     def worlds(self) -> list[str]:
         return [p.stem for p in self.tiles_dir.glob('minecraft_*/')]
 
-    def _draw_grid_overlay(self, map_img: Image.Image, world_grid: Grid, canvas_grid: Grid) -> None:
-        if self.grid_step:
+    def _draw_grid_overlay(self,
+            map_img: Image.Image,
+            world_grid: Grid,
+            canvas_grid: Grid,
+            style: CombinerStyle,
+        ) -> None:
+        if world_grid.step:
             logger.info('Drawing grid overlay...')
-            logger.info(f'Grid step: {self.grid_step}')
+            logger.info(f'Grid step: {world_grid.step}')
             draw = ImageDraw.Draw(map_img)
+            font = ImageFont.truetype(style.grid_text_font, size=style.grid_text_pt)
 
             ta: float = perf_counter()
             for world_coord in world_grid.iter_steps():
@@ -220,23 +238,26 @@ class Combiner:
                 canvas_coord: Coord2i = ((Coord2f(cbr - ctr) * offset_factor) + Coord2f(ctr)).as_int()
 
                 # Draw grid lines
-                if self.style.grid_line_color.alpha > 0:
+                if style.grid_line_color.alpha > 0:
                     draw.line(
                         (canvas_coord.x, 0, canvas_coord.x, map_img.height),
-                        width=self.style.grid_line_size,
-                        fill=self.style.grid_line_color.as_rgba(),
+                        width=style.grid_line_size,
+                        fill=style.grid_line_color.as_rgba(),
                     )
                     draw.line(
                         (0, canvas_coord.y, map_img.width, canvas_coord.y),
-                        width=self.style.grid_line_size,
-                        fill=self.style.grid_line_color.as_rgba(),
+                        width=style.grid_line_size,
+                        fill=style.grid_line_color.as_rgba(),
                     )
                 # Draw coordinate text
-                if (self.style.grid_text_color.alpha > 0) and (self.style.grid_coords_format):
+                if style.grid_coords_format:
                     draw.text(
                         canvas_coord.as_tuple(),
-                        self.style.grid_coords_format.format(x=world_coord.x, y=world_coord.y),
-                        fill=self.style.grid_text_color.as_rgba(),
+                        style.grid_coords_format.format(x=world_coord.x, y=world_coord.y),
+                        font=font,
+                        fill=style.grid_text_fill_color.as_rgba(),
+                        stroke_width=style.grid_text_stroke_size,
+                        stroke_fill=style.grid_text_stroke_color.as_rgba(),
                     )
             tb: float = perf_counter()
 
@@ -250,6 +271,8 @@ class Combiner:
             area: Rect | tuple[int, int, int, int] | None = None,
             crop: tuple[int, int] | Literal['auto'] | None = None,
             tile_ext: str = '*',
+            grid_step: int | None = None,
+            style: CombinerStyle | dict[str, Any] | None = None,
         ) -> Image.Image:
         """Combine the given world (dimension) tile images into one large map.
 
@@ -268,6 +291,12 @@ class Combiner:
                 rendered area (and by extension, not ``'auto'``), blank space will be left surrounding the map.
         :param tile_ext: The file extension used for the tile images. By default, ``combine()`` will attempt to use
             all existing files under the relevant tiles directory that have any file suffix, and are not directories.
+        :param grid_step: A grid step value to use instead of the ``Combiner`` instance's ``.step`` value,
+            if not ``None``.
+        :param style: A :py:class:`~squaremap_combine.core.CombinerStyle` instance to use instead of the ``Combiner``
+            instance's ``style`` instance, if not ``None``. Can also be a ``dict`` of key-value pairs, in which case
+            only the specified keys' values are overridden, and the ``Combiner`` instance's ``style`` is use as a
+            fallback.
 
         :returns image: The final stitched image as a :py:class:`~squaremap_combine.core.MapImage`.
 
@@ -280,6 +309,12 @@ class Combiner:
 
         if not area:
             logger.info('No area specified, using full map')
+
+        grid_step = grid_step if grid_step is not None else self.grid_step
+
+        if isinstance(style, dict):
+            style = CombinerStyle(**(asdict(self.style) | style))
+        style = style or self.style
 
         area = Maybe(area).then(lambda a: a if isinstance(a, Rect) else Rect(*a))
         zoom_bpp: int = SQMAP_ZOOM_BPP[zoom]
@@ -304,7 +339,7 @@ class Combiner:
         world_grid: Grid = tile_grid \
             .map(lambda n: n * (SQMAP_TILE_BLOCKS * zoom_bpp)) \
             .resize(SQMAP_TILE_BLOCKS * zoom_bpp) \
-            .copy(step=self.grid_step or 0)
+            .copy(step=grid_step)
 
         # Grid representing the actual image, shifted so that the top-left corner is 0, 0
         canvas_grid: Grid = tile_grid \
@@ -319,7 +354,7 @@ class Combiner:
         map_img: Image.Image = Image.new(
             'RGBA',
             canvas_grid.rect.size,
-            color=self.style.bg_color.as_rgba(),
+            color=style.bg_color.as_rgba(),
         )
 
         logger.info(f'Image size: {map_img.size}')
@@ -342,10 +377,11 @@ class Combiner:
             map_img.alpha_composite(tile, img_coord.as_tuple())
 
         # Draw grid overlay
-        self._draw_grid_overlay(map_img, world_grid, canvas_grid)
+        self._draw_grid_overlay(map_img, world_grid, canvas_grid, style)
 
         # Crop to world area if specified
         if area:
+            logger.info('Cropping to specified world area...')
             offset: tuple[Coord2i, Coord2i] = (
                 (area.corners[0] - world_grid.rect.corners[0]) // zoom_bpp,
                 (area.corners[-1] - world_grid.rect.corners[-1]) // zoom_bpp,
@@ -360,6 +396,8 @@ class Combiner:
                 .unwrap(CombineError(f'Failed to get bounding box of map image: {map_img}')) \
                 if crop == 'auto' \
                 else Rect.from_size(*crop, center=Coord2i(map_img.size) // 2).as_tuple()
+            logger.info(f'Cropping image to {Rect(*crop_box).size}...')
             map_img = map_img.crop(crop_box)
 
+        logger.info('Image creation finished')
         return map_img
