@@ -1,10 +1,11 @@
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Literal
 
 from maybetype import Maybe
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from squaremap_combine.const import (
     DEFAULT_COORDS_FORMAT,
@@ -15,36 +16,36 @@ from squaremap_combine.const import (
     SQMAP_ZOOM_BPP,
 )
 from squaremap_combine.errors import CombineError
-from squaremap_combine.geo import Coord, Grid, Rect
+from squaremap_combine.geo import Coord2f, Coord2i, Grid, Rect
 from squaremap_combine.logging import logger
 from squaremap_combine.util import Color
 
 
-class GameCoord(Coord):
+class GameCoord(Coord2i):
     """
     A coordinate as relative to a Minecraft world.
-    Largely identical to :py:class:`~squaremap_combine.util.Coord2i`, but used mainly for typing to more effectively
+    Largely identical to :py:class:`~squaremap_combine.util.Coord`, but used mainly for typing to more effectively
     signal what kind of coordinate is expected for a given class or function.
     """
     def __repr__(self) -> str:
         return f'GameCoord(x={self.x}, y={self.y})'
 
-    def to_image_coord(self, image: 'MapImage') -> Coord:
+    def to_image_coord(self, image: 'MapImage') -> Coord2i:
         """
         Converts this Minecraft coordinate to its position on the given :py:class:`~squaremap_combine.core.MapImage`.
         """
         return image.game_zero + (self // image.zoom)
 
-class MapImageCoord(Coord):
+class MapImageCoord(Coord2i):
     """
     A coordinate as relative to a :py:class:`~squaremap_combine.core.MapImage`.
-    Largely identical to :py:class:`~squaremap_combine.util.Coord2i`, but used mainly for typing to more effectively
+    Largely identical to :py:class:`~squaremap_combine.util.Coord`, but used mainly for typing to more effectively
     signal what kind of coordinate is expected for a given class or function.
     """
     def __repr__(self) -> str:
         return f'MapImageCoord(x={self.x}, y={self.y})'
 
-    def to_game_coord(self, image: 'MapImage') -> Coord:
+    def to_game_coord(self, image: 'MapImage') -> Coord2i:
         """Converts this image coordinate to its position in the Minecraft world it represents."""
         return (self - image.game_zero) * image.zoom
 
@@ -53,7 +54,7 @@ class MapImage:
     A class to wrap :py:class:`~PIL.Image.Image` with Minecraft-map-specific functionality, like automatically
     recalculating the world's ``0, 0`` position in the image upon any crops or other changes.
     """
-    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord | Coord', *, zoom: int) -> None:
+    def __init__(self, image: Image.Image, game_zero: 'MapImageCoord | Coord2i', *, zoom: int) -> None:
         """
         :param image: The ``Image`` to wrap.
         :param game_zero: At what coordinate in this image ``0, 0`` would be located in the Minecraft world it
@@ -205,6 +206,43 @@ class Combiner:
     def worlds(self) -> list[str]:
         return [p.stem for p in self.tiles_dir.glob('minecraft_*/')]
 
+    def _draw_grid_overlay(self, map_img: Image.Image, world_grid: Grid, canvas_grid: Grid) -> None:
+        if self.grid_step:
+            logger.info('Drawing grid overlay...')
+            logger.info(f'Grid step: {self.grid_step}')
+            draw = ImageDraw.Draw(map_img)
+
+            ta: float = perf_counter()
+            for world_coord in world_grid.iter_steps():
+                wtr, wbr = world_grid.rect.corners[0], world_grid.rect.corners[-1]
+                ctr, cbr = canvas_grid.rect.corners[0], canvas_grid.rect.corners[-1]
+                offset_factor: Coord2f = Coord2f(world_coord - wtr) / Coord2f(wbr - wtr)
+                canvas_coord: Coord2i = ((Coord2f(cbr - ctr) * offset_factor) + Coord2f(ctr)).as_int()
+
+                # Draw grid lines
+                if self.style.grid_line_color.alpha > 0:
+                    draw.line(
+                        (canvas_coord.x, 0, canvas_coord.x, map_img.height),
+                        width=self.style.grid_line_size,
+                        fill=self.style.grid_line_color.as_rgba(),
+                    )
+                    draw.line(
+                        (0, canvas_coord.y, map_img.width, canvas_coord.y),
+                        width=self.style.grid_line_size,
+                        fill=self.style.grid_line_color.as_rgba(),
+                    )
+                # Draw coordinate text
+                if (self.style.grid_text_color.alpha > 0) and (self.style.grid_coords_format):
+                    draw.text(
+                        canvas_coord.as_tuple(),
+                        self.style.grid_coords_format.format(x=world_coord.x, y=world_coord.y),
+                        fill=self.style.grid_text_color.as_rgba(),
+                    )
+            tb: float = perf_counter()
+
+            logger.info(f'Finished drawing grid in {tb - ta:.04f}s')
+            del ta, tb
+
     def combine(self,
             world: str | Path,
             *,
@@ -250,8 +288,8 @@ class Combiner:
         logger.info('Looking for tiles...')
 
         # Gather tile images, mapped to coordinates
-        tiles: dict[Coord, Path] = {
-            Coord(*map(int, SQMAP_TILE_NAME_REGEX.findall(fp.stem)[0])):fp \
+        tiles: dict[Coord2i, Path] = {
+            Coord2i(*map(int, SQMAP_TILE_NAME_REGEX.findall(fp.stem)[0])):fp \
             for fp in (world / str(zoom)).glob(f'*.{tile_ext}') if fp.is_file()
         }
         if not tiles:
@@ -266,7 +304,7 @@ class Combiner:
         world_grid: Grid = tile_grid \
             .map(lambda n: n * (SQMAP_TILE_BLOCKS * zoom_bpp)) \
             .resize(SQMAP_TILE_BLOCKS * zoom_bpp) \
-            .copy(step=self.grid_step)
+            .copy(step=self.grid_step or 0)
 
         # Grid representing the actual image, shifted so that the top-left corner is 0, 0
         canvas_grid: Grid = tile_grid \
@@ -289,8 +327,9 @@ class Combiner:
         if any(n >= IMAGE_SIZE_WARN_THRESH for n in map_img.size):
             logger.warning(f'Image dimensions exceed warning threshold of {IMAGE_SIZE_WARN_THRESH}: {map_img.size!r}')
 
+        # Assemble image
         for region, img_coord in zip(
-                map(Coord, tile_grid.iter_steps()),
+                tile_grid.iter_steps(),
                 # Resize canvas grid down so the coordinates correlate correctly
                 canvas_grid.resize(-SQMAP_TILE_SIZE).iter_steps(),
                 strict=True,
@@ -300,10 +339,14 @@ class Combiner:
             logger.info(f'Tile {region}: {tile_path}')
             logger.debug(f'Placing tile {region} at image coordinate {img_coord}')
             tile: Image.Image = Image.open(tile_path)
-            map_img.alpha_composite(tile, img_coord)
+            map_img.alpha_composite(tile, img_coord.as_tuple())
 
+        # Draw grid overlay
+        self._draw_grid_overlay(map_img, world_grid, canvas_grid)
+
+        # Crop to world area if specified
         if area:
-            offset: tuple[Coord, Coord] = (
+            offset: tuple[Coord2i, Coord2i] = (
                 (area.corners[0] - world_grid.rect.corners[0]) // zoom_bpp,
                 (area.corners[-1] - world_grid.rect.corners[-1]) // zoom_bpp,
             )
@@ -311,11 +354,12 @@ class Combiner:
                 (*(canvas_grid.rect.corners[0] + offset[0]), *(canvas_grid.rect.corners[-1] + offset[1])), # type: ignore
             )
 
+        # Crop to physical size if specified
         if crop:
             crop_box: tuple[int, int, int, int] = Maybe(map_img.getbbox()) \
                 .unwrap(CombineError(f'Failed to get bounding box of map image: {map_img}')) \
                 if crop == 'auto' \
-                else Rect.from_size(*crop, center=Coord(map_img.size) // 2).as_tuple()
+                else Rect.from_size(*crop, center=Coord2i(map_img.size) // 2).as_tuple()
             map_img = map_img.crop(crop_box)
 
         return map_img

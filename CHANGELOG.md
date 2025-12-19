@@ -19,15 +19,17 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Added `--grid-lines`
 - Added module `const`
 - Added module `geo`
+  - Added class `Grid`
+  - Added class `Rect`
+  - Added class `Coord2f`
+    - Largely identical to `Coord2i`, but operates on floats exclusively
+  - Added method `map()` to `Coord2i`
 - Added test module `test_rect_and_grid`
 - Added test module `test_color_class`
-- Added class `util.Grid`
-- Added class `util.Rect`
 - Added `JSONEncoder`-extended class `ImplementableJSONEncoder` to `util`
   - Allows classes to implement a `__json__()` method for serialization
 - Added enum class `const.NamedColorHex`
 - Added enum class `logging.LogLevel`
-- Added method `map()` to `util.Coord`
 - Added function `util.coerce_to`
 - Added function `util.draw_corners`
 
@@ -43,7 +45,7 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Renamed module `combine_core` to `core`
 - Renamed module `helper` to `util`
 - Renamed class `AssertionMessage` in module `errors` to `ErrMsg`
-- Moved class `core.Coord2i` to `geo.Coord`
+- Moved class `Coord2i` from `core` to `geo`
 - Renamed attribute `MapImage.detail_mul` to `MapImage.zoom`
 - Rewrote class `core.Combiner`, [see the docs](https://squaremap-combine.readthedocs.io/en/latest/reference/core.html#squaremap_combine.core.Combiner) for details
 - In module `util`:
@@ -51,8 +53,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Renamed method `Color.to_rgb()` to `Color.as_rgb()`
   - Renamed method `Color.to_rgba()` to `Color.as_rgba()`
 - In module `geo`:
-  - `Coord` is now subscriptable, with `Coord(...)[0], Coord(...)[1]` being equivalent to `Coord(...).x, Coord(...).y`
-  - `Coord.__init__()` can now accept a `tuple[int, int]` or another `Coord` instance as a first argument, in which case no `y` argument is required
+  - `Coord2i` is now subscriptable, with `Coord2i(...)[0], Coord2i(...)[1]` being equivalent to `Coord2i(...).x, Coord2i(...).y`
+  - `Coord2i.__init__()` can now accept a `tuple[int, int]` or another `Coord2i` instance as a first argument, in which case no `y` argument is required
 - `logging.enable_logging()` now only affects `logging.logger`
 
 ### Removed
