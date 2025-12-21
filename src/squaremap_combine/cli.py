@@ -14,7 +14,7 @@ from PIL import Image
 from rich.prompt import Confirm
 
 from squaremap_combine.const import LOGS_DIR, console
-from squaremap_combine.core import Combiner
+from squaremap_combine.core import Combiner, CombinerStyle
 from squaremap_combine.logging import LogLevel, enable_logging, logger
 
 
@@ -42,9 +42,9 @@ def main() -> int:
             ^    1 - 4x4 blocks per pixel
             ^    0 - 8x8 blocks per pixel
             """)
-    parser.add_argument('--out', '-o', type=Path, default='world.png',
+    parser.add_argument('--out', '-o', type=Path, default=Path('./world.png'),
         help='Where to save the resulting image. File format can be any that are supported by Pillow.')
-    parser.add_argument('--log-level', '-L', type=LogLevel, default=LogLevel.INFO,
+    parser.add_argument('--log-level', '-L', type=lambda s: LogLevel(s.upper()), default=LogLevel.INFO,
         help='Sets the logging level for this run.')
 
     args = parser.parse_args()
@@ -68,8 +68,11 @@ def main() -> int:
     if not (world_dir / str(zoom)).is_dir():
         raise NotADirectoryError(f'Found no directory for zoom level {zoom} under: {world_dir}')
 
+    style: CombinerStyle = CombinerStyle()
+
     combiner: Combiner = Combiner(
         world_dir.parent,
+        style=style,
         confirm_fn=lambda message: Confirm.ask(message),
         show_progress=True,
     )
@@ -79,10 +82,16 @@ def main() -> int:
         world_dir,
         zoom=zoom,
     )
-    logger.info('Image creation finished')
 
     logger.info(f'Saving to: {dest}')
-    image.save(dest)
+    try:
+        image.save(dest)
+    except OSError as e:
+        if 'cannot write mode RGBA' in str(e):
+            image = image.convert('RGB')
+            image.save(dest)
+        else:
+            raise
 
     return 0
 

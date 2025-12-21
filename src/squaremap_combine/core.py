@@ -8,7 +8,6 @@ from maybetype import Maybe
 from PIL import Image, ImageDraw, ImageFont
 
 from squaremap_combine.const import (
-    DEFAULT_COORDS_FORMAT,
     DEFAULT_FONT_PATH,
     IMAGE_SIZE_WARN_THRESH,
     SQMAP_TILE_BLOCKS,
@@ -17,7 +16,7 @@ from squaremap_combine.const import (
     SQMAP_ZOOM_BPP,
 )
 from squaremap_combine.errors import CombineError
-from squaremap_combine.geo import Coord2f, Coord2i, Grid, Rect
+from squaremap_combine.geo import Coord2i, Grid, Rect
 from squaremap_combine.logging import logger
 from squaremap_combine.util import Color
 
@@ -39,17 +38,35 @@ class CombinerStyle:
             bg_color: Color | str | None = None,
             grid_line_color: Color | str | None = None,
             grid_line_size: int = 1,
-            grid_text_font: str | Path | None = None,
+            grid_text_font: str | Path = DEFAULT_FONT_PATH,
             grid_text_pt: int = 32,
             grid_text_stroke_size: int | None = None,
             grid_text_stroke_color: Color | str | None = None,
             grid_text_fill_color: Color | str | None = None,
-            grid_coords_format: str = DEFAULT_COORDS_FORMAT,
+            grid_coords_format: str = '',
         ) -> None:
+        """
+        :param bg_color: Background color to use for empty areas of the map.
+            Default: ``#00000000`` (clear)
+        :param grid_line_color: Color for grid overlay lines.
+            Default: ``#000000ff`` (black)
+        :param grid_line_size: Thickness of grid overlay lines.
+        :param grid_text_font: Font to use for grid overlay coordinate text.
+            Default: Fira Code (included with package)
+        :param grid_text_pt: Point size to use for grid overlay coordinate text.
+        :param grid_text_stroke_size: Stroke (outline) size to use for grid overlay coordinate text.
+            Default: 20% (rounded down) of ``grid_text_pt``
+        :param grid_text_stroke_color: Stroke (outline) color to use for grid overlay coordinate text.
+            Default: ``#000000ff`` (black)
+        :param grid_text_fill_color: Color to use for grid overlay coordinate text.
+            Default: ``#ffffffff`` (white)
+        :param grid_coords_format: String to use for coordinate text, which expects `{x}` and `{y}` specifiers to
+            format.
+        """
         self.bg_color = self._parse_color_arg(bg_color or 'clear')
         self.grid_line_color = self._parse_color_arg(grid_line_color or 'black')
         self.grid_line_size = grid_line_size
-        self.grid_text_font = grid_text_font or DEFAULT_FONT_PATH
+        self.grid_text_font = grid_text_font
         self.grid_text_pt = grid_text_pt
         self.grid_text_stroke_size = Maybe(grid_text_stroke_size).this_or(int(grid_text_pt * 0.2)).unwrap()
         self.grid_text_stroke_color = self._parse_color_arg(grid_text_stroke_color or 'black')
@@ -133,7 +150,8 @@ class Combiner:
     def worlds(self) -> list[str]:
         return [p.stem for p in self.tiles_dir.glob('minecraft_*/')]
 
-    def _draw_grid_overlay(self,
+    @staticmethod
+    def _draw_grid_overlay(
             map_img: Image.Image,
             world_grid: Grid,
             canvas_grid: Grid,
@@ -157,10 +175,7 @@ class Combiner:
                     progress_perc: float = (n / total) * 100
                     logger.info(f'Drawing grid overlay... {progress_perc:.1f}%')
 
-                wtr, wbr = world_grid.rect.corners[0], world_grid.rect.corners[-1]
-                ctr, cbr = canvas_grid.rect.corners[0], canvas_grid.rect.corners[-1]
-                offset_factor: Coord2f = Coord2f(world_coord - wtr) / Coord2f(wbr - wtr)
-                canvas_coord: Coord2i = ((Coord2f(cbr - ctr) * offset_factor) + Coord2f(ctr)).as_int()
+                canvas_coord: Coord2i = world_grid.project(world_coord, canvas_grid)
 
                 # Draw grid lines
                 if style.grid_line_color.alpha > 0:
@@ -200,6 +215,7 @@ class Combiner:
             grid_step: int | None = None,
             style: CombinerStyle | dict[str, Any] | None = None,
             grid_progress_interval_secs: float = 1.0,
+            draw_grid_fn: Callable[[Image.Image, Grid, Grid, CombinerStyle, float], None] = _draw_grid_overlay,
         ) -> Image.Image:
         """Combine the given world (dimension) tile images into one large map.
 
@@ -226,8 +242,21 @@ class Combiner:
             fallback.
         :param grid_progress_interval_secs: At what interval to log grid overlay drawing updates. Set to ``0`` or lower
             to disable.
+        :param draw_grid_fn: A function to call which will handle drawing the grid overlay on top of the map image
+            being created. Will receive these arguments:
+            - :py:class:`PIL.Image.Image`: The map image object to be drawn onto.
+            - :py:class:`~squaremap_combine.geo.Grid`: The "world grid", representing the coordinates of the Minecraft
+                world.
+            - :py:class:`~squaremap_combine.geo.Grid`: The "canvas grid" for the image, a rectangle of ``0, 0`` to the
+                size of the image.
+            - :py:class:`~squaremap_combine.core.CombinerStyle`: The style object to use, that being this ``Combiner``
+                instance's ``.style`` attribute after being updated with or replaced by the ``style`` parameter of the
+                ``combine`` method.
+            - ``float``: In the default drawing function
+                (:py:meth:`~squaremap_combine.core.Combiner._draw_grid_overlay`), this is used as an interval of
+                seconds at which to log updates on the drawing progress.
 
-        :returns image: The final stitched image as a :py:class:`~squaremap_combine.core.MapImage`.
+        :returns image: The final stitched image, a :py:class:`PIL.Image.Image` object.
 
         :raises NotADirectoryError: Raised if ``world`` is not a directory or does not exist.
         """
@@ -235,6 +264,8 @@ class Combiner:
             world = self.tiles_dir / world
         if not world.is_dir():
             raise NotADirectoryError(f'Not a directory or does not exist: {world}')
+
+        logger.info(f'Using zoom level {zoom} ({SQMAP_ZOOM_BPP[zoom]} block(s) per pixel)')
 
         if not area:
             logger.info('No area specified, using full map')
@@ -245,7 +276,7 @@ class Combiner:
             style = CombinerStyle(**(asdict(self.style) | style))
         style = style or self.style
 
-        area = Maybe(area).then(lambda a: a if isinstance(a, Rect) else Rect(*a))
+        area = Maybe(area).then(Rect)
         zoom_bpp: int = SQMAP_ZOOM_BPP[zoom]
 
         logger.info(f'Using directory: {world.absolute() / str(zoom)}')
@@ -288,8 +319,6 @@ class Combiner:
             color=style.bg_color.as_rgba(),
         )
 
-        logger.info(f'Image size: {map_img.size}')
-
         if any(n >= IMAGE_SIZE_WARN_THRESH for n in map_img.size):
             logger.warning(f'Image dimensions exceed warning threshold of {IMAGE_SIZE_WARN_THRESH}: {map_img.size!r}')
 
@@ -308,7 +337,7 @@ class Combiner:
             map_img.alpha_composite(tile, img_coord.as_tuple())
 
         # Draw grid overlay
-        self._draw_grid_overlay(
+        draw_grid_fn(
             map_img,
             world_grid,
             canvas_grid,
@@ -333,10 +362,10 @@ class Combiner:
                 .unwrap(CombineError(f'Failed to get bounding box of map image: {map_img}')) \
                 if crop == 'auto' \
                 else Rect.from_size(*crop, center=Coord2i(map_img.size) // 2).as_tuple()
-            logger.info(f'Cropping image to {Rect(*crop_box).size}...')
+            logger.info(f'Cropping image to {Rect(crop_box).size}...')
             map_img = map_img.crop(crop_box)
 
         combine_tb: float = perf_counter()
 
-        logger.info(f'Image creation finished in {combine_tb - combine_ta:.4f}')
+        logger.info(f'Image creation finished in {combine_tb - combine_ta:.4f}, final size {map_img.size}')
         return map_img

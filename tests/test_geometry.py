@@ -47,7 +47,7 @@ def test_coord2f_instance() -> None:
     ],
 )
 def test_rect_instance(coords: tuple[int, int, int, int]) -> None:
-    r: Rect = Rect(*coords)
+    r: Rect = Rect(coords)
     assert (r.x1, r.y1, r.x2, r.y2) == r.as_tuple() == coords
     assert (Coord2i(r.x1, r.y1), Coord2i(r.x2, r.y2)) \
         == (Coord2i(coords[0], coords[1]), Coord2i(coords[2], coords[3])) \
@@ -89,7 +89,7 @@ def test_rect_from_radius(
     ],
 )
 def test_rect_transformations(coords: tuple[int, int, int, int]) -> None:
-    r: Rect = Rect(*coords)
+    r: Rect = Rect(coords)
     assert r.as_tuple() == coords
     assert r.map(lambda n: n // 2).as_tuple() == tuple(n // 2 for n in coords)
 
@@ -125,3 +125,17 @@ def test_grid_instance(coords: tuple[int, int, int, int], step_count_x: int, ste
     assert len(g.steps_y) == step_count_y
     assert g.steps_count == (len(g.steps_x) * len(g.steps_y)) == (step_count_x * step_count_y) \
         == len(list(g.iter_steps()))
+
+@pytest.mark.parametrize(('coords', 'expected_coords'),
+    [
+        ((-100, -100), (0, 0)),
+        ((-50, -50), (25, 25)),
+        ((0, 0), (50, 50)),
+        ((50, 50), (75, 75)),
+        ((100, 100), (100, 100)),
+    ],
+)
+def test_grid_transpose_coord(coords: tuple[int, int], expected_coords: tuple[int, int]) -> None:
+    g1 = Grid((-100, -100, 100, 100))
+    g2 = Grid((0, 0, 100, 100))
+    assert g1.project(coords, g2) == expected_coords

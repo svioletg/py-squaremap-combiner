@@ -19,10 +19,10 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Added `--grid-lines`
 - Added module `const`
 - Added module `geo`
-  - Added class `Grid`
-  - Added class `Rect`
   - Added class `Coord2f`
     - Largely identical to `Coord2i`, but operates on floats exclusively
+  - Added class `Grid`
+  - Added class `Rect`
   - Added method `map()` to `Coord2i`
 - Added test module `test_color_class`
 - Added test module `test_geometry`
@@ -85,6 +85,10 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Removed class attribute `COMMON` from `Color`
   - Removed class method `from_name()` from `Color`
   - Removed multiple functions: `confirm_yn()`, `copy_method_signature()`, `filled_tuple()`
-- Removed multiple constants from `const`: `APP_SETTINGS_PATH`, `OPT_AUTOSAVE_PATH`, `STYLE_AUTOSAVE_PATH`, `DEFAULT_OUTFILE_FORMAT`, `DEFAULT_TIME_FORMAT`
-- Removed constant `DEFAULT_TIME_FORMAT` from `const`
-- Removed constant `DEFAULT_OUTFILE_FORMAT` from `const`
+- Removed multiple constants from `const`:
+  - `APP_SETTINGS_PATH`
+  - `DEFAULT_COORDS_FORMAT`
+  - `DEFAULT_OUTFILE_FORMAT`
+  - `DEFAULT_TIME_FORMAT`
+  - `OPT_AUTOSAVE_PATH`
+  - `STYLE_AUTOSAVE_PATH`

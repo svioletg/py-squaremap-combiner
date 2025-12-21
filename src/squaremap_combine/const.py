@@ -20,8 +20,6 @@ DEFAULT_FONT_PATH: Path = ASSET_DIR / 'FiraCode-SemiBold.ttf'
 USER_DATA_DIR: Path = Path(platformdirs.user_data_dir(PROJECT_NAME))
 LOGS_DIR: Path = USER_DATA_DIR / 'logs'
 
-DEFAULT_COORDS_FORMAT: str = 'X {x}\nY {y}'
-
 SQMAP_ZOOM_BPP: OrderedDict[int, int] = OrderedDict({
     0: 8,
     1: 4,

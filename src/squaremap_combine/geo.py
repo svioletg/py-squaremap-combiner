@@ -73,7 +73,7 @@ class Coord2i:
     def __eq__(self, other: object) -> bool:
         if isinstance(other, tuple):
             return self.as_tuple() == other
-        if isinstance(other, Coord2i):
+        if isinstance(other, (Coord2i, Coord2f)):
             return self.as_tuple() == other.as_tuple()
         return False
 
@@ -119,6 +119,11 @@ class Coord2i:
     def as_tuple(self) -> tuple[int, int]:
         """Returns the coordinate as a tuple."""
         return (self.x, self.y)
+
+    def in_bounds(self, rect: 'Rect | tuple[int, int, int, int]') -> bool:
+        """Returns whether this coordinate is within the given ``rect``'s bounds."""
+        rect = Rect(rect)
+        return (self[0] in range(rect.x1, rect.x2 + 1)) and (self[1] in range(rect.y1, rect.y2 + 1))
 
     def map(self, fn: Callable[[int], int]) -> 'Coord2i':
         """Returns a new ``Coord2i`` instance with ``fn`` applied to its ``x`` and ``y`` attributes."""
@@ -239,6 +244,11 @@ class Coord2f:
         round_fn = round_fn or int
         return Coord2i(round_fn(self.x), round_fn(self.y))
 
+    def in_bounds(self, rect: 'Rect | tuple[int, int, int, int]') -> bool:
+        """Returns whether this coordinate is within the given ``rect``'s bounds."""
+        rect = Rect(rect)
+        return (self[0] in range(rect.x1, rect.x2 + 1)) and (self[1] in range(rect.y1, rect.y2 + 1))
+
     def map(self, fn: Callable[[float], float]) -> 'Coord2f':
         """Returns a new ``Coord2f`` instance with ``fn`` applied to its ``x`` and ``y`` attributes."""
         return Coord2f(fn(self.x), fn(self.y))
@@ -254,11 +264,12 @@ class Rect:
     y2: int
     """Bottom-right Y coordinate."""
 
-    def __init__(self, x1: int, y1: int, x2: int, y2: int) -> None:
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
+    def __init__(self, coords_or_rect: 'Rect | tuple[int, int, int, int]') -> None:
+        """
+        :param coords_or_rect: A tuple of rectangle coordinates (top-left to bottom-right, i.e. X1, Y1, X2, Y2), or
+            another ``Rect`` object.
+        """
+        self.x1, self.y1, self.x2, self.y2 = coords_or_rect
 
     def __repr__(self) -> str:
         return f'Rect({self.x1!r}, {self.y1!r}, {self.x2!r}, {self.y2!r}, size={self.size})'
@@ -310,7 +321,7 @@ class Rect:
         center = center or (0, 0)
         if any(n <= 0 for n in radius):
             raise ValueError(f'Rect radius must be greater than zero in both directions: {radius!r}')
-        return cls(center[0] - radius[0], center[1] - radius[1], center[0] + radius[0], center[1] + radius[1])
+        return cls((center[0] - radius[0], center[1] - radius[1], center[0] + radius[0], center[1] + radius[1]))
 
     @classmethod
     def from_size(cls, width: int, height: int, center: Coord2i | tuple[int, int] | None) -> Self:
@@ -319,13 +330,13 @@ class Rect:
         unless ``center`` is specified.
         """
         if center:
-            return cls(
+            return cls((
                 center[0] - (width // 2),
                 center[1] - (height // 2),
                 center[0] + (width // 2) + (width % 2),
                 center[1] + (height // 2) + (height % 2),
-            )
-        return cls(0, 0, width, height)
+            ))
+        return cls((0, 0, width, height))
 
     def as_tuple(self) -> tuple[int, int, int, int]:
         """Returns the X1, Y1, X2, and Y2 values as a ``tuple``."""
@@ -333,11 +344,15 @@ class Rect:
 
     def copy(self) -> 'Rect':
         """Returns a new ``Rect`` with the same coordinates as this instance."""
-        return Rect(*self.as_tuple())
+        return Rect(self)
+
+    def in_bounds(self, coord: Coord2i | Coord2f | tuple[int | float, int | float]) -> bool:
+        """Returns whether ``coord`` is within this ``Rect`` object's bounds."""
+        return Coord2f(coord).in_bounds(self)
 
     def map(self, fn: Callable[[int], int]) -> 'Rect':
         """Returns a new ``Rect`` with ``fn`` applied to all coordinate values."""
-        return Rect(fn(self.x1), fn(self.y1), fn(self.x2), fn(self.y2))
+        return Rect((fn(self.x1), fn(self.y1), fn(self.x2), fn(self.y2)))
 
     def resize(self, xy: Coord2i | tuple[int, int] | int = 0, *, from_center: bool = False) -> 'Rect':
         """
@@ -348,14 +363,14 @@ class Rect:
         xy = Coord2i(xy if not isinstance(xy, int) else (xy, xy))
         if from_center:
             xy = xy.map(lambda n: n // 2)
-            return Rect(self.x1 - xy.x, self.y1 - xy.y, self.x2 + xy.x, self.y2 + xy.y)
+            return Rect((self.x1 - xy.x, self.y1 - xy.y, self.x2 + xy.x, self.y2 + xy.y))
         else:
-            return Rect(self.x1, self.y1, self.x2 + xy.x, self.y2 + xy.y)
+            return Rect((self.x1, self.y1, self.x2 + xy.x, self.y2 + xy.y))
 
     def translate_by(self, xy: Coord2i | tuple[int, int] | int = 0) -> 'Rect':
         """Returns a new ``Rect`` with this instance's coordinates shifted by ``xy``."""
         xy = Coord2i(xy if not isinstance(xy, int) else (xy, xy))
-        return Rect(self.x1 + xy.x, self.y1 + xy.y, self.x2 + xy.x, self.y2 + xy.y)
+        return Rect((self.x1 + xy.x, self.y1 + xy.y, self.x2 + xy.x, self.y2 + xy.y))
 
     def translate_to(self, xy: Coord2i | tuple[int, int]) -> 'Rect':
         """
@@ -378,7 +393,7 @@ class Grid:
             step: int = 0,
             origin: Coord2i | tuple[int, int] = (0, 0),
         ) -> None:
-        self.rect = rect if isinstance(rect, Rect) else Rect(*rect)
+        self.rect = Rect(rect)
         self.step = step
         self.origin = Coord2i(origin)
 
@@ -424,7 +439,7 @@ class Grid:
             y1 = min(y1, coord[0])
             x2 = max(x2, coord[0])
             y2 = max(y2, coord[0])
-        return cls(Rect(x1, y1, x2, y2), step=step)
+        return cls(Rect((x1, y1, x2, y2)), step=step)
 
     def copy(self, *, step: int | None = None) -> 'Grid':
         """
@@ -504,3 +519,20 @@ class Grid:
         coord = coord if isinstance(coord, Coord2i) else Coord2i(*coord)
         round_fn = round_fn or round
         return coord.map(lambda n: snap_num(n, self.step, round_fn))
+
+    def project(self,
+        coord: Coord2i | tuple[int, int],
+        other_grid: 'Grid',
+    ) -> Coord2i:
+        """
+        Returns a :py:class:`~squaremap_combine.util.Coord2i` from this ``Grid`` as if it were at the same relative
+        position on ``other_grid``.
+
+        >>> g1 = Grid((-100, -100, 100, 100))
+        >>> g2 = Grid((0, 0, 100, 100))
+        >>> assert g1.transpose_coord(Coord2i(0, 0), g2) == Coord2i(50, 50)
+        """
+        tr_a, br_a = self.rect.corners[0], self.rect.corners[-1]
+        tr_b, br_b = other_grid.rect.corners[0], other_grid.rect.corners[-1]
+        offset_factor: Coord2f = Coord2f(coord - tr_a) / Coord2f(br_a - tr_a)
+        return ((Coord2f(br_b - tr_b) * offset_factor) + Coord2f(tr_b)).as_int()
