@@ -48,7 +48,7 @@ squaremap-combine run my-tiles overworld --zoom=2 -o worldmap_z2.png
 from squaremap_combine.combine_core import Combiner
 
 combiner = Combiner('my-tiles')
-map_image = combiner.combine('minecraft_overworld', 2)
+map_image = combiner.combine('minecraft_overworld', zoom=2) # Returns a PIL.Image.Image object
 map_image.save('output.jpg')
 ```
 
@@ -65,14 +65,17 @@ in its `logs` directory. Run `squaremap-combine logs` to print its path.
 The `squaremap-combine run` command will stitch together images from a given world/dimension
 directory into a single map. This directory will be located in your server's `plugins` directory,
 under `squaremap/web/tiles/<world>`. For example, if your current working directory is where your
-server JAR is located, you may run this command:
+server JAR is located, the most basic example may look like this:
 
 ```bash
 squaremap-combine run -i plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
 ```
 
-You can alternatively use the `sqmapcom` command in place of `squaremap-combine` as a shortcut, e.g.
-`sqmapcom run plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png`
+You can alternatively use the `sqmapcom` command in place of `squaremap-combine` as a shortcut:
+
+```bash
+sqmapcom run -i plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
+```
 
 ## CLI Options
 
@@ -93,7 +96,7 @@ You can alternatively use the `sqmapcom` command in place of `squaremap-combine`
 ### Zoom/Detail Levels
 
 |Detail|Description             |
-|------|------------------------|
+|-----:|------------------------|
 |     3|1 block per pixel       |
 |     2|2x2 block area per pixel|
 |     1|4x4 block area per pixel|

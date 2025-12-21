@@ -1,5 +1,6 @@
-Usage
+Changelog
 ===========
 
-.. include:: ../README.md
+.. include:: ../CHANGELOG.md
     :parser: myst_parser.sphinx_
+

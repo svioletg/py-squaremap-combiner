@@ -1,8 +1,37 @@
 
 import pytest
 
-from squaremap_combine.geo import Coord2i, Grid, Rect
+from squaremap_combine.geo import Coord2f, Coord2i, Grid, Rect
 
+
+@pytest.mark.parametrize(('x', 'y'),
+    [
+        (0, 0),
+        (100, 100),
+        (-100, -100),
+        (-100, 100),
+        (100, -100),
+    ],
+)
+def test_coord2i_instance(x: int, y: int) -> None:
+    assert Coord2i(x, y)
+    assert Coord2i(x, y) == Coord2i((x, y))
+    assert Coord2i(x, y) == Coord2i(Coord2i(x, y))
+    assert Coord2i(x, y) == Coord2i(Coord2i((x, y)))
+    assert Coord2i(x, y) == (x, y)
+
+def test_coord2i_instance_failure() -> None:
+    with pytest.raises(TypeError, match=r"but argument 'y' also"):
+        Coord2i((0, 0), 0) # type: ignore
+    with pytest.raises(ValueError, match='int or whole number'):
+        Coord2i(0.1, 0) # type: ignore
+    with pytest.raises(ValueError, match='int or whole number'):
+        Coord2i((0.1, 0)) # type: ignore
+
+def test_coord2f_instance() -> None:
+    x, y = 0, 0
+    assert Coord2f(x, y)
+    assert Coord2f(x, y) == Coord2f((x, y)) == Coord2i(x, y) == Coord2f(Coord2i(x, y)) == (x, y)
 
 @pytest.mark.parametrize(('coords'),
     [
@@ -78,15 +107,15 @@ def test_rect_transformations(coords: tuple[int, int, int, int]) -> None:
 
 @pytest.mark.parametrize(('coords', 'step_count_x', 'step_count_y'),
     [
-        ((0, 0, 200, 200), 20, 20),
-        ((0, 0, 150, 200), 15, 20),
-        ((0, 0, 200, 150), 20, 15),
-        ((-100, -100, 100, 100), 20, 20),
-        ((-100, -100, 50, 100), 15, 20),
-        ((-100, -100, 100, 50), 20, 15),
-        ((-300, -300, -100, -100), 20, 20),
-        ((-300, -300, -150, -100), 15, 20),
-        ((-300, -300, -100, -150), 20, 15),
+        ((0, 0, 200, 200), 21, 21),
+        ((0, 0, 150, 200), 16, 21),
+        ((0, 0, 200, 150), 21, 16),
+        ((-100, -100, 100, 100), 21, 21),
+        ((-100, -100, 50, 100), 16, 21),
+        ((-100, -100, 100, 50), 21, 16),
+        ((-300, -300, -100, -100), 21, 21),
+        ((-300, -300, -150, -100), 16, 21),
+        ((-300, -300, -100, -150), 21, 16),
     ],
 )
 def test_grid_instance(coords: tuple[int, int, int, int], step_count_x: int, step_count_y: int) -> None:

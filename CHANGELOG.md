@@ -24,8 +24,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Added class `Coord2f`
     - Largely identical to `Coord2i`, but operates on floats exclusively
   - Added method `map()` to `Coord2i`
-- Added test module `test_rect_and_grid`
 - Added test module `test_color_class`
+- Added test module `test_geometry`
 - Added `JSONEncoder`-extended class `ImplementableJSONEncoder` to `util`
   - Allows classes to implement a `__json__()` method for serialization
 - Added enum class `const.NamedColorHex`
@@ -73,6 +73,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
   - Alias `Rectangle` removed, either the new `Rect` class or `tuple[int, int, int, int]` will be used
 - In module `core`:
   - Removed class `MapImage`
+  - Removed class `MapImageCoord`
+  - Removed class `GameCoord`
   - Removed method `draw_grid_lines()` from `core.Combiner`
   - Removed method `draw_grid_coords_text()` from `core.Combiner`
   - Removed method `to_json()` from `core.CombinerStyle`

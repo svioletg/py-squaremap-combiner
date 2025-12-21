@@ -6,6 +6,7 @@ squaremap-combine documentation
    :caption: Contents:
 
    readme.rst
+   changelog.rst
    reference/index.rst
 
 Indices and tables
