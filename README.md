@@ -85,11 +85,12 @@ sqmapcom run -i plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
 |Option|Type|Default|Description|
 |------|----|-------|-----------|
 |`-h/--help`|Flag|N/A|Displays information about every argument / option and their parameters.|
+|`-i/--world`|Directory path|N/A|Path to a world folder subdirectory under squaremap\'s "tiles" directory. This is required when using the `run` command.|
 |`-z/--zoom`|Integer|3|The zoom/detail level of tiles to use. Defaults to the highest level of 3, which is 1 block per pixel.|
 |`-o/--out FILEPATH`|File path|`world.png`|Where to save the combined map image. Defaults to the current directory and named after the world folder name.|
 |`--overwite`|Flag|`False`|Allows the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.|
 |`-r/--rect X1,Z1,X2,Z2`|Integer list (4)|Entire rendered map area|A rectangle area of the world to export an image of, separated by commas.|
-|`-t/--trim`|Flag|`False`|Trims empty (fully transparent) space surrounding the completed image. Note that this is done before any specified background color is applied.|
+|`-c/--crop`|Integer list(2) OR `auto`|`False`|A size in pixels to crop the final image to. If "auto", trims empty (fully transparent) space surrounding the completed image.|
 |`-y/--yes-to-all`|Flag|`False`|Automatically accepts and bypasses all confirmation prompts|
 |`-g/--grid`|Integer list (2)|`512,512`|Defines the grid interval. Does nothing on its own, but is required to use any `--grid-*` options.|
 
@@ -110,6 +111,6 @@ sqmapcom run -i plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
 
 |Option|Type|Default|Description|
 |------|----|-------|-----------|
-|`--grid-lines`|String|`'black 1px'`|The color and thickness in pixels to use for grid lines, separated by space.|
-|`--grid-coords`|String|`'{x}, {z}'`|The string format to use for overlaying grid coordinates, replacing `{x}` and `{z}` with the respective coordinate values, e.g. `"X: {x}, Z: {z}"`. By default, coordinates are not added to the image at all. Note that drawing coordinate text will make creating the image **significantly** slower, especially with large grids and small grid steps.|
-|`--grid-font`|String/File path, Integer, Color|`''`|The name or file path for a font to use for grid coordinate text, as well as the "point" size to use, separated by comma. If left blank (default), [Fira Code SemiBold](https://github.com/tonsky/FiraCode), which is included in `squaremap_combine`'s installation directory, is used at 32pt in black. Example values include: `'Arial, 64, white'`, `'Consolas, 32, red'`, `'Times New Roman, 48, #ff00ff'`|
+|`--grid-lines`|String|`'black 1'`|The color and thickness in pixels to use for grid lines, separated by space.|
+|`--grid-coords`|String|(None)|The string format to use for overlaying grid coordinates, replacing `{x}` and `{z}` with the respective coordinate values, e.g. `"X: {x}, Z: {z}"`. By default, coordinates are not added to the image at all. Note that drawing coordinate text will make creating the image **significantly** slower, especially with large grids and small grid steps.|
+|`--grid-font`|String/File path, Integer, Color|(None)|The name or file path for a font to use for grid coordinate text, as well as the "point" size to use, separated by comma. If left blank (default), [Fira Code SemiBold](https://github.com/tonsky/FiraCode), which is included in `squaremap_combine`'s installation directory, is used at 32pt in black. Example values include: `'Arial, 64, white'`, `'Consolas, 32, red'`, `'Times New Roman, 48, #ff00ff'`|

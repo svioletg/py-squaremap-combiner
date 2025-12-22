@@ -37,13 +37,13 @@ class CombinerStyle:
     def __init__(self,
             bg_color: Color | str | None = None,
             grid_line_color: Color | str | None = None,
-            grid_line_size: int = 1,
-            grid_text_font: str | Path = DEFAULT_FONT_PATH,
-            grid_text_pt: int = 32,
+            grid_line_size: int | None = None,
+            grid_text_font: str | Path | None = None,
+            grid_text_pt: int | None = None,
             grid_text_stroke_size: int | None = None,
             grid_text_stroke_color: Color | str | None = None,
             grid_text_fill_color: Color | str | None = None,
-            grid_coords_format: str = '',
+            grid_coords_format: str | None = None,
         ) -> None:
         """
         :param bg_color: Background color to use for empty areas of the map.
@@ -51,9 +51,11 @@ class CombinerStyle:
         :param grid_line_color: Color for grid overlay lines.
             Default: ``#000000ff`` (black)
         :param grid_line_size: Thickness of grid overlay lines.
+            Default: 1
         :param grid_text_font: Font to use for grid overlay coordinate text.
             Default: Fira Code (included with package)
         :param grid_text_pt: Point size to use for grid overlay coordinate text.
+            Default: 32
         :param grid_text_stroke_size: Stroke (outline) size to use for grid overlay coordinate text.
             Default: 20% (rounded down) of ``grid_text_pt``
         :param grid_text_stroke_color: Stroke (outline) color to use for grid overlay coordinate text.
@@ -62,16 +64,17 @@ class CombinerStyle:
             Default: ``#ffffffff`` (white)
         :param grid_coords_format: String to use for coordinate text, which expects `{x}` and `{y}` specifiers to
             format.
+            Default: ``''``
         """
         self.bg_color = self._parse_color_arg(bg_color or 'clear')
         self.grid_line_color = self._parse_color_arg(grid_line_color or 'black')
-        self.grid_line_size = grid_line_size
-        self.grid_text_font = grid_text_font
-        self.grid_text_pt = grid_text_pt
-        self.grid_text_stroke_size = Maybe(grid_text_stroke_size).this_or(int(grid_text_pt * 0.2)).unwrap()
+        self.grid_line_size = grid_line_size or 1
+        self.grid_text_font = grid_text_font or DEFAULT_FONT_PATH
+        self.grid_text_pt = grid_text_pt or 32
+        self.grid_text_stroke_size = Maybe(grid_text_stroke_size).this_or(int(self.grid_text_pt * 0.2)).unwrap()
         self.grid_text_stroke_color = self._parse_color_arg(grid_text_stroke_color or 'black')
         self.grid_text_fill_color = self._parse_color_arg(grid_text_fill_color or 'white')
-        self.grid_coords_format = grid_coords_format
+        self.grid_coords_format = grid_coords_format or ''
 
         super().__init__()
 
@@ -193,7 +196,7 @@ class Combiner:
                 if style.grid_coords_format:
                     draw.text(
                         canvas_coord.as_tuple(),
-                        style.grid_coords_format.format(x=world_coord.x, y=world_coord.y),
+                        style.grid_coords_format.format(x=world_coord.x, z=world_coord.y),
                         font=font,
                         fill=style.grid_text_fill_color.as_rgba(),
                         stroke_width=style.grid_text_stroke_size,
@@ -205,7 +208,7 @@ class Combiner:
             logger.info(f'Finished drawing grid in {tb - ta:.04f}s')
             del ta, tb
 
-    def combine(self,
+    def combine(self,  # noqa: PLR0915
             world: str | Path,
             *,
             zoom: int,
@@ -267,8 +270,10 @@ class Combiner:
 
         logger.info(f'Using zoom level {zoom} ({SQMAP_ZOOM_BPP[zoom]} block(s) per pixel)')
 
-        if not area:
+        if area is None:
             logger.info('No area specified, using full map')
+        else:
+            logger.info(f'Capturing specified area: {area}')
 
         grid_step = grid_step if grid_step is not None else self.grid_step
 
@@ -313,7 +318,6 @@ class Combiner:
             .map(lambda n: n * SQMAP_TILE_SIZE) \
             .resize(SQMAP_TILE_SIZE) \
             .copy(step=SQMAP_TILE_SIZE) \
-
         # Since the region coordinates refer to the top left of each region, one more tile's worth of space needs to be
         # added to the map image so it doesn't get cut off
 

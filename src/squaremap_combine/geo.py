@@ -75,11 +75,11 @@ class Coord2i:
     def __hash__(self) -> int:
         return self.as_tuple().__hash__()
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, tuple):
-            return self.as_tuple() == other
-        if isinstance(other, (Coord2i, Coord2f)):
-            return self.as_tuple() == other.as_tuple()
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, tuple):
+            return self.as_tuple() == value
+        if isinstance(value, (Coord2i, Coord2f)):
+            return self.as_tuple() == value.as_tuple()
         return False
 
     def __add__(self, other: 'int | tuple[int, int] | Coord2i') -> 'Coord2i':
@@ -186,11 +186,11 @@ class Coord2f:
     def __hash__(self) -> int:
         return self.as_tuple().__hash__()
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, tuple):
-            return self.as_tuple() == other
-        if isinstance(other, (Coord2i, Coord2f)):
-            return self.as_tuple() == other.as_tuple()
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, tuple):
+            return self.as_tuple() == value
+        if isinstance(value, (Coord2i, Coord2f)):
+            return self.as_tuple() == value.as_tuple()
         return False
 
     def __add__(self, other: 'int | float | tuple[int | float, int | float] | Coord2f') -> 'Coord2f':
@@ -279,11 +279,24 @@ class Rect:
     def __repr__(self) -> str:
         return f'Rect({self.x1!r}, {self.y1!r}, {self.x2!r}, {self.y2!r}, size={self.size})'
 
+    def __str__(self) -> str:
+        return str(self.as_tuple())
+
     def __iter__(self) -> Generator[int]:
         yield from self.as_tuple()
 
     def __getitem__(self, idx: int) -> int:
         return self.as_tuple()[idx]
+
+    def __hash__(self) -> int:
+        return self.as_tuple().__hash__()
+
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, Rect):
+            return self.as_tuple() == value.as_tuple()
+        if isinstance(value, tuple):
+            return self.as_tuple() == value
+        return False
 
     @property
     def height(self) -> int:

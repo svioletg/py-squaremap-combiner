@@ -121,6 +121,19 @@ class Color:
         alpha_hex = f'{alpha:0{2}x}' if alpha is not None else name.value[-2:]
         return cls.from_hex(name.value[:-2] + alpha_hex)
 
+    @classmethod
+    def from_str(cls, s: str) -> Self:
+        """
+        Attempts to create a ``Color`` instance with the given string, trying the following methods until one succeeds:
+
+        - :py:meth:`~squaremap_combine.util.Color.from_name`
+        - :py:meth:`~squaremap_combine.util.Color.from_hex`
+        """
+        try:
+            return cls.from_name(s)
+        except ValueError:
+            return cls.from_hex(s)
+
     def copy(self) -> 'Color':
         """Returns a new ``Color`` instance with the same channel values as this instance."""
         return Color(*self.as_rgba())
