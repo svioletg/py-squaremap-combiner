@@ -282,7 +282,7 @@ class Combiner:
         logger.info(f'Using directory: {world.absolute() / str(zoom)}')
         logger.info('Looking for tiles...')
 
-        combine_ta: float = perf_counter()
+        combine_time_start: float = perf_counter()
 
         # Gather tile images, mapped to coordinates
         tiles: dict[Coord2i, Path] = {
@@ -362,14 +362,18 @@ class Combiner:
 
         # Crop to physical size if specified
         if crop:
-            crop_box: tuple[int, int, int, int] = Maybe(map_img.getbbox()) \
-                .unwrap(CombineError(f'Failed to get bounding box of map image: {map_img}')) \
-                if crop == 'auto' \
-                else Rect.from_size(*crop, center=Coord2i(map_img.size) // 2).as_tuple()
-            logger.info(f'Cropping image to {Rect(crop_box).size}...')
-            map_img = map_img.crop(crop_box)
+            if not map_img.getbbox() and (crop == 'auto'):
+                logger.warning('Crop set to "auto" but the image is blank, leaving it at its previous size')
+            else:
+                crop_box: tuple[int, int, int, int] = Maybe(map_img.getbbox()).unwrap() \
+                    if crop == 'auto' \
+                    else Rect.from_size(crop, center=Coord2i(map_img.size) // 2).as_tuple()
+                logger.info(f'Cropping image to {Rect(crop_box).size}...')
+                map_img = map_img.crop(crop_box)
 
-        combine_tb: float = perf_counter()
+        combine_time_end: float = perf_counter()
 
-        logger.info(f'Image creation finished in {combine_tb - combine_ta:.4f}, final size {map_img.size}')
+        logger.info(
+            f'Image creation finished in {combine_time_end - combine_time_start:.4f}, final size is {map_img.size}',
+        )
         return map_img

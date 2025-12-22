@@ -61,6 +61,11 @@ class Coord2i:
     def __str__(self) -> str:
         return f'({self.x}, {self.y})'
 
+    def __format__(self, format_spec: str) -> str:
+        if not format_spec:
+            return str(self)
+        return f'{self.x}{format_spec}{self.y}'
+
     def __iter__(self) -> Generator[int]:
         yield from (self.x, self.y)
 
@@ -324,19 +329,20 @@ class Rect:
         return cls((center[0] - radius[0], center[1] - radius[1], center[0] + radius[0], center[1] + radius[1]))
 
     @classmethod
-    def from_size(cls, width: int, height: int, center: Coord2i | tuple[int, int] | None) -> Self:
+    def from_size(cls, size: tuple[int, int], center: Coord2i | tuple[int, int] | None) -> Self:
         """
         Returns a new ``Rect`` of the given size. Will be created with its top left coordinate at ``0, 0`` by default
         unless ``center`` is specified.
         """
+        w, h = size
         if center:
             return cls((
-                center[0] - (width // 2),
-                center[1] - (height // 2),
-                center[0] + (width // 2) + (width % 2),
-                center[1] + (height // 2) + (height % 2),
+                center[0] - (w // 2),
+                center[1] - (h // 2),
+                center[0] + (w // 2) + (w % 2),
+                center[1] + (h // 2) + (h % 2),
             ))
-        return cls((0, 0, width, height))
+        return cls((0, 0, w, h))
 
     def as_tuple(self) -> tuple[int, int, int, int]:
         """Returns the X1, Y1, X2, and Y2 values as a ``tuple``."""
