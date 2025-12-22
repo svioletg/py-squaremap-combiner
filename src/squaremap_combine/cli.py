@@ -74,7 +74,7 @@ def main() -> int:
         world_dir.parent,
         style=style,
         confirm_fn=lambda message: Confirm.ask(message),
-        show_progress=True,
+        progress_bar=True,
     )
 
     logger.info('Starting...')

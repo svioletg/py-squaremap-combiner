@@ -109,7 +109,7 @@ class Color:
         Returns a ``Color`` instance created from hexcode found in the ``NamedColorHex`` enum.
 
         :param alpha: An alpha value for the resulting color. If not ``None``, this value will override the hexcode's
-            alpha value; otherwise, if the hexcode has no alpha value, the default of 255 is used.
+            alpha value.
 
         :raises ValueError: Raised if the given ``name`` does not exist as a ``NamedColorHex`` key.
         """
@@ -118,8 +118,8 @@ class Color:
         except KeyError as e:
             raise ValueError(f'Not a recognized color name: {name}') from e
 
-        alpha_hex = f'{alpha:0{2}x}' if alpha is not None else 'ff'
-        return cls.from_hex(name.value + (alpha_hex if len(name.value) == 7 else ''))  # noqa: PLR2004
+        alpha_hex = f'{alpha:0{2}x}' if alpha is not None else name.value[-2:]
+        return cls.from_hex(name.value[:-2] + alpha_hex)
 
     def copy(self) -> 'Color':
         """Returns a new ``Color`` instance with the same channel values as this instance."""

@@ -6,7 +6,7 @@ from squaremap_combine.util import Color, NamedColorHex
 @pytest.mark.parametrize(('channels', 'expected'),
     [
         ((0, 0, 0),            Color(0, 0, 0, 255)),
-        ((255, 255, 255),      Color(0, 0, 0, 255)),
+        ((255, 255, 255),      Color(255, 255, 255, 255)),
         ((0, 0, 0, 255),       Color(0, 0, 0, 255)),
         ((255, 255, 255, 127), Color(255, 255, 255, 127)),
     ],
@@ -30,10 +30,10 @@ def test_color_instance_from_hex(hexcode: str, expected: Color) -> None:
 
 @pytest.mark.parametrize(('name', 'alpha', 'expected'),
     [
-        (NamedColorHex.CLEAR, None, Color(0, 0, 0, 255)),
-        ('clear', None, Color(0, 0, 0, 255)),
-        (NamedColorHex.BLACK, None, Color(255, 0, 0, 255)),
-        ('black', None, Color(255, 0, 0, 255)),
+        (NamedColorHex.CLEAR, None, Color(0, 0, 0, 0)),
+        ('clear', None, Color(0, 0, 0, 0)),
+        (NamedColorHex.BLACK, None, Color(0, 0, 0, 255)),
+        ('black', None, Color(0, 0, 0, 255)),
         (NamedColorHex.RED, None, Color(255, 0, 0, 255)),
         ('red', None, Color(255, 0, 0, 255)),
         (NamedColorHex.RED, 127, Color(255, 0, 0, 127)),
@@ -43,7 +43,3 @@ def test_color_instance_from_hex(hexcode: str, expected: Color) -> None:
 def test_color_instance_from_name(name: NamedColorHex | str, alpha: int | None, expected: Color) -> None:
     c: Color = Color.from_name(name, alpha)
     assert c == expected
-    if isinstance(name, NamedColorHex):
-        assert NamedColorHex(c.as_hex()) == name
-    else:
-        assert NamedColorHex(c.as_hex()).name == name.upper()

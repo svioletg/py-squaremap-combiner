@@ -95,7 +95,7 @@ class Combiner:
     """Interval of blocks to use for the grid overlay. Grid overlay is disabled if set to 0."""
     style: CombinerStyle
     confirm_fn: Callable[[str], bool]
-    show_progress: bool
+    progress_bar: bool
 
     def __init__(self,
             tiles_dir: str | Path,
@@ -103,7 +103,7 @@ class Combiner:
             grid_step: int | None = None,
             style: CombinerStyle = DEFAULT_COMBINER_STYLE,
             confirm_fn: Callable[[str], bool] | None = None,
-            show_progress: bool = False,
+            progress_bar: bool = False,
         ) -> None:
         """
         :param tiles_dir: A path to a directory in the same format as what squaremap automatically generates.
@@ -133,7 +133,7 @@ class Combiner:
         :param style: :py:class:`~squaremap_combine.core.CombinerStyle` instance to define styling rules with.
         :param confirm_fn: A ``Callable`` to use in cases where any ``Combiner`` functions wish to ask for confirmation
             before continuing, which must return ``True`` to continue.
-        :param show_progress: Whether to show a progress bar for any functions that support it.
+        :param progress_bar: Whether to show a progress bar for any functions that support it.
         """
         if not (tiles_dir := Path(tiles_dir)).is_dir():
             raise NotADirectoryError(f'Not a directory: {tiles_dir}')
@@ -141,7 +141,7 @@ class Combiner:
         self.grid_step     = grid_step or 0
         self.style         = style
         self.confirm       = confirm_fn if confirm_fn else lambda _: True
-        self.show_progress = show_progress
+        self.progress_bar  = progress_bar
 
     def __repr__(self) -> str:
         return f'Combiner(tiles_dir={self.tiles_dir!r}, grid_step={self.grid_step!r})'
@@ -296,6 +296,10 @@ class Combiner:
         # Grid of tile coordinates
         tile_grid: Grid = Grid(area.map(lambda n: n // (SQMAP_TILE_BLOCKS * zoom_bpp)), step=1) if area \
             else Grid.from_steps(tiles.keys(), step=1)
+
+        if tile_grid.rect.size == (0, 0):
+            tile_grid.rect.x2 += 1
+            tile_grid.rect.y2 += 1
 
         # Grid representing the Minecraft world
         world_grid: Grid = tile_grid \
