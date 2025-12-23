@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "squaremap_combine"
-version = "0.28.0"
+version = "1.0.0-beta.1"
 authors = [
   { name="Seth 'Violet' Gibbs" },
 ]
@@ -23,7 +23,6 @@ dependencies=[
   "pillow>=10.4.0",
   "platformdirs>=4.3.6",
   "rich>=14.2.0",
-  "tqdm>=4.66.5",
 ]
 
 [project.optional-dependencies]

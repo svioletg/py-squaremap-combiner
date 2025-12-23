@@ -37,7 +37,8 @@ SQMAP_TILE_NAME_REGEX: re.Pattern[str] = re.compile(r"(-?\d+)_(-?\d+)")
 
 RGB_CHANNEL_MAX: int = 255
 
-IMAGE_SIZE_WARN_THRESH: int = 20_000
+IMAGE_PX_NOTICE_THRESH: int = 12_000 * 12_000
+IMAGE_PX_CONFIRM_THRESH: int = 20_000 * 20_000
 
 class NamedColorHex(str, Enum):
     """

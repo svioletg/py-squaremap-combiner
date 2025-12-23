@@ -6,10 +6,11 @@ from typing import Any, Literal
 
 from maybetype import Maybe
 from PIL import Image, ImageDraw, ImageFont
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TaskProgressColumn, TextColumn
 
 from squaremap_combine.const import (
     DEFAULT_FONT_PATH,
-    IMAGE_SIZE_WARN_THRESH,
+    IMAGE_PX_NOTICE_THRESH,
     SQMAP_TILE_BLOCKS,
     SQMAP_TILE_NAME_REGEX,
     SQMAP_TILE_SIZE,
@@ -327,22 +328,37 @@ class Combiner:
             color=style.bg_color.as_rgba(),
         )
 
-        if any(n >= IMAGE_SIZE_WARN_THRESH for n in map_img.size):
-            logger.warning(f'Image dimensions exceed warning threshold of {IMAGE_SIZE_WARN_THRESH}: {map_img.size!r}')
+        if any(n >= IMAGE_PX_NOTICE_THRESH for n in map_img.size):
+            logger.warning(f'Image dimensions exceed warning threshold of {IMAGE_PX_NOTICE_THRESH}: {map_img.size!r}')
 
         # Assemble image
-        for region, img_coord in zip(
-                tile_grid.iter_steps(),
-                # Resize canvas grid down so the coordinates correlate correctly
-                canvas_grid.resize(-SQMAP_TILE_SIZE).iter_steps(),
-                strict=True,
-            ):
-            if not (tile_path := tiles.get(region)):
-                continue
-            logger.info(f'Tile {region}: {tile_path}')
-            logger.debug(f'Placing tile {region} at image coordinate {img_coord}')
-            tile: Image.Image = Image.open(tile_path)
-            map_img.alpha_composite(tile, img_coord.as_tuple())
+        step_count: int = tile_grid.steps_count
+        progress_n_padding: int = len(str(step_count))
+
+        with Progress(
+            MofNCompleteColumn(),
+            TextColumn('{task.description}'),
+            BarColumn(),
+            TaskProgressColumn(),
+            disable=not self.progress_bar,
+        ) as pbar:
+            assemble_task = pbar.add_task('Assembling image...', total=step_count)
+            for n, (region, img_coord) in enumerate(zip(
+                    tile_grid.iter_steps(),
+                    # Resize canvas grid back down so the coordinates correlate correctly
+                    canvas_grid.resize(-SQMAP_TILE_SIZE).iter_steps(),
+                    strict=True,
+                )):
+                pbar.update(assemble_task, advance=1, description=f'Assembling map: tile {region}')
+                if not (tile_path := tiles.get(region)):
+                    continue
+                if not self.progress_bar:
+                    logger.info(f'({n:>{progress_n_padding}}/{step_count}) Tile {region}: {tile_path}')
+                logger.debug(f'Placing tile {region} at image coordinate {img_coord}')
+                tile: Image.Image = Image.open(tile_path)
+                map_img.alpha_composite(tile, img_coord.as_tuple())
+
+        del step_count, progress_n_padding
 
         # Draw grid overlay
         draw_grid_fn(

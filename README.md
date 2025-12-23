@@ -89,10 +89,11 @@ sqmapcom run -i plugins/squaremap/web/tiles/minecraft_overworld -o overworld.png
 |`-z/--zoom`|Integer|3|The zoom/detail level of tiles to use. Defaults to the highest level of 3, which is 1 block per pixel.|
 |`-o/--out FILEPATH`|File path|`world.png`|Where to save the combined map image. Defaults to the current directory and named after the world folder name.|
 |`--overwite`|Flag|`False`|Allows the script to overwrite an existing file with the same target name if it already exists. By default, if an image with the same path already exists, a numbered suffix is added.|
-|`-r/--rect X1,Z1,X2,Z2`|Integer list (4)|Entire rendered map area|A rectangle area of the world to export an image of, separated by commas.|
+|`-a/--area X1,Z1,X2,Z2`|Integer list (4)|Entire rendered map area|A rectangle area of the world to export an image of, separated by commas.|
 |`-c/--crop`|Integer list(2) OR `auto`|`False`|A size in pixels to crop the final image to. If "auto", trims empty (fully transparent) space surrounding the completed image.|
+|`-g/--grid`|Integer list (2)|`512,512`|Defines the grid interval, which adds grid lines to the image based on Minecraft's coordinates. Grid overlay can be further customized with the `--grid-*` options below.|
 |`-y/--yes-to-all`|Flag|`False`|Automatically accepts and bypasses all confirmation prompts|
-|`-g/--grid`|Integer list (2)|`512,512`|Defines the grid interval. Does nothing on its own, but is required to use any `--grid-*` options.|
+|`-P/--no-progress-bar`|Flag|`False`|Disables the progress bar, instead logging individual messages per update, useful when running the script as an automated job or similar.|
 
 ### Zoom/Detail Levels
 

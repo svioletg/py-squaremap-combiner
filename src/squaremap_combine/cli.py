@@ -8,13 +8,14 @@ from argparse import ArgumentParser
 from argparse import HelpFormatter as BaseHelpFormatter
 from collections.abc import Callable
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Literal, NoReturn, cast
 
 from maybetype import Maybe
 from PIL import Image
 from rich.prompt import Confirm
 
-from squaremap_combine.const import LOGS_DIR, console
+from squaremap_combine.const import IMAGE_PX_CONFIRM_THRESH, IMAGE_PX_NOTICE_THRESH, LOGS_DIR, console
 from squaremap_combine.core import Combiner, CombinerStyle
 from squaremap_combine.geo import Rect
 from squaremap_combine.logging import LogLevel, enable_logging, logger
@@ -72,7 +73,7 @@ def opt_grid_font(s: str) -> tuple[str, int, Color]:
     font_color: Color = Maybe(split).get(2, str).then(Color.from_str) or Color.from_name('white')
     return font, font_pt, font_color
 
-def main() -> int:
+def main() -> int:  # noqa: PLR0915
     parser = ArgumentParser(formatter_class=HelpFormatter)
     parser.add_argument('action', type=str, choices=['run', 'logs'])
 
@@ -95,7 +96,7 @@ def main() -> int:
         help='Allows the script to overwrite an existing file with the same target name if it already exists. By'
         + ' default, if an image with the same path already exists, a numbered suffix is added.')
 
-    parser.add_argument('--rect', '-r', type=opt_rect('-r/--rect'),
+    parser.add_argument('--area', '-a', type=opt_rect('-a/--area'),
         help='A rectangle area of the world to export an image of, separated by commas. Defaults to the full map.')
 
     parser.add_argument('--crop', '-c', type=opt_crop,
@@ -120,6 +121,10 @@ def main() -> int:
         + ' installation directory, is used at 32pt in white. Example values include: \'myfont.ttf, 64, white\', '
         + ' \'/usr/share/fonts/ubuntu/Ubuntu-B.ttf, 32, red\', \'C:\\Windows\\Fonts\\arial.ttf, 48, #ff00ff\'')
 
+    parser.add_argument('--no-progress-bar', '-P', action='store_false',
+        help='Disables the progress bar, instead logging individual messages per update, useful when running the'
+            + ' script as an automated job or similar.')
+
     parser.add_argument('--log-level', '-l', type=lambda s: LogLevel(s.upper()), default=LogLevel.INFO,
         help='Sets the logging level for this run.')
 
@@ -139,13 +144,14 @@ def main() -> int:
     zoom: Literal[0, 1, 2, 3] = Maybe(args.zoom).unwrap(lambda: abort('[err]Option -z/--zoom is required[/]'))
     dest: Path = args.out.absolute()
 
-    overwrite   : bool                                     = args.overwrite
-    area        : Rect | None                              = args.rect
-    crop        : tuple[int, int] | Literal['auto'] | None = args.crop
-    grid_step   : int                                      = args.grid
-    grid_lines  : tuple[Color, int]                        = args.grid_lines
-    grid_coords : str                                      = args.grid_coords
-    grid_font   : tuple[str, int, Color]                   = args.grid_font
+    overwrite    : bool                                     = args.overwrite
+    area         : Rect | None                              = args.area
+    crop         : tuple[int, int] | Literal['auto'] | None = args.crop
+    grid_step    : int                                      = args.grid
+    grid_lines   : tuple[Color, int]                        = args.grid_lines
+    grid_coords  : str                                      = args.grid_coords
+    grid_font    : tuple[str, int, Color]                   = args.grid_font
+    progress_bar : bool                                     = args.no_progress_bar
 
     if not world_dir.is_dir():
         raise NotADirectoryError(f'Not a directory or does not exist: {world_dir}')
@@ -166,11 +172,11 @@ def main() -> int:
         grid_step=grid_step,
         style=style,
         confirm_fn=lambda message: Confirm.ask(message),
-        progress_bar=True,
+        progress_bar=progress_bar,
     )
 
     logger.info('Starting...')
-    image: Image.Image = combiner.combine(
+    img: Image.Image = combiner.combine(
         world_dir,
         zoom=zoom,
         area=area,
@@ -185,14 +191,26 @@ def main() -> int:
         ] or [0])
         dest = dest.with_stem(f'{dest.stem}.{highest + 1}')
     logger.info(f'Saving to: {dest}')
+
+    img_px: int = img.size[0] * img.size[1]
+    if img_px >= IMAGE_PX_CONFIRM_THRESH:
+        if not Confirm.ask(f'Image exceeds {img_px} pixels which may take a while to save and may result in a large'
+            + ' (>50MB) image file; continue?'):
+            abort()
+    elif img_px >= IMAGE_PX_NOTICE_THRESH:
+        logger.info(f'(Image exceeds {img_px} pixels, this may take a moment...)')
+
+    save_time_a: float = perf_counter()
     try:
-        image.save(dest)
+        img.save(dest)
     except OSError as e:
         if 'cannot write mode RGBA' in str(e):
-            image = image.convert('RGB')
-            image.save(dest)
+            img = img.convert('RGB')
+            img.save(dest)
         else:
             raise
+    save_time_b: float = perf_counter()
+    logger.info(f'Saved in {save_time_b - save_time_a:.4f}s')
 
     return 0
 
