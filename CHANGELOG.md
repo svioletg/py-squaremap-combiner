@@ -17,6 +17,8 @@ This release is meant to be a major overhaul to the entire squaremap-combine pro
 - Added multiple CLI options:
   - Added `-z/--zoom`
   - Added `--grid-lines`
+  - Added `--grid-font`
+  - Added `--no-progress-bar`
 - Added module `const`
 - Added module `geo`
   - Added class `Coord2f`
