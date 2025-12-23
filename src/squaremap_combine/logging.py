@@ -36,6 +36,6 @@ def enable_logging(stdout_level: str = 'INFO', output_dir: Path = LOGS_DIR) -> t
     stdout_handler: int = logger.add(sys.stdout, colorize=True,
         format='<level>[{time:HH:mm:ss} {level}] {message}</level>', level=stdout_level, diagnose=False)
     file_handler: int = logger.add(output_dir / '{time:YYYY-MM-DD_HH-mm-ss}.log',
-        format='[{time:HH:mm:ss}] {level}: {message}', level='DEBUG', mode='w', retention=5, diagnose=False)
+        format='[{time:HH:mm:ss} {level}] {message}', level='DEBUG', mode='w', retention=5, diagnose=False)
 
     return stdout_handler, file_handler

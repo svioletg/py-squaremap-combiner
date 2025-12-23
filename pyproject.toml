@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "squaremap_combine"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 authors = [
   { name="Seth 'Violet' Gibbs" },
 ]
