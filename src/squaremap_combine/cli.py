@@ -9,9 +9,9 @@ from argparse import HelpFormatter as BaseHelpFormatter
 from collections.abc import Callable
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Literal, NoReturn, cast
+from typing import Any, Literal, Never, cast
 
-from maybetype import Maybe
+from maybetype import maybe
 from PIL import Image
 from rich.prompt import Confirm
 
@@ -28,7 +28,7 @@ class HelpFormatter(BaseHelpFormatter):
             return re.sub(r"\n( +\^)", '\n', text).strip().splitlines()
         return super()._split_lines(text, width)
 
-def abort(msg: str = 'Aborting.', *, code: int = 1) -> NoReturn:
+def abort(msg: str = 'Aborting.', *, code: int = 1) -> Never:
     console.print(msg)
     raise SystemExit(code)
 
@@ -58,7 +58,7 @@ def opt_grid_lines(s: str) -> tuple[Color, int]:
     color_str, *size = s.split(' ')
     if len(size) > 1:
         abort(f'[err]Expected no more than 2 values for option --grid-lines: {s}[/]')
-    size = Maybe(size).get(0, str).then(int) or 1
+    size = int((size or [1])[0])
     color: Color = Color.from_str(color_str)
     return color, size
 
@@ -69,8 +69,8 @@ def opt_grid_font(s: str) -> tuple[str, int, Color]:
     if len(split) > 3:  # noqa: PLR2004
         abort(f'[err]Expected no more than 3 values for option --grid-font: {s}[/]')
     font: str = split[0]
-    font_pt: int = Maybe(split).get(1, str).then(int) or 32
-    font_color: Color = Maybe(split).get(2, str).then(Color.from_str) or Color.from_name('white')
+    font_pt: int = maybe(split).get(1, str).then(int) or 32
+    font_color: Color = maybe(split).get(2, str).then(Color.from_str) or Color.from_name('white')
     return font, font_pt, font_color
 
 def main() -> int:  # noqa: PLR0915
@@ -140,8 +140,8 @@ def main() -> int:  # noqa: PLR0915
     enable_logging(log_level.value)
 
     # Parse combine args
-    world_dir: Path = Maybe(args.world).unwrap(lambda: abort('[err]Option -i/--world is required[/]')).absolute()
-    zoom: Literal[0, 1, 2, 3] = Maybe(args.zoom).unwrap(lambda: abort('[err]Option -z/--zoom is required[/]'))
+    world_dir: Path = maybe(args.world).unwrap(lambda: abort('[err]Option -i/--world is required[/]')).absolute()
+    zoom: Literal[0, 1, 2, 3] = maybe(args.zoom).unwrap(lambda: abort('[err]Option -z/--zoom is required[/]'))
     dest: Path = args.out.absolute()
 
     overwrite    : bool                                     = args.overwrite
@@ -159,11 +159,11 @@ def main() -> int:  # noqa: PLR0915
         raise NotADirectoryError(f'Found no directory for zoom level {zoom} under: {world_dir}')
 
     style: CombinerStyle = CombinerStyle(
-        grid_line_color     = Maybe(grid_lines).get(0, Color, default=None).val,
-        grid_line_size      = Maybe(grid_lines).get(1, int, default=None).val,
-        grid_text_font      = Maybe(grid_font).get(0, str, default=None).val,
-        grid_text_pt        = Maybe(grid_font).get(1, int, default=None).val,
-        grid_text_fill_color= Maybe(grid_font).get(2, Color, default=None).val,
+        grid_line_color     = maybe(grid_lines).get(0, Color, default=None).val,
+        grid_line_size      = maybe(grid_lines).get(1, int, default=None).val,
+        grid_text_font      = maybe(grid_font).get(0, str, default=None).val,
+        grid_text_pt        = maybe(grid_font).get(1, int, default=None).val,
+        grid_text_fill_color= maybe(grid_font).get(2, Color, default=None).val,
         grid_coords_format  = grid_coords,
     )
 
@@ -171,7 +171,7 @@ def main() -> int:  # noqa: PLR0915
         world_dir.parent,
         grid_step=grid_step,
         style=style,
-        confirm_fn=lambda message: Confirm.ask(message),
+        confirm_fn=Confirm.ask,
         progress_bar=progress_bar,
     )
 
@@ -187,7 +187,7 @@ def main() -> int:  # noqa: PLR0915
         logger.info('Output file already exists and --overwrite flag was not used, appending number suffix')
         highest: int = max([
             int(re.search(r"\.(\d+)$", fp.stem).groups()[0]) \
-            for fp in Path(dest.parent).glob(f'*{dest.suffix}') if re.search(r"\.(\d+)$", fp.stem)
+            for fp in Path(dest.parent).glob(f'*{dest.suffix}') if re.search(r"\.(\d+)$", fp.stem)  # ty:ignore[possibly-missing-attribute]
         ] or [0])
         dest = dest.with_stem(f'{dest.stem}.{highest + 1}')
     logger.info(f'Saving to: {dest}')

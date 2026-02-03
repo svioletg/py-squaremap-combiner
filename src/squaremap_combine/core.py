@@ -4,7 +4,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Literal
 
-from maybetype import Maybe
+from maybetype import maybe
 from PIL import Image, ImageDraw, ImageFont
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TaskProgressColumn, TextColumn
 
@@ -72,7 +72,7 @@ class CombinerStyle:
         self.grid_line_size = grid_line_size or 1
         self.grid_text_font = grid_text_font or DEFAULT_FONT_PATH
         self.grid_text_pt = grid_text_pt or 32
-        self.grid_text_stroke_size = Maybe(grid_text_stroke_size).this_or(int(self.grid_text_pt * 0.2)).unwrap()
+        self.grid_text_stroke_size = maybe(grid_text_stroke_size).this_or(int(self.grid_text_pt * 0.2)).unwrap()
         self.grid_text_stroke_color = self._parse_color_arg(grid_text_stroke_color or 'black')
         self.grid_text_fill_color = self._parse_color_arg(grid_text_fill_color or 'white')
         self.grid_coords_format = grid_coords_format or ''
@@ -144,7 +144,7 @@ class Combiner:
         self.tiles_dir     = tiles_dir
         self.grid_step     = grid_step or 0
         self.style         = style
-        self.confirm       = confirm_fn if confirm_fn else lambda _: True
+        self.confirm       = confirm_fn or (lambda _: True)
         self.progress_bar  = progress_bar
 
     def __repr__(self) -> str:
@@ -282,7 +282,7 @@ class Combiner:
             style = CombinerStyle(**(asdict(self.style) | style))
         style = style or self.style
 
-        area = Maybe(area).then(Rect)
+        area = maybe(area).then(Rect)
         zoom_bpp: int = SQMAP_ZOOM_BPP[zoom]
 
         logger.info(f'Using directory: {world.absolute() / str(zoom)}')
@@ -385,7 +385,7 @@ class Combiner:
             if not map_img.getbbox() and (crop == 'auto'):
                 logger.warning('Crop set to "auto" but the image is blank, leaving it at its previous size')
             else:
-                crop_box: tuple[int, int, int, int] = Maybe(map_img.getbbox()).unwrap() \
+                crop_box: tuple[int, int, int, int] = maybe(map_img.getbbox()).unwrap() \
                     if crop == 'auto' \
                     else Rect.from_size(crop, center=Coord2i(map_img.size) // 2).as_tuple()
                 logger.info(f'Cropping image to {Rect(crop_box).size}...')

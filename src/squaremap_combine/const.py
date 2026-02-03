@@ -1,7 +1,7 @@
 import importlib.metadata
 import re
 from collections import OrderedDict
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 import platformdirs
@@ -40,7 +40,7 @@ RGB_CHANNEL_MAX: int = 255
 IMAGE_PX_NOTICE_THRESH: int = 12_000 * 12_000
 IMAGE_PX_CONFIRM_THRESH: int = 20_000 * 20_000
 
-class NamedColorHex(str, Enum):
+class NamedColorHex(StrEnum):
     """
     Common colors as RGBA hexcodes, based off the HTML 4.01 spec: https://www.w3.org/TR/REC-html40/types.html#h-6.5
     """

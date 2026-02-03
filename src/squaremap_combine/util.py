@@ -162,7 +162,7 @@ def coerce_to[A, B](val: A | B, cls: type[B], coerce_fn: Callable[[A], B] | None
     coerce_fn = coerce_fn or cls
     if isinstance(val, cls):
         return val
-    return coerce_fn(val) # type: ignore
+    return coerce_fn(val)
 
 def snap_num(num: int | float, mult: int, snap_fn: Callable[[int | float], int]) -> int:
     """

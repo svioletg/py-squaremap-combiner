@@ -1,5 +1,5 @@
 import sys
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from loguru import logger
@@ -7,7 +7,7 @@ from loguru import logger
 from squaremap_combine.const import LOGS_DIR
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     DEBUG    = 'DEBUG'
     INFO     = 'INFO'
     WARNING  = 'WARNING'

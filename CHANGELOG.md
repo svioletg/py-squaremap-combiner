@@ -5,13 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0-beta.2]
+## [1.0.0-beta.3] - 2026-02-03
+
+### Changed
+
+- Replaced usage of `NoReturn` with `Never`
+- Replaced usage of inheriting both `str` and `Enum` with just inheriting `StrEnum`
+
+### Fixed
+
+- Fixed `py-maybetype` dependency in `pyproject.toml` to use PyPI instead of the GitHub repository link
+- Fixed a handful of typing and linting errors now that we're using [ty](https://github.com/astral-sh/ty)
+
+## [1.0.0-beta.2] - 2025-12-23
 
 ### Fixed
 
 - Fixed log message format used in file logging to be consistent with stdout log format
 
-## [1.0.0-beta.1]
+## [1.0.0-beta.1] - 2025-12-23
 
 This release is meant to be a major overhaul to the entire squaremap-combine project, and includes **many breaking changes**. In general, lots of cleanup and linting has been done (in part thanks to moving from pylint to ruff), and many features have been either removed or reworked for the sake of narrowing project scope and strengthening core functionality. Notably...
 
