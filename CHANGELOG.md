@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Test `test_combine.test_combine_success` updated to be a bit more robust
+  - Makes an `isinstance()` check to ensure a PIL `Image` was returned
+  - Saves the file to disk and ensures that file exists, and has data (size is more than 0 bytes)
+
 ## [1.0.0-beta.3] - 2026-02-03
 
 ### Changed

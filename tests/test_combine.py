@@ -1,11 +1,18 @@
+import shutil
 from pathlib import Path
 from typing import Literal
 
 import pytest
+from PIL import Image
 
 from squaremap_combine.core import Combiner
 
 TEST_DATA_DIR: Path = Path(__file__).absolute().parent / 'data'
+TEST_TMP_DIR: Path = Path(__file__).absolute().parent / 'tmp'
+
+if TEST_TMP_DIR.is_dir():
+    shutil.rmtree(TEST_TMP_DIR)
+TEST_TMP_DIR.mkdir(exist_ok=True)
 
 @pytest.mark.parametrize(('world'),
     [
@@ -39,4 +46,12 @@ def test_combine_success(
     ) -> None:
     c: Combiner = Combiner(TEST_DATA_DIR / 'example-tiles/2000x2000')
     # Just a basic check to ensure no errors
-    assert c.combine(world, zoom=zoom, area=area, crop=crop), (world, zoom)
+    img: Image.Image = c.combine(world, zoom=zoom, area=area, crop=crop)
+    assert isinstance(img, Image.Image), (world, zoom)
+
+    dest: Path = TEST_TMP_DIR / 'out.png'
+    img.save(dest)
+    assert dest.is_file()
+    assert dest.stat().st_size > 0
+
+    dest.unlink()

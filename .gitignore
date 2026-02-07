@@ -13,5 +13,6 @@ gui-wrapping/
 __pycache__/
 *.log
 *.egg-info
-tests/data/*.png
 *.ipynb
+tmp/
+tests/tmp/
