@@ -72,7 +72,7 @@ class CombinerStyle:
         self.grid_line_size = grid_line_size or 1
         self.grid_text_font = grid_text_font or DEFAULT_FONT_PATH
         self.grid_text_pt = grid_text_pt or 32
-        self.grid_text_stroke_size = maybe(grid_text_stroke_size).this_or(int(self.grid_text_pt * 0.2)).unwrap()
+        self.grid_text_stroke_size = maybe(grid_text_stroke_size).unwrap_or(int(self.grid_text_pt * 0.2))
         self.grid_text_stroke_color = self._parse_color_arg(grid_text_stroke_color or 'black')
         self.grid_text_fill_color = self._parse_color_arg(grid_text_fill_color or 'white')
         self.grid_coords_format = grid_coords_format or ''
