@@ -159,11 +159,11 @@ def main() -> int:  # noqa: PLR0915
         raise NotADirectoryError(f'Found no directory for zoom level {zoom} under: {world_dir}')
 
     style: CombinerStyle = CombinerStyle(
-        grid_line_color     = maybe(grid_lines).get(0, Color, default=None).val,
-        grid_line_size      = maybe(grid_lines).get(1, int, default=None).val,
-        grid_text_font      = maybe(grid_font).get(0, str, default=None).val,
-        grid_text_pt        = maybe(grid_font).get(1, int, default=None).val,
-        grid_text_fill_color= maybe(grid_font).get(2, Color, default=None).val,
+        grid_line_color     = maybe(grid_lines).get(0, Color).then(lambda x: x.val),
+        grid_line_size      = maybe(grid_lines).get(1, int).then(lambda x: x.val),
+        grid_text_font      = maybe(grid_font).get(0, str).then(lambda x: x.val),
+        grid_text_pt        = maybe(grid_font).get(1, int).then(lambda x: x.val),
+        grid_text_fill_color= maybe(grid_font).get(2, Color).then(lambda x: x.val),
         grid_coords_format  = grid_coords,
     )
 
@@ -186,8 +186,8 @@ def main() -> int:  # noqa: PLR0915
     if (not overwrite) and dest.is_file():
         logger.info('Output file already exists and --overwrite flag was not used, appending number suffix')
         highest: int = max([
-            int(re.search(r"\.(\d+)$", fp.stem).groups()[0]) \
-            for fp in Path(dest.parent).glob(f'*{dest.suffix}') if re.search(r"\.(\d+)$", fp.stem)  # ty:ignore[possibly-missing-attribute]
+            int(m.groups()[0]) \
+            for fp in Path(dest.parent).glob(f'*{dest.suffix}') if (m := re.search(r"\.(\d+)$", fp.stem))
         ] or [0])
         dest = dest.with_stem(f'{dest.stem}.{highest + 1}')
     logger.info(f'Saving to: {dest}')

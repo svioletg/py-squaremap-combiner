@@ -3,7 +3,7 @@ from collections.abc import Callable, Generator
 from itertools import batched
 from json import JSONEncoder
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Self, cast
 
 from PIL import Image, ImageDraw
 
@@ -162,7 +162,7 @@ def coerce_to[A, B](val: A | B, cls: type[B], coerce_fn: Callable[[A], B] | None
     coerce_fn = coerce_fn or cls
     if isinstance(val, cls):
         return val
-    return coerce_fn(val)
+    return coerce_fn(cast(A, val))
 
 def snap_num(num: int | float, mult: int, snap_fn: Callable[[int | float], int]) -> int:
     """

@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Test `test_combine.test_combine_success` updated to be a bit more robust
+- Updated test `test_combine.test_combine_success` to be a bit more robust
   - Makes an `isinstance()` check to ensure a PIL `Image` was returned
   - Saves the file to disk and ensures that file exists, and has data (size is more than 0 bytes)
+- Module `core` updated for compatibility with `py-maybetype` version 0.10.0
 
 ## [1.0.0-beta.3] - 2026-02-03
 
