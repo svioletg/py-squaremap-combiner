@@ -17,11 +17,11 @@ requires-python = ">=3.12"
 classifiers = [
   "Programming Language :: Python :: 3",
 ]
-dependencies=[
+dependencies = [
   "loguru>=0.7.2",
   "pillow>=10.4.0",
   "platformdirs>=4.3.6",
-  "py-maybetype>=0.6.0",
+  "py-maybetype>=0.7.0",
   "rich>=14.2.0",
 ]
 
@@ -29,8 +29,8 @@ dependencies=[
 dev = [
     "ipython>=9.8.0",
     "pytest>=9.0.1",
-    "ruff>=0.14.8",
-    "ty>=0.0.4",
+    "ruff>=0.15.0",
+    "ty>=0.0.15",
 ]
 docs = [
     "furo>=2025.9.25",
@@ -52,6 +52,3 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 squaremap_combine = ["*.ttf", "*.txt", "*.ico"]
-
-[tool.uv.sources]
-maybetype = { git = "https://github.com/svioletg/py-maybetype" }
