@@ -19,7 +19,7 @@ classifiers = [
 ]
 dependencies=[
   "loguru>=0.7.2",
-  "pillow>=10.4.0",
+  "pillow>=12.2.0",
   "platformdirs>=4.3.6",
   "py-maybetype>=0.6.0",
   "rich>=14.2.0",
