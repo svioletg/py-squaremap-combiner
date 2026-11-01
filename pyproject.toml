@@ -21,7 +21,7 @@ dependencies = [
   "loguru>=0.7.2",
   "pillow>=13.0.0",
   "platformdirs>=4.3.6",
-  "py-maybetype~=0.10",
+  "py-maybetype~=0.14",
   "rich>=14.2.0",
 ]
 
