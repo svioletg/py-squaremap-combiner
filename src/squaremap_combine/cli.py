@@ -9,7 +9,7 @@ from argparse import HelpFormatter as BaseHelpFormatter
 from collections.abc import Callable
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Literal, Never, cast
+from typing import Any, Literal, Never
 
 from maybetype import maybe
 from PIL import Image
@@ -40,7 +40,7 @@ def opt_rect(opt_name: str, delim: str = ',') -> Callable[[str], Rect]:
         coords: tuple[int, ...] = tuple(map(int, s.split(delim)))
         if len(coords) != 4:  # noqa: PLR2004
             abort(f'[err]Expected 4 integer values for option {opt_name}[/]')
-        coords = cast(tuple[int, int, int, int], coords)
+
         return Rect(coords)
     return parse
 
@@ -49,7 +49,8 @@ def opt_crop(s: str, delim: str = ',') -> tuple[int, int] | Literal['auto'] | No
         coords: tuple[int, ...] = tuple(map(int, s.split(delim)))
         if len(coords) != 2:  # noqa: PLR2004
             abort('[err]Expected 2 integer values for option -c/--crop[/]')
-        return cast(tuple[int, int], coords)
+
+        return coords
     if s == 'auto':
         return 'auto'
     abort(f'[err]Expected 2 integers value or string "auto" for option -c/--crop: {s}[/]')
