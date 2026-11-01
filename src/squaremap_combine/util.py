@@ -3,7 +3,7 @@ from collections.abc import Callable, Generator
 from itertools import batched
 from json import JSONEncoder
 from pathlib import Path
-from typing import Any, Self, cast
+from typing import Any, Self
 
 from PIL import Image, ImageDraw
 
@@ -154,15 +154,15 @@ class Color:
         """Converts this color to a four-integer tuple representing its RGBA values."""
         return self.red, self.green, self.blue, self.alpha
 
-def coerce_to[A, B](val: A | B, cls: type[B], coerce_fn: Callable[[A], B] | None = None) -> B:
+def coerce_to[T](val: object, cls: type[T], coerce_fn: Callable[[object], T] | None = None) -> T:
     """
     Returns ``val`` if ``val`` is an instance of ``cls``, otherwise calls ``coerce_fn`` on ``val`` and returns the
     result. If ``coerce_fn`` is ``None``, ``cls`` will be used as the callable.
     """
-    coerce_fn = coerce_fn or cls
     if isinstance(val, cls):
         return val
-    return coerce_fn(cast(A, val))
+
+    return coerce_fn(val) if coerce_fn else cls(val)  # ty: ignore[too-many-positional-arguments]
 
 def snap_num(num: int | float, mult: int, snap_fn: Callable[[int | float], int]) -> int:
     """
