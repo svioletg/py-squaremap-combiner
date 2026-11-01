@@ -35,7 +35,7 @@ class CombinerStyle:
     grid_text_fill_color: Color
     grid_coords_format: str
 
-    def __init__(self,
+    def __init__(self,  # noqa: PLR0917
             bg_color: Color | str | None = None,
             grid_line_color: Color | str | None = None,
             grid_line_size: int | None = None,
