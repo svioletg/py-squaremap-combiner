@@ -149,9 +149,9 @@ def main() -> int:  # noqa: PLR0915
     area         : Rect | None                              = args.area
     crop         : tuple[int, int] | Literal['auto'] | None = args.crop
     grid_step    : int                                      = args.grid
-    grid_lines   : tuple[Color, int]                        = args.grid_lines
+    grid_lines   : tuple[Color, int] | None                 = args.grid_lines
     grid_coords  : str                                      = args.grid_coords
-    grid_font    : tuple[str, int, Color]                   = args.grid_font
+    grid_font    : tuple[str, int, Color] | None            = args.grid_font
     progress_bar : bool                                     = args.no_progress_bar
 
     if not world_dir.is_dir():
@@ -160,11 +160,11 @@ def main() -> int:  # noqa: PLR0915
         raise NotADirectoryError(f'Found no directory for zoom level {zoom} under: {world_dir}')
 
     style: CombinerStyle = CombinerStyle(
-        grid_line_color     = maybe(grid_lines).get(0, Color).then(lambda x: x.val),
-        grid_line_size      = maybe(grid_lines).get(1, int).then(lambda x: x.val),
-        grid_text_font      = maybe(grid_font).get(0, str).then(lambda x: x.val),
-        grid_text_pt        = maybe(grid_font).get(1, int).then(lambda x: x.val),
-        grid_text_fill_color= maybe(grid_font).get(2, Color).then(lambda x: x.val),
+        grid_line_color     = grid_lines and grid_lines[0],
+        grid_line_size      = grid_lines and grid_lines[1],
+        grid_text_font      = grid_font and grid_font[0],
+        grid_text_pt        = grid_font and grid_font[1],
+        grid_text_fill_color= grid_font and grid_font[2],
         grid_coords_format  = grid_coords,
     )
 
