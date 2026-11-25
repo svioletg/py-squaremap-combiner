@@ -29,8 +29,8 @@ dependencies = [
 dev = [
     "ipython>=9.8.0",
     "pytest>=9.0.1",
-    "ruff>=0.15.0",
-    "ty>=0.0.95",
+    "ruff>=0.17.6",
+    "ty>=0.0.110",
 ]
 docs = [
     "furo>=2025.9.25",
